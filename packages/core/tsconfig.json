@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No "dom" and no "node" types on purpose: core must run anywhere (browser, server, renderer).
+    "lib": ["ES2023"],
+    "types": []
+  },
+  "include": ["src"]
+}

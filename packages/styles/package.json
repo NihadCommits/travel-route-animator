@@ -1,0 +1,13 @@
+{
+  "name": "@travel-route-animator/styles",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Map themes and the generator that turns them into MapLibre styles.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  }
+}
