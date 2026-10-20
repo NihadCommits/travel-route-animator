@@ -16,6 +16,7 @@ import {
   type ChromiumOptions,
   type OpenGlRenderer,
 } from '@remotion/renderer';
+import { webpackOverride } from '../webpack-override';
 
 const COMPOSITIONS = ['SpikeFlat', 'SpikeGlobe'];
 const GL_RENDERERS: readonly OpenGlRenderer[] = [
@@ -50,7 +51,10 @@ await mkdir(outputDir, { recursive: true });
 await ensureBrowser();
 
 console.log('Bundling the scene package …');
-const serveUrl = await bundle({ entryPoint: join(packageRoot, 'src/index.ts') });
+const serveUrl = await bundle({
+  entryPoint: join(packageRoot, 'src/index.ts'),
+  webpackOverride,
+});
 
 for (const id of ids) {
   const composition = await selectComposition({ serveUrl, id, chromiumOptions });

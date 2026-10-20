@@ -3,8 +3,8 @@
   "compilerOptions": {
     "lib": ["ES2023", "DOM"],
     "jsx": "react-jsx",
-    // "node" only for the render scripts; the compositions themselves run in the browser.
+    // "node" only for the render scripts and config files; the compositions run in the browser.
     "types": ["node"]
   },
-  "include": ["src", "scripts"]
+  "include": ["src", "scripts", "*.ts"]
 }
