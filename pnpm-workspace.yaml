@@ -1,0 +1,8 @@
+packages:
+  - apps/*
+  - packages/*
+
+# pnpm blocks dependency build scripts unless they are reviewed and listed here.
+allowBuilds:
+  # Verifies the platform-specific binary after install (used by tsx).
+  esbuild: true
