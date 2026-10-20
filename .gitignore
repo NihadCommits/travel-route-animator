@@ -1,0 +1,43 @@
+# Local context for Claude Code (never committed)
+routen-animator-kontext/
+CLAUDE.md
+CLAUDE.local.md
+.claude/
+
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+out/
+.vite/
+*.tsbuildinfo
+
+# Tests
+coverage/
+playwright-report/
+test-results/
+
+# Environment (keep the template)
+.env
+.env.*
+!.env.example
+
+# Local projects, caches and rendered videos (anchored to the repo root)
+/data/
+/output/
+
+# Logs
+logs/
+*.log
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
