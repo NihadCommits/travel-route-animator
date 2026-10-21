@@ -17,3 +17,5 @@ export * from './routing/canonicalJson';
 export * from './routing/inputHash';
 export * from './resolve/resolve';
 export * from './migrations/migrations';
+export * from './model/issues';
+export * from './model/readiness';

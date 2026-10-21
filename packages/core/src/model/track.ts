@@ -7,6 +7,7 @@ import {
   WaypointKindSchema,
   WaypointSourceSchema,
 } from './enums';
+import { reportIssue } from './issues';
 import { HexColorSchema, IdSchema, IsoDateTimeSchema, LngLatSchema } from './primitives';
 import { isRoutingAllowed, VEHICLE_CATALOG } from './vehicles';
 
@@ -27,10 +28,10 @@ export const WaypointSchema = z
   })
   .superRefine((waypoint, ctx) => {
     if (waypoint.kind === 'shape' && waypoint.holdSec > 0) {
-      ctx.addIssue({
-        code: 'custom',
+      reportIssue(ctx, {
         path: ['holdSec'],
         input: waypoint.holdSec,
+        code: 'waypoint.shapeHold',
         message: 'Shape points are invisible and cannot have a hold; make it a stop instead',
       });
     }
@@ -44,11 +45,12 @@ export const RoutingSettingsSchema = z
   })
   .superRefine((routing, ctx) => {
     if (routing.avoid !== undefined && routing.mode !== 'road') {
-      ctx.addIssue({
-        code: 'custom',
+      reportIssue(ctx, {
         path: ['avoid'],
         input: routing.avoid,
+        code: 'routing.avoidOnlyRoad',
         message: `avoid only applies to road routing, not to "${routing.mode}"`,
+        values: { mode: routing.mode },
       });
     }
   });
@@ -123,49 +125,29 @@ export const TrackSchema = z
     /** Cache written by the server. Never edited by hand. */
     computed: ComputedRouteSchema.optional(),
   })
+  // Only rules that no editing step can legitimately break. Waypoint count and stop/shape
+  // endpoints may be unfinished while editing; they are checked in readiness.ts (ADR 0002).
   .superRefine((track, ctx) => {
-    const { waypoints, routing, vehicle } = track;
-
-    // A GPX import carries its own geometry, so it may get by with fewer waypoints.
-    const hasGpxGeometry = routing.mode === 'gpx' && track.computed !== undefined;
-    if (waypoints.length < 2 && !hasGpxGeometry) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['waypoints'],
-        input: waypoints,
-        message: `A track needs at least 2 waypoints, got ${waypoints.length}`,
-      });
-    }
-
-    const lastIndex = waypoints.length - 1;
-    for (const index of new Set([0, lastIndex])) {
-      const waypoint = waypoints[index];
-      if (waypoint && waypoint.kind !== 'stop') {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['waypoints', index, 'kind'],
-          input: waypoint.kind,
-          message: `The ${index === 0 ? 'first' : 'last'} waypoint must be a stop, not a shape point`,
-        });
-      }
-    }
+    const { routing, vehicle } = track;
 
     if (!isRoutingAllowed(vehicle.type, routing.mode)) {
       const allowed = VEHICLE_CATALOG[vehicle.type].routingModes.join(', ');
-      ctx.addIssue({
-        code: 'custom',
+      reportIssue(ctx, {
         path: ['routing', 'mode'],
         input: routing.mode,
+        code: 'track.routingNotAllowed',
         message: `A ${vehicle.type} cannot use "${routing.mode}" routing; allowed: ${allowed}`,
+        values: { vehicle: vehicle.type, mode: routing.mode, allowed },
       });
     }
 
     if (track.flight !== undefined && vehicle.type !== 'plane') {
-      ctx.addIssue({
-        code: 'custom',
+      reportIssue(ctx, {
         path: ['flight'],
         input: track.flight,
+        code: 'track.flightOnlyPlane',
         message: `Flight options only apply to planes, not to a ${vehicle.type}`,
+        values: { vehicle: vehicle.type },
       });
     }
   });

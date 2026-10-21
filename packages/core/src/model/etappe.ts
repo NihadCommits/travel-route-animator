@@ -1,54 +1,36 @@
 import { z } from 'zod';
 import { CameraModeSchema, ViewModeSchema } from './enums';
+import { reportIssue } from './issues';
 import { IdSchema, LngLatSchema } from './primitives';
 import { MapStyleRefSchema } from './style';
 import { TrackSchema } from './track';
 
-// Small tolerance so that 2.3 + 5.7 <= 8 does not fail on floating point noise.
-const EPSILON_SEC = 1e-6;
-
 const PitchSchema = z.number().min(0).max(85);
 const ZoomSchema = z.number().min(0).max(24);
 
-export const CameraSettingsSchema = z
-  .strictObject({
-    mode: CameraModeSchema,
-    /** Required for 'follow'; must point at a track of the same stage. */
-    followTrackId: IdSchema.optional(),
-    /** Optional fixed zoom while following. */
-    zoom: ZoomSchema.optional(),
-    paddingPx: z.number().min(0),
-    /** How far the camera trails behind the vehicle (0 = rigid). */
-    lagSec: z.number().min(0),
-    startWithOverview: z.boolean(),
-    endWithOverview: z.boolean(),
-    staticCamera: z
-      .strictObject({
-        center: LngLatSchema,
-        zoom: ZoomSchema,
-        pitchDeg: PitchSchema,
-        bearingDeg: z.number(),
-      })
-      .optional(),
-  })
-  .superRefine((camera, ctx) => {
-    if (camera.mode === 'follow' && camera.followTrackId === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['followTrackId'],
-        input: camera.followTrackId,
-        message: 'Camera mode "follow" needs followTrackId',
-      });
-    }
-    if (camera.mode === 'static' && camera.staticCamera === undefined) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['staticCamera'],
-        input: camera.staticCamera,
-        message: 'Camera mode "static" needs staticCamera',
-      });
-    }
-  });
+// Whether follow/static have their target is checked in readiness.ts (ADR 0002): switching the
+// camera mode in the editor comes before choosing the track to follow.
+export const CameraSettingsSchema = z.strictObject({
+  mode: CameraModeSchema,
+  /** Needed for 'follow'; must point at a track of the same stage. */
+  followTrackId: IdSchema.optional(),
+  /** Optional fixed zoom while following. */
+  zoom: ZoomSchema.optional(),
+  paddingPx: z.number().min(0),
+  /** How far the camera trails behind the vehicle (0 = rigid). */
+  lagSec: z.number().min(0),
+  startWithOverview: z.boolean(),
+  endWithOverview: z.boolean(),
+  /** Needed for 'static'. */
+  staticCamera: z
+    .strictObject({
+      center: LngLatSchema,
+      zoom: ZoomSchema,
+      pitchDeg: PitchSchema,
+      bearingDeg: z.number(),
+    })
+    .optional(),
+});
 export type CameraSettings = z.infer<typeof CameraSettingsSchema>;
 
 export const ViewSettingsSchema = z
@@ -62,11 +44,12 @@ export const ViewSettingsSchema = z
   })
   .superRefine((view, ctx) => {
     if (view.mode === '2d' && view.pitchDeg !== 0) {
-      ctx.addIssue({
-        code: 'custom',
+      reportIssue(ctx, {
         path: ['pitchDeg'],
         input: view.pitchDeg,
+        code: 'view.flat2d',
         message: `A 2d view looks straight down, so pitchDeg must be 0 (got ${view.pitchDeg}); use 3d-tilted for a tilted map`,
+        values: { pitch: view.pitchDeg },
       });
     }
   });
@@ -114,45 +97,19 @@ export const OverlaySettingsSchema = z.strictObject({
 });
 export type OverlaySettings = z.infer<typeof OverlaySettingsSchema>;
 
-export const EtappeSchema = z
-  .strictObject({
-    id: IdSchema,
-    name: z.string(),
-    /** Length of the drive animation, without intro and outro. */
-    durationSec: PositiveSec,
-    view: ViewSettingsSchema,
-    mapStyle: MapStyleRefSchema.optional(),
-    intro: IntroSettingsSchema,
-    outro: OutroSettingsSchema,
-    overlays: OverlaySettingsSchema,
-    /** Tracks run in parallel. */
-    tracks: z.array(TrackSchema).min(1, 'A stage needs at least one vehicle (track)'),
-  })
-  .superRefine((etappe, ctx) => {
-    etappe.tracks.forEach((track, index) => {
-      const { startOffsetSec, durationSec } = track.timing;
-      const endSec = startOffsetSec + (durationSec ?? 0);
-      if (startOffsetSec >= etappe.durationSec || endSec > etappe.durationSec + EPSILON_SEC) {
-        ctx.addIssue({
-          code: 'custom',
-          path: ['tracks', index, 'timing'],
-          input: track.timing,
-          message:
-            durationSec === undefined
-              ? `Track starts at ${startOffsetSec} s, but the stage is only ${etappe.durationSec} s long`
-              : `Track runs until ${endSec} s, but the stage is only ${etappe.durationSec} s long`,
-        });
-      }
-    });
-
-    const { followTrackId } = etappe.view.camera;
-    if (followTrackId !== undefined && !etappe.tracks.some((t) => t.id === followTrackId)) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['view', 'camera', 'followTrackId'],
-        input: followTrackId,
-        message: `The camera follows track "${followTrackId}", which is not part of this stage`,
-      });
-    }
-  });
+// A stage may be unfinished while editing (no vehicle yet, timing longer than the stage after
+// shortening it, camera following a deleted track). Those checks live in readiness.ts (ADR 0002).
+export const EtappeSchema = z.strictObject({
+  id: IdSchema,
+  name: z.string(),
+  /** Length of the drive animation, without intro and outro. */
+  durationSec: PositiveSec,
+  view: ViewSettingsSchema,
+  mapStyle: MapStyleRefSchema.optional(),
+  intro: IntroSettingsSchema,
+  outro: OutroSettingsSchema,
+  overlays: OverlaySettingsSchema,
+  /** Tracks run in parallel. */
+  tracks: z.array(TrackSchema),
+});
 export type Etappe = z.infer<typeof EtappeSchema>;
