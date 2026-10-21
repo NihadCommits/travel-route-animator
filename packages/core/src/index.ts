@@ -12,3 +12,8 @@ export * from './model/project';
 export * from './model/validation';
 export * from './model/defaults';
 export * from './model/factories';
+
+export * from './routing/canonicalJson';
+export * from './routing/inputHash';
+export * from './resolve/resolve';
+export * from './migrations/migrations';
