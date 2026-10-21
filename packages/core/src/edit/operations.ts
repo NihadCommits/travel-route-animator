@@ -97,11 +97,14 @@ export function addTrack(
   project: Project,
   etappeId: Id,
   vehicleType: VehicleType,
-  ctx: FactoryContext = defaultFactoryContext,
+  { label, ctx = defaultFactoryContext }: { label?: string; ctx?: FactoryContext } = {},
 ): Added {
   const { groupIndex, etappeIndex } = requireLocation(project, etappeId, 'etappe');
   const etappe = project.groups[groupIndex]!.etappen[etappeIndex]!;
-  const track = createTrack({ vehicleType, colorIndex: etappe.tracks.length }, ctx);
+  const track = createTrack(
+    { vehicleType, colorIndex: etappe.tracks.length, ...(label !== undefined && { label }) },
+    ctx,
+  );
 
   const updated = updateEtappe(project, groupIndex, etappeIndex, (current) => {
     const tracks = [...current.tracks, track];

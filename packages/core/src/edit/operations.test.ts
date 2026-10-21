@@ -61,7 +61,7 @@ describe('editing operations', () => {
 
     addGroup(project, 'New', ctx);
     addEtappe(project, 'g_outbound', 'New', ctx);
-    addTrack(project, 'e_train', 'car', ctx);
+    addTrack(project, 'e_train', 'car', { ctx });
     renameItem(project, 'e_train', 'Renamed');
     removeItem(project, 't_a');
     duplicateItem(project, 'g_outbound', { ctx });
@@ -106,19 +106,28 @@ describe('add', () => {
   it('lets the first vehicle choose the view and become the camera target', () => {
     const ctx = predictableContext();
     const withEtappe = addEtappe(sampleProject(), 'g_outbound', 'Flight home', ctx);
-    const { project, id } = addTrack(withEtappe.project, withEtappe.id, 'plane', ctx);
+    const { project, id } = addTrack(withEtappe.project, withEtappe.id, 'plane', {
+      label: 'Flugzeug',
+      ctx,
+    });
 
     const etappe = project.groups[0]!.etappen[2]!;
     expect(etappe.view.mode).toBe('globe');
     expect(etappe.view.camera).toMatchObject({ mode: 'follow', followTrackId: id });
-    expect(etappe.tracks[0]).toMatchObject({ id, routing: { mode: 'great-circle' } });
+    expect(etappe.tracks[0]).toMatchObject({
+      id,
+      label: 'Flugzeug',
+      routing: { mode: 'great-circle' },
+    });
     expect(etappe.tracks[0]!.flight).toBeDefined();
     expectStorable(project);
   });
 
   it('keeps the view when more vehicles join and gives them the next colour', () => {
     const before = sampleProject();
-    const { project, id } = addTrack(before, 'e_options', 'bus', predictableContext());
+    const { project, id } = addTrack(before, 'e_options', 'bus', {
+      ctx: predictableContext(),
+    });
     const etappe = project.groups[1]!.etappen[0]!;
     expect(etappe.view).toEqual(before.groups[1]!.etappen[0]!.view);
     expect(etappe.tracks.map((track) => track.id)).toEqual(['t_a', 't_b', id]);
