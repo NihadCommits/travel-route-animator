@@ -10,7 +10,7 @@ Travel Route Animator is a local tool that turns trip itineraries into map anima
 
 ### Status
 
-**Early development.** The foundation is in place: a pnpm monorepo with editor and server skeletons, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor itself is built module by module from here.
+**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor already lists projects and builds their structure (groups, stages, vehicles) in a project tree, with autosave and undo/redo. Waypoints, the map, the preview and the export follow module by module.
 
 ### Planned features
 
@@ -96,7 +96,7 @@ Travel Route Animator ist ein lokales Tool, das Reiserouten in Kartenanimationen
 
 ### Status
 
-**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo mit Grundgerüsten für Editor und Server, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der eigentliche Editor entsteht ab jetzt Modul für Modul.
+**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet bereits Projekte auf und baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum auf, mit automatischem Speichern und Rückgängig/Wiederholen. Wegpunkte, Karte, Vorschau und Export folgen Modul für Modul.
 
 ### Geplante Funktionen
 
