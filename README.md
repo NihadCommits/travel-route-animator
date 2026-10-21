@@ -72,13 +72,13 @@ Projects are plain JSON files in `data/projects/<name>/project.json`; the `data/
 
 The local server exposes the projects:
 
-| Request                                   | Result                                                            |
-| ----------------------------------------- | ----------------------------------------------------------------- |
-| `GET /api/projects`                       | List with ID, name, folder and last change                        |
-| `POST /api/projects` with `{"name": "…"}` | A new, empty project                                              |
-| `GET /api/projects/:id`                   | The complete project                                              |
-| `PUT /api/projects/:id`                   | Save a project; invalid ones are rejected with a list of problems |
-| `DELETE /api/projects/:id`                | Move the project to the trash                                     |
+| Request                                   | Result                                                                  |
+| ----------------------------------------- | ----------------------------------------------------------------------- |
+| `GET /api/projects`                       | List with ID, name, folder and last change                              |
+| `POST /api/projects` with `{"name": "…"}` | A new, empty project                                                    |
+| `GET /api/projects/:id`                   | The complete project; if its file is broken, a 422 listing the problems |
+| `PUT /api/projects/:id`                   | Save a project; invalid ones are rejected with a list of problems       |
+| `DELETE /api/projects/:id`                | Move the project to the trash                                           |
 
 ### Data sources
 
@@ -158,13 +158,13 @@ Projekte sind einfache JSON-Dateien unter `data/projects/<name>/project.json`; d
 
 Der lokale Server stellt die Projekte bereit:
 
-| Anfrage                                  | Ergebnis                                                                   |
-| ---------------------------------------- | -------------------------------------------------------------------------- |
-| `GET /api/projects`                      | Liste mit ID, Name, Ordner und letzter Änderung                            |
-| `POST /api/projects` mit `{"name": "…"}` | Ein neues, leeres Projekt                                                  |
-| `GET /api/projects/:id`                  | Das komplette Projekt                                                      |
-| `PUT /api/projects/:id`                  | Projekt speichern; ungültige werden mit einer Liste der Probleme abgelehnt |
-| `DELETE /api/projects/:id`               | Projekt in den Papierkorb verschieben                                      |
+| Anfrage                                  | Ergebnis                                                                       |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `GET /api/projects`                      | Liste mit ID, Name, Ordner und letzter Änderung                                |
+| `POST /api/projects` mit `{"name": "…"}` | Ein neues, leeres Projekt                                                      |
+| `GET /api/projects/:id`                  | Das komplette Projekt; ist seine Datei kaputt, eine 422 mit Liste der Probleme |
+| `PUT /api/projects/:id`                  | Projekt speichern; ungültige werden mit einer Liste der Probleme abgelehnt     |
+| `DELETE /api/projects/:id`               | Projekt in den Papierkorb verschieben                                          |
 
 ### Datenquellen
 
