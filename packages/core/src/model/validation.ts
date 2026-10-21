@@ -1,22 +1,30 @@
 import type { z } from 'zod';
+import type { IssueCode, IssueValues, ValidationIssue } from './issues';
 import { formatPath, ProjectSchema, type Project } from './project';
-
-export interface ValidationIssue {
-  /** Where the problem is, e.g. groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1] */
-  path: string;
-  message: string;
-}
 
 export type ValidationResult<T> =
   { success: true; data: T } | { success: false; issues: ValidationIssue[] };
 
-export function toValidationIssues(error: z.ZodError): ValidationIssue[] {
-  return error.issues.map((issue) => ({
-    path: formatPath(issue.path),
-    message: issue.message,
-  }));
+interface IssueParams {
+  issueCode?: IssueCode;
+  values?: IssueValues;
 }
 
+export function toValidationIssues(error: z.ZodError): ValidationIssue[] {
+  return error.issues.map((issue) => {
+    const params = (issue.code === 'custom' ? issue.params : undefined) as IssueParams | undefined;
+    return {
+      path: formatPath(issue.path),
+      message: issue.message,
+      ...(params?.issueCode && { code: params.issueCode, values: params.values ?? {} }),
+    };
+  });
+}
+
+/**
+ * Checks everything that must always hold, also for an unfinished project in the editor
+ * ("storable"). Whether a stage can be previewed or exported is checkRenderReadiness().
+ */
 export function validateProject(input: unknown): ValidationResult<Project> {
   const result = ProjectSchema.safeParse(input);
   return result.success

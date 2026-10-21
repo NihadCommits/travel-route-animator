@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MapBaseSchema } from './enums';
+import { reportIssue } from './issues';
 import { HexColorSchema } from './primitives';
 
 /** Colour slots of a vector theme. Expanded in M9. */
@@ -30,11 +31,12 @@ export const MapStyleRefSchema = z
     if (THEMED_BASES.has(style.base)) return;
     for (const key of ['themeId', 'overrides'] as const) {
       if (style[key] !== undefined) {
-        ctx.addIssue({
-          code: 'custom',
+        reportIssue(ctx, {
           path: [key],
           input: style[key],
+          code: 'style.onlyThemedBases',
           message: `${key} only applies to vector and terrain maps, not to "${style.base}"`,
+          values: { key, base: style.base },
         });
       }
     }

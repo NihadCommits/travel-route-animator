@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../testing/sampleProject';
+import type { ValidationIssue } from './issues';
 import type { Project } from './project';
 import { formatPath } from './project';
-import { describeIssues, validateProject, type ValidationIssue } from './validation';
+import { describeIssues, validateProject } from './validation';
 
 // Shortcuts into the sample: the train stage, the flight stage and the options stage.
 const trainEtappe = (p: Project) => p.groups[0]!.etappen[0]!;
@@ -18,75 +19,59 @@ function issuesOf(project: unknown): ValidationIssue[] {
   return result.issues;
 }
 
-function expectIssue(project: unknown, path: string, message: RegExp) {
+function expectIssue(project: unknown, path: string, message: RegExp): ValidationIssue {
   const issues = issuesOf(project);
   const match = issues.find((issue) => issue.path === path && message.test(issue.message));
   expect(
     match,
     `No issue at ${path} matching ${message}. Got:\n${describeIssues(issues)}`,
   ).toBeDefined();
+  return match!;
 }
 
-describe('validateProject', () => {
+describe('validateProject (always checked, "storable")', () => {
   it('accepts a complete, consistent project', () => {
     const result = validateProject(sampleProject());
     expect(result.success).toBe(true);
   });
 
   describe('coordinates', () => {
-    it('rejects a swapped [lat, lng] pair and says where it is', () => {
+    it('rejects a swapped [lat, lng] pair, says where it is and carries a code', () => {
       const project = sampleProject();
       trainTrack(project).waypoints[0]!.lngLat = [47.8131, 103.0458];
-      expectIssue(
+      const issue = expectIssue(
         project,
         `${TRAIN_TRACK_PATH}.waypoints[0].lngLat[1]`,
         /Latitude 103\.0458 is out of range.*Looks like \[lat, lng\]/,
       );
+      expect(issue).toMatchObject({ code: 'lngLat.swapped', values: { lat: 103.0458 } });
+    });
+
+    it('uses a plain range code when the pair does not look swapped', () => {
+      const project = sampleProject();
+      trainTrack(project).waypoints[0]!.lngLat = [120, 95];
+      const issue = expectIssue(
+        project,
+        `${TRAIN_TRACK_PATH}.waypoints[0].lngLat[1]`,
+        /Latitude 95 is out of range/,
+      );
+      expect(issue.code).toBe('lngLat.latitudeRange');
     });
   });
 
   describe('tracks', () => {
-    it('rejects a track with a single waypoint', () => {
-      const project = sampleProject();
-      trainTrack(project).waypoints.splice(1);
-      expectIssue(project, `${TRAIN_TRACK_PATH}.waypoints`, /at least 2 waypoints, got 1/);
-    });
-
-    it('lets a GPX track with imported geometry get by with fewer waypoints', () => {
-      const project = sampleProject();
-      const track = trainTrack(project);
-      track.routing = { mode: 'gpx' };
-      track.waypoints.splice(1);
-      track.computed = {
-        inputHash: 'gpx-import',
-        geometry: [
-          [13.0458, 47.8131],
-          [16.3755, 48.1851],
-        ],
-        legs: [],
-        distanceM: 252_000,
-        provider: 'gpx',
-        computedAt: '2026-10-21T08:00:00.000Z',
-      };
-      expect(validateProject(project).success).toBe(true);
-    });
-
     it('rejects routing that does not fit the vehicle', () => {
       const project = sampleProject();
       flightEtappe(project).tracks[0]!.routing = { mode: 'road' };
-      expectIssue(
+      const issue = expectIssue(
         project,
         'groups[0].etappen[1].tracks[0].routing.mode',
         /A plane cannot use "road" routing; allowed: great-circle/,
       );
-    });
-
-    it('requires the first and last waypoint to be stops', () => {
-      const project = sampleProject();
-      const waypoints = trainTrack(project).waypoints;
-      waypoints[2]!.kind = 'shape';
-      waypoints[2]!.showLabel = false;
-      expectIssue(project, `${TRAIN_TRACK_PATH}.waypoints[2].kind`, /last waypoint must be a stop/);
+      expect(issue).toMatchObject({
+        code: 'track.routingNotAllowed',
+        values: { vehicle: 'plane', mode: 'road', allowed: 'great-circle' },
+      });
     });
 
     it('rejects a hold on an invisible shape point', () => {
@@ -120,77 +105,87 @@ describe('validateProject', () => {
         /three-letter IATA code/,
       );
     });
-  });
-
-  describe('timing', () => {
-    it('rejects a track that runs past the end of its stage', () => {
-      const project = sampleProject();
-      optionsEtappe(project).tracks[1]!.timing.durationSec = 7.5;
-      expectIssue(
-        project,
-        'groups[1].etappen[0].tracks[1].timing',
-        /runs until 8\.5 s, but the stage is only 8 s long/,
-      );
-    });
-
-    it('rejects a track without duration that starts after the stage has ended', () => {
-      const project = sampleProject();
-      trainTrack(project).timing.startOffsetSec = 8;
-      expectIssue(
-        project,
-        `${TRAIN_TRACK_PATH}.timing`,
-        /starts at 8 s, but the stage is only 8 s/,
-      );
-    });
-
-    it('tolerates floating point noise at the very end of a stage', () => {
-      const project = sampleProject();
-      const timing = optionsEtappe(project).tracks[1]!.timing;
-      timing.startOffsetSec = 0.1 + 0.2; // 0.30000000000000004
-      timing.durationSec = 7.7;
-      expect(validateProject(project).success).toBe(true);
-    });
 
     it('rejects a stage with zero duration', () => {
       const project = sampleProject();
       trainEtappe(project).durationSec = 0;
-      expectIssue(project, 'groups[0].etappen[0].durationSec', /expected number to be >0/i);
+      const issue = expectIssue(
+        project,
+        'groups[0].etappen[0].durationSec',
+        /expected number to be >0/i,
+      );
+      // Zod's own checks carry no code; the editor translates them via Zod's German locale.
+      expect(issue.code).toBeUndefined();
     });
   });
 
-  describe('stages', () => {
-    it('needs at least one vehicle', () => {
+  describe('unfinished states from the editor can be saved (ADR 0002)', () => {
+    it.each([
+      [
+        'a stage without vehicles',
+        (p: Project) => {
+          trainEtappe(p).tracks = [];
+        },
+      ],
+      [
+        'a track with a single waypoint',
+        (p: Project) => {
+          trainTrack(p).waypoints.splice(1);
+        },
+      ],
+      [
+        'a track without waypoints',
+        (p: Project) => {
+          trainTrack(p).waypoints = [];
+        },
+      ],
+      [
+        'a shape point at the end of a track',
+        (p: Project) => {
+          Object.assign(trainTrack(p).waypoints[2]!, { kind: 'shape', showLabel: false });
+        },
+      ],
+      [
+        'a track that runs past the end of its stage',
+        (p: Project) => {
+          optionsEtappe(p).tracks[1]!.timing.durationSec = 30;
+        },
+      ],
+      [
+        'a follow camera without a target',
+        (p: Project) => {
+          trainEtappe(p).view.camera.mode = 'follow';
+        },
+      ],
+      [
+        'a camera that follows a deleted track',
+        (p: Project) => {
+          Object.assign(trainEtappe(p).view.camera, { mode: 'follow', followTrackId: 't_gone' });
+        },
+      ],
+      [
+        'a static camera without position',
+        (p: Project) => {
+          trainEtappe(p).view.camera.mode = 'static';
+        },
+      ],
+    ])('%s', (_name, makeUnfinished) => {
       const project = sampleProject();
-      trainEtappe(project).tracks = [];
-      expectIssue(project, 'groups[0].etappen[0].tracks', /at least one vehicle/);
+      makeUnfinished(project);
+      expect(validateProject(project).success).toBe(true);
     });
+  });
 
-    it('needs followTrackId for the follow camera', () => {
-      const project = sampleProject();
-      trainEtappe(project).view.camera.mode = 'follow';
-      expectIssue(project, 'groups[0].etappen[0].view.camera.followTrackId', /needs followTrackId/);
-    });
-
-    it('rejects a camera that follows a track of another stage', () => {
-      const project = sampleProject();
-      Object.assign(trainEtappe(project).view.camera, { mode: 'follow', followTrackId: 't_plane' });
-      expectIssue(
-        project,
-        'groups[0].etappen[0].view.camera.followTrackId',
-        /follows track "t_plane", which is not part of this stage/,
-      );
-    });
-
-    it('needs staticCamera for the static camera', () => {
-      const project = sampleProject();
-      trainEtappe(project).view.camera.mode = 'static';
-      expectIssue(project, 'groups[0].etappen[0].view.camera.staticCamera', /needs staticCamera/);
-    });
-
+  describe('views', () => {
     it('keeps 2d views flat', () => {
       const project = sampleProject();
       trainEtappe(project).view.pitchDeg = 45;
-      expectIssue(project, 'groups[0].etappen[0].view.pitchDeg', /pitchDeg must be 0/);
+      const issue = expectIssue(
+        project,
+        'groups[0].etappen[0].view.pitchDeg',
+        /pitchDeg must be 0/,
+      );
+      expect(issue.code).toBe('view.flat2d');
     });
 
     it('validates intro and outro by their type', () => {
@@ -217,7 +212,15 @@ describe('validateProject', () => {
     it('needs ProRes 4444 for a transparent overlay', () => {
       const project = sampleProject();
       project.defaults.output.transparentOverlay = true;
-      expectIssue(project, 'defaults.output.transparentOverlay', /needs the prores-4444 codec/);
+      const issue = expectIssue(
+        project,
+        'defaults.output.transparentOverlay',
+        /needs the prores-4444 codec/,
+      );
+      expect(issue).toMatchObject({
+        code: 'output.transparentNeedsProres',
+        values: { codec: 'h264' },
+      });
     });
 
     it('accepts only the supported frame rates', () => {
@@ -231,11 +234,15 @@ describe('validateProject', () => {
     it('rejects an ID that is used twice anywhere in the project', () => {
       const project = sampleProject();
       optionsEtappe(project).tracks[1]!.waypoints[0]!.id = 't_train';
-      expectIssue(
+      const issue = expectIssue(
         project,
         'groups[1].etappen[0].tracks[1].waypoints[0].id',
         /ID "t_train" is already used at groups\[0\]\.etappen\[0\]\.tracks\[0\]\.id/,
       );
+      expect(issue).toMatchObject({
+        code: 'project.duplicateId',
+        values: { id: 't_train', firstPath: 'groups[0].etappen[0].tracks[0].id' },
+      });
     });
 
     it('rejects unknown fields instead of silently dropping them', () => {

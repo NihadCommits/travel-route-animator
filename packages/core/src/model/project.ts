@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { EtappeSchema } from './etappe';
+import { reportIssue } from './issues';
 import { OutputSettingsSchema } from './output';
 import { HexColorSchema, IdSchema, IsoDateTimeSchema } from './primitives';
 import { MapStyleRefSchema, TransitionSettingsSchema } from './style';
@@ -44,11 +45,13 @@ export const ProjectSchema = z
     const check = (id: string, path: (string | number)[]) => {
       const earlier = firstSeenAt.get(id);
       if (earlier) {
-        ctx.addIssue({
-          code: 'custom',
+        const firstPath = formatPath([...earlier, 'id']);
+        reportIssue(ctx, {
           path: [...path, 'id'],
           input: id,
-          message: `ID "${id}" is already used at ${formatPath([...earlier, 'id'])}`,
+          code: 'project.duplicateId',
+          message: `ID "${id}" is already used at ${firstPath}`,
+          values: { id, firstPath },
         });
       } else {
         firstSeenAt.set(id, path);

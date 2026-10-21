@@ -1,0 +1,50 @@
+import type { Project, ValidationIssue } from '@travel-route-animator/core';
+
+export interface ProjectSummary {
+  id: string;
+  name: string;
+  slug: string;
+  updatedAt: string;
+}
+
+interface ErrorBody {
+  error: string;
+  message: string;
+  issues?: ValidationIssue[];
+  file?: string;
+}
+
+export class ApiError extends Error {
+  override name = 'ApiError';
+  constructor(
+    readonly status: number,
+    readonly body: ErrorBody | undefined,
+  ) {
+    super(body?.message ?? `The server answered with HTTP ${status}`);
+  }
+}
+
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  // Only send a content type with a body: Fastify rejects an empty JSON body (e.g. on DELETE).
+  const headers: HeadersInit =
+    init.body === undefined ? {} : { 'content-type': 'application/json' };
+  const response = await fetch(`/api${path}`, { ...init, headers });
+  if (response.status === 204) return undefined as T;
+
+  const body: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) throw new ApiError(response.status, body as ErrorBody | undefined);
+  return body as T;
+}
+
+const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`;
+
+/** The editor only talks to its own server; Vite proxies /api to it during development. */
+export const api = {
+  listProjects: () => request<ProjectSummary[]>('/projects'),
+  getProject: (id: string) => request<Project>(projectPath(id)),
+  createProject: (name: string) =>
+    request<Project>('/projects', { method: 'POST', body: JSON.stringify({ name }) }),
+  saveProject: (project: Project) =>
+    request<Project>(projectPath(project.id), { method: 'PUT', body: JSON.stringify(project) }),
+  deleteProject: (id: string) => request<undefined>(projectPath(id), { method: 'DELETE' }),
+};

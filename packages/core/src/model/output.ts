@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { reportIssue } from './issues';
 import { IdSchema } from './primitives';
 
 export const OutputSettingsSchema = z
@@ -14,11 +15,12 @@ export const OutputSettingsSchema = z
   })
   .superRefine((output, ctx) => {
     if (output.transparentOverlay && output.codec !== 'prores-4444') {
-      ctx.addIssue({
-        code: 'custom',
+      reportIssue(ctx, {
         path: ['transparentOverlay'],
         input: output.transparentOverlay,
+        code: 'output.transparentNeedsProres',
         message: `A transparent overlay needs the prores-4444 codec (alpha channel), not ${output.codec}`,
+        values: { codec: output.codec },
       });
     }
   });
