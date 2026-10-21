@@ -1,2 +1,12 @@
 export type { LngLat } from './geo/lngLat';
 export { sliceLineByProgress } from './geo/sliceLineByProgress';
+
+export * from './model/enums';
+export * from './model/primitives';
+export * from './model/vehicles';
+export * from './model/style';
+export * from './model/output';
+export * from './model/track';
+export * from './model/etappe';
+export * from './model/project';
+export * from './model/validation';
