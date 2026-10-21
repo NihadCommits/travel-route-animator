@@ -1,0 +1,468 @@
+{
+  "schemaVersion": 1,
+  "id": "p_portugal26",
+  "name": "Portugal 2026",
+  "createdAt": "2026-10-21T00:00:00.000Z",
+  "updatedAt": "2026-10-21T00:00:00.000Z",
+  "defaults": {
+    "mapStyle": { "base": "vector" },
+    "output": {
+      "aspect": "16:9",
+      "resolution": "1080p",
+      "fps": 25,
+      "codec": "h264",
+      "transparentOverlay": false,
+      "safeAreaGuides": false
+    },
+    "transition": { "type": "camera-fly", "durationSec": 1.5 }
+  },
+  "groups": [
+    {
+      "id": "g_hinreise",
+      "name": "Hinreise",
+      "color": "#2E86AB",
+      "etappen": [
+        {
+          "id": "e_sbg_wien",
+          "name": "SBG – Wien",
+          "durationSec": 8,
+          "view": {
+            "mode": "2d",
+            "pitchDeg": 0,
+            "bearingDeg": 0,
+            "camera": {
+              "mode": "follow",
+              "followTrackId": "t_zug",
+              "paddingPx": 80,
+              "lagSec": 0.4,
+              "startWithOverview": true,
+              "endWithOverview": false
+            },
+            "terrain": { "enabled": false, "exaggeration": 1 },
+            "buildings3d": false
+          },
+          "intro": { "type": "none" },
+          "outro": { "type": "none" },
+          "overlays": {
+            "labels": true,
+            "distanceCounter": false,
+            "timeCounter": false,
+            "attribution": true
+          },
+          "tracks": [
+            {
+              "id": "t_zug",
+              "label": "Zug",
+              "vehicle": { "type": "train", "variant": "train-default" },
+              "routing": { "mode": "smooth" },
+              "waypoints": [
+                {
+                  "id": "w_sbg_hbf",
+                  "lngLat": [13.04585, 47.81306],
+                  "name": "Salzburg Hbf",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                },
+                {
+                  "id": "w_wien_hbf",
+                  "lngLat": [16.37512, 48.18599],
+                  "name": "Wien Hbf",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#E4572E",
+                "lineWidthPx": 6,
+                "lineDash": "solid",
+                "futureRoute": "ghost",
+                "glow": false,
+                "vehicleScale": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "e_wien_porto",
+          "name": "Wien – Porto",
+          "durationSec": 10,
+          "view": {
+            "mode": "globe",
+            "pitchDeg": 0,
+            "bearingDeg": 0,
+            "camera": {
+              "mode": "follow",
+              "followTrackId": "t_flugzeug",
+              "paddingPx": 80,
+              "lagSec": 0.4,
+              "startWithOverview": false,
+              "endWithOverview": false
+            },
+            "terrain": { "enabled": false, "exaggeration": 1 },
+            "buildings3d": false
+          },
+          "intro": { "type": "none" },
+          "outro": { "type": "none" },
+          "overlays": {
+            "labels": true,
+            "distanceCounter": true,
+            "timeCounter": false,
+            "attribution": true
+          },
+          "tracks": [
+            {
+              "id": "t_flugzeug",
+              "label": "Flugzeug",
+              "vehicle": { "type": "plane", "variant": "plane-default" },
+              "routing": { "mode": "great-circle" },
+              "waypoints": [
+                {
+                  "id": "w_vie",
+                  "lngLat": [16.5849, 48.105],
+                  "name": "Flughafen Wien",
+                  "kind": "stop",
+                  "source": "airport",
+                  "airportCode": "VIE",
+                  "holdSec": 0,
+                  "showLabel": true
+                },
+                {
+                  "id": "w_opo",
+                  "lngLat": [-8.68028, 41.24896],
+                  "name": "Flughafen Porto",
+                  "kind": "stop",
+                  "source": "airport",
+                  "airportCode": "OPO",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#F2A541",
+                "lineWidthPx": 5,
+                "lineDash": "solid",
+                "futureRoute": "hidden",
+                "glow": true,
+                "vehicleScale": 1.2
+              },
+              "flight": {
+                "arcHeightFactor": 0.15,
+                "showGroundShadow": true,
+                "takeoffLandingCamera": true
+              }
+            }
+          ]
+        },
+        {
+          "id": "e_flughafen_hotel",
+          "name": "Flughafen – Hotel",
+          "durationSec": 6,
+          "view": {
+            "mode": "3d-tilted",
+            "pitchDeg": 55,
+            "bearingDeg": 0,
+            "camera": {
+              "mode": "follow",
+              "followTrackId": "t_taxi",
+              "paddingPx": 80,
+              "lagSec": 0.4,
+              "startWithOverview": false,
+              "endWithOverview": false
+            },
+            "terrain": { "enabled": false, "exaggeration": 1 },
+            "buildings3d": true
+          },
+          "intro": { "type": "none" },
+          "outro": {
+            "type": "dive-in",
+            "durationSec": 2,
+            "targetZoom": 17,
+            "switchToSatellite": true,
+            "effect": "fade-white",
+            "exportEndFrame": true
+          },
+          "overlays": {
+            "labels": true,
+            "distanceCounter": false,
+            "timeCounter": false,
+            "attribution": true
+          },
+          "tracks": [
+            {
+              "id": "t_taxi",
+              "label": "Taxi",
+              "vehicle": { "type": "car", "variant": "car-default" },
+              "routing": { "mode": "road" },
+              "waypoints": [
+                {
+                  "id": "w_opo_taxi",
+                  "lngLat": [-8.68028, 41.24896],
+                  "name": "Flughafen Porto",
+                  "kind": "stop",
+                  "source": "airport",
+                  "airportCode": "OPO",
+                  "holdSec": 0,
+                  "showLabel": false
+                },
+                {
+                  "id": "w_hotel_porto",
+                  "lngLat": [-8.61129, 41.14787],
+                  "name": "Hotel Porto",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#76B041",
+                "lineWidthPx": 6,
+                "lineDash": "solid",
+                "futureRoute": "ghost",
+                "glow": false,
+                "vehicleScale": 1
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "g_tag4",
+      "name": "Tag 4",
+      "color": "#F2A541",
+      "transition": { "type": "fade", "durationSec": 0.75 },
+      "etappen": [
+        {
+          "id": "e_lissabon_algarve",
+          "name": "Lissabon – Algarve",
+          "durationSec": 12,
+          "view": {
+            "mode": "3d-tilted",
+            "pitchDeg": 50,
+            "bearingDeg": 0,
+            "camera": {
+              "mode": "follow",
+              "followTrackId": "t_auto",
+              "paddingPx": 80,
+              "lagSec": 0.5,
+              "startWithOverview": true,
+              "endWithOverview": true
+            },
+            "terrain": { "enabled": false, "exaggeration": 1 },
+            "buildings3d": false
+          },
+          "intro": { "type": "none" },
+          "outro": { "type": "none" },
+          "overlays": {
+            "labels": true,
+            "distanceCounter": true,
+            "timeCounter": true,
+            "manualDurationText": "3 h 10 min",
+            "attribution": true
+          },
+          "tracks": [
+            {
+              "id": "t_auto",
+              "label": "Auto",
+              "vehicle": { "type": "car", "variant": "car-default" },
+              "routing": { "mode": "road", "avoid": ["tolls"] },
+              "waypoints": [
+                {
+                  "id": "w_lissabon_hotel",
+                  "lngLat": [-9.13609, 38.7069],
+                  "name": "Lissabon (Hotel)",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                },
+                {
+                  "id": "w_silves",
+                  "lngLat": [-8.43958, 37.18941],
+                  "name": "Silves",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 1,
+                  "showLabel": true
+                },
+                {
+                  "id": "w_faro",
+                  "lngLat": [-7.93518, 37.01629],
+                  "name": "Faro",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 1,
+                  "showLabel": true
+                },
+                {
+                  "id": "w_albufeira",
+                  "lngLat": [-8.25263, 37.08824],
+                  "name": "Albufeira",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#E4572E",
+                "lineWidthPx": 6,
+                "lineDash": "solid",
+                "futureRoute": "ghost",
+                "glow": false,
+                "vehicleScale": 1
+              }
+            }
+          ]
+        },
+        {
+          "id": "e_wohin_morgen",
+          "name": "Wohin morgen?",
+          "durationSec": 10,
+          "view": {
+            "mode": "2d",
+            "pitchDeg": 0,
+            "bearingDeg": 0,
+            "camera": {
+              "mode": "follow-all",
+              "paddingPx": 120,
+              "lagSec": 0,
+              "startWithOverview": false,
+              "endWithOverview": true
+            },
+            "terrain": { "enabled": false, "exaggeration": 1 },
+            "buildings3d": false
+          },
+          "intro": { "type": "none" },
+          "outro": { "type": "overview", "durationSec": 2 },
+          "overlays": {
+            "labels": true,
+            "distanceCounter": false,
+            "timeCounter": false,
+            "title": "Wohin morgen?",
+            "attribution": true
+          },
+          "tracks": [
+            {
+              "id": "t_option_a",
+              "label": "Option A",
+              "vehicle": { "type": "car", "variant": "car-default" },
+              "routing": { "mode": "road" },
+              "waypoints": [
+                {
+                  "id": "w_a_porto",
+                  "lngLat": [-8.61035, 41.15022],
+                  "name": "Porto",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                },
+                {
+                  "id": "w_a_lissabon",
+                  "lngLat": [-9.13659, 38.70775],
+                  "name": "Lissabon",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#E4572E",
+                "lineWidthPx": 5,
+                "lineDash": "dashed",
+                "futureRoute": "hidden",
+                "glow": false,
+                "vehicleScale": 1,
+                "variantBadge": "A"
+              }
+            },
+            {
+              "id": "t_option_b",
+              "label": "Option B",
+              "vehicle": { "type": "car", "variant": "car-default" },
+              "routing": { "mode": "road" },
+              "waypoints": [
+                {
+                  "id": "w_b_porto",
+                  "lngLat": [-8.61035, 41.15022],
+                  "name": "Porto",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": false
+                },
+                {
+                  "id": "w_b_algarve",
+                  "lngLat": [-8.67287, 37.1028],
+                  "name": "Algarve (Lagos)",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#2E86AB",
+                "lineWidthPx": 5,
+                "lineDash": "dashed",
+                "futureRoute": "hidden",
+                "glow": false,
+                "vehicleScale": 1,
+                "variantBadge": "B"
+              }
+            },
+            {
+              "id": "t_option_c",
+              "label": "Option C",
+              "vehicle": { "type": "car", "variant": "car-default" },
+              "routing": { "mode": "road" },
+              "waypoints": [
+                {
+                  "id": "w_c_porto",
+                  "lngLat": [-8.61035, 41.15022],
+                  "name": "Porto",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": false
+                },
+                {
+                  "id": "w_c_spanien",
+                  "lngLat": [-8.72796, 42.19864],
+                  "name": "Spanien (Vigo)",
+                  "kind": "stop",
+                  "source": "search",
+                  "holdSec": 0,
+                  "showLabel": true
+                }
+              ],
+              "timing": { "startOffsetSec": 0, "easing": "ease-in-out" },
+              "style": {
+                "lineColor": "#76B041",
+                "lineWidthPx": 5,
+                "lineDash": "dashed",
+                "futureRoute": "hidden",
+                "glow": false,
+                "vehicleScale": 1,
+                "variantBadge": "C"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
