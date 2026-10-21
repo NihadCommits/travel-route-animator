@@ -1,0 +1,95 @@
+import {
+  addGroup,
+  createProject,
+  removeItem,
+  renameItem,
+  type Project,
+} from '@travel-route-animator/core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createEditorStore } from './editorStore';
+
+function setup() {
+  const saved: Project[] = [];
+  const save = vi.fn((project: Project) => {
+    saved.push(project);
+    return Promise.resolve();
+  });
+  const { store } = createEditorStore(createProject('Trip'), { save, autosaveDelayMs: 100 });
+  return { store, save, saved, state: () => store.getState() };
+}
+
+describe('editor store', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('applies edits and undoes and redoes them', () => {
+    const { state } = setup();
+    state().add((p) => addGroup(p, 'Outbound'));
+    state().add((p) => addGroup(p, 'Day 4'));
+    expect(state().history.present.groups.map((g) => g.name)).toEqual(['Outbound', 'Day 4']);
+
+    state().undo();
+    expect(state().history.present.groups.map((g) => g.name)).toEqual(['Outbound']);
+    state().redo();
+    expect(state().history.present.groups).toHaveLength(2);
+  });
+
+  it('selects a newly added item', () => {
+    const { state } = setup();
+    const id = state().add((p) => addGroup(p, 'Outbound'));
+    expect(state().selectedId).toBe(id);
+  });
+
+  it('clears the selection when the selected item disappears', () => {
+    const { state } = setup();
+    const id = state().add((p) => addGroup(p, 'Outbound'));
+    state().apply((p) => removeItem(p, id));
+    expect(state().selectedId).toBeNull();
+
+    state().undo();
+    expect(state().history.present.groups).toHaveLength(1);
+    state().select(id);
+    expect(state().selectedId).toBe(id);
+    state().undo();
+    expect(state().selectedId).toBeNull();
+  });
+
+  it('refuses to select something that does not exist', () => {
+    const { state } = setup();
+    state().select('g_unknown');
+    expect(state().selectedId).toBeNull();
+  });
+
+  it('treats quick renames of the same item as one undo step', () => {
+    const { state } = setup();
+    const id = state().add((p) => addGroup(p, ''));
+    for (const name of ['T', 'Ta', 'Tag', 'Tag 4']) {
+      state().apply((p) => renameItem(p, id, name), { coalesceKey: `name:${id}` });
+    }
+    state().undo();
+    expect(state().history.present.groups[0]!.name).toBe('');
+  });
+
+  it('saves the latest state automatically, including after undo', async () => {
+    const { state, save, saved } = setup();
+    state().add((p) => addGroup(p, 'Outbound'));
+    state().add((p) => addGroup(p, 'Day 4'));
+    await vi.advanceTimersByTimeAsync(100);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saved.at(-1)!.groups).toHaveLength(2);
+    expect(state().saveStatus).toEqual({ state: 'saved' });
+
+    state().undo();
+    expect(state().saveStatus).toEqual({ state: 'pending' });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(saved.at(-1)!.groups).toHaveLength(1);
+  });
+
+  it('does not save when nothing changed', async () => {
+    const { state, save } = setup();
+    state().undo();
+    state().apply((p) => p);
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(save).not.toHaveBeenCalled();
+  });
+});
