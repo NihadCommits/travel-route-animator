@@ -10,3 +10,5 @@ export * from './model/track';
 export * from './model/etappe';
 export * from './model/project';
 export * from './model/validation';
+export * from './model/defaults';
+export * from './model/factories';
