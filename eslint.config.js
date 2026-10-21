@@ -26,6 +26,10 @@ export default defineConfig(
         tsconfigRootDir: import.meta.dirname,
       },
     },
+    rules: {
+      // `const { removed, ...rest } = obj` is the idiomatic way to drop a field from a copy.
+      '@typescript-eslint/no-unused-vars': ['error', { ignoreRestSiblings: true }],
+    },
   },
 
   {

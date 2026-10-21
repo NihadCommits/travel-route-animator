@@ -19,3 +19,5 @@ export * from './resolve/resolve';
 export * from './migrations/migrations';
 export * from './model/issues';
 export * from './model/readiness';
+export * from './edit/locate';
+export * from './edit/operations';
