@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "spike:render": "pnpm --filter @travel-route-animator/scene spike:render",
     "spike:studio": "pnpm --filter @travel-route-animator/scene studio"
