@@ -1,5 +1,21 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveListenOptions } from './config';
+import { resolveDataDir, resolveListenOptions } from './config';
+
+describe('resolveDataDir', () => {
+  const repoRoot = resolve('/repo');
+
+  it('defaults to data/ in the repo root', () => {
+    expect(resolveDataDir({}, repoRoot)).toBe(resolve('/repo/data'));
+  });
+
+  it('resolves a relative DATA_DIR against the repo root and keeps absolute paths', () => {
+    expect(resolveDataDir({ DATA_DIR: './my-data' }, repoRoot)).toBe(resolve('/repo/my-data'));
+    expect(resolveDataDir({ DATA_DIR: resolve('/elsewhere') }, repoRoot)).toBe(
+      resolve('/elsewhere'),
+    );
+  });
+});
 
 describe('resolveListenOptions', () => {
   it('defaults to 127.0.0.1:5174', () => {

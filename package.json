@@ -16,6 +16,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "spike:render": "pnpm --filter @travel-route-animator/scene spike:render",
     "spike:studio": "pnpm --filter @travel-route-animator/scene studio"
@@ -23,6 +24,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.19.2",
+    "@vitest/coverage-v8": "^5.0.5",
     "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
