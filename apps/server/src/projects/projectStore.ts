@@ -33,6 +33,32 @@ export class ProjectValidationError extends Error {
   }
 }
 
+/** The project exists on disk, but its file is broken (hand-edited, older app, …). */
+export class ProjectFileInvalidError extends Error {
+  override name = 'ProjectFileInvalidError';
+  constructor(
+    readonly id: string,
+    /** Relative to the data folder, e.g. projects/portugal-2026/project.json */
+    readonly file: string,
+    readonly issues: ValidationIssue[],
+  ) {
+    super(`Project "${id}" cannot be opened: ${file} is not a valid project file`);
+  }
+}
+
+interface StoredProject {
+  slug: string;
+  project: Project;
+}
+
+interface BrokenProjectFile {
+  slug: string;
+  /** Known when it can still be read from the broken file. */
+  id: string | undefined;
+  file: string;
+  issues: ValidationIssue[];
+}
+
 export interface ProjectStoreOptions {
   dataDir: string;
   now?: () => Date;
@@ -63,35 +89,42 @@ export function createProjectStore({
     return run;
   }
 
-  async function readAll(): Promise<{ slug: string; project: Project }[]> {
+  async function scan(): Promise<{ valid: StoredProject[]; broken: BrokenProjectFile[] }> {
     await mkdir(projectsDir, { recursive: true });
     const entries = await readdir(projectsDir, { withFileTypes: true });
-    const found: { slug: string; project: Project }[] = [];
+    const valid: StoredProject[] = [];
+    const broken: BrokenProjectFile[] = [];
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      const file = join(projectsDir, entry.name, PROJECT_FILE);
-      let raw: unknown;
+      const slug = entry.name;
+      const file = `projects/${slug}/${PROJECT_FILE}`;
+      let text: string;
       try {
-        raw = JSON.parse(await readFile(file, 'utf8'));
+        text = await readFile(join(projectsDir, slug, PROJECT_FILE), 'utf8');
       } catch (error) {
-        if (!isNotFound(error)) warn(`Skipping ${file}: ${String(error)}`);
+        if (!isNotFound(error)) warn(`Cannot read ${file}: ${String(error)}`);
         continue;
       }
-      const result = parseProjectFile(raw);
-      if (result.success) {
-        found.push({ slug: entry.name, project: result.data });
+      const checked = checkProjectFile(text);
+      if (checked.success) {
+        valid.push({ slug, project: checked.data });
       } else {
-        warn(`Skipping ${file}, it is not a valid project:\n${describeIssues(result.issues)}`);
+        broken.push({ slug, id: checked.id, file, issues: checked.issues });
+        warn(`Skipping ${file}, it is not a valid project:\n${describeIssues(checked.issues)}`);
       }
     }
-    return found;
+    return { valid, broken };
   }
 
-  async function findOrThrow(id: string) {
-    const entry = (await readAll()).find(({ project }) => project.id === id);
-    if (!entry) throw new ProjectNotFoundError(id);
-    return entry;
+  /** The valid project with this ID; a broken file with this ID is reported with its problems. */
+  async function findOrThrow(id: string): Promise<StoredProject> {
+    const { valid, broken } = await scan();
+    const found = valid.find(({ project }) => project.id === id);
+    if (found) return found;
+    const brokenFile = broken.find((file) => file.id === id);
+    if (brokenFile) throw new ProjectFileInvalidError(id, brokenFile.file, brokenFile.issues);
+    throw new ProjectNotFoundError(id);
   }
 
   async function write(slug: string, project: Project): Promise<void> {
@@ -102,8 +135,8 @@ export function createProjectStore({
 
   return {
     async list(): Promise<ProjectSummary[]> {
-      const all = await readAll();
-      return all
+      const { valid } = await scan();
+      return valid
         .map(({ slug, project }) => ({
           id: project.id,
           name: project.name,
@@ -154,9 +187,14 @@ export function createProjectStore({
       });
     },
 
+    /** Also works for a broken file, so it can be cleared away without touching the folder by hand. */
     remove(id: string): Promise<void> {
       return exclusive(async () => {
-        const { slug } = await findOrThrow(id);
+        const { valid, broken } = await scan();
+        const slug =
+          valid.find(({ project }) => project.id === id)?.slug ??
+          broken.find((file) => file.id === id)?.slug;
+        if (slug === undefined) throw new ProjectNotFoundError(id);
         await mkdir(trashDir, { recursive: true });
         const stamp = now().toISOString().replace(/[:.]/g, '-');
         await rename(join(projectsDir, slug), join(trashDir, `${slug}_${stamp}`));
@@ -166,6 +204,40 @@ export function createProjectStore({
 }
 
 export type ProjectStore = ReturnType<typeof createProjectStore>;
+
+type CheckedFile =
+  | { success: true; data: Project }
+  | { success: false; id: string | undefined; issues: ValidationIssue[] };
+
+/** Parses, migrates and validates a project file; for a broken file it still tries to find its ID. */
+function checkProjectFile(text: string): CheckedFile {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    return {
+      success: false,
+      id: findIdInText(text),
+      issues: [{ path: '', message: `Not valid JSON: ${reason}` }],
+    };
+  }
+  const result = parseProjectFile(raw);
+  if (result.success) return result;
+  return { success: false, id: readId(raw) ?? findIdInText(text), issues: result.issues };
+}
+
+function readId(raw: unknown): string | undefined {
+  if (typeof raw !== 'object' || raw === null || !('id' in raw)) return undefined;
+  return typeof raw.id === 'string' ? raw.id : undefined;
+}
+
+// A file with a syntax error cannot be parsed, but its project ID is usually still readable:
+// the server writes "id" right after "schemaVersion", so the first "id" in the text is the
+// project's. Only used to say which project is broken, never to load anything.
+function findIdInText(text: string): string | undefined {
+  return /"id"\s*:\s*"([^"\\]+)"/.exec(text)?.[1];
+}
 
 function isNotFound(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT';

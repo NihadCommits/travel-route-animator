@@ -221,6 +221,75 @@ describe('project API', () => {
     });
   });
 
+  describe('a project whose file is broken', () => {
+    // Simulates a hand edit: the file is still there, but no longer a valid project.
+    async function breakFile(slug: string, edit: (text: string) => string) {
+      const file = projectFile(slug);
+      await writeFile(file, edit(await readFile(file, 'utf8')));
+    }
+
+    it('says why it cannot be opened instead of claiming it does not exist', async () => {
+      const project = await createViaApi('Portugal 2026');
+      await breakFile('portugal-2026', (text) =>
+        text.replace('"schemaVersion": 1', '"schemaVersion": 1, "colour": "red"'),
+      );
+
+      const response = await app.inject({ method: 'GET', url: `/api/projects/${project.id}` });
+
+      expect(response.statusCode).toBe(422);
+      expect(response.json()).toEqual({
+        error: 'invalid_project_file',
+        message: `Project "${project.id}" cannot be opened: projects/portugal-2026/project.json is not a valid project file`,
+        file: 'projects/portugal-2026/project.json',
+        issues: [{ path: '', message: 'Unrecognized key: "colour"' }],
+      });
+    });
+
+    it('reports a JSON syntax error and still knows which project it is', async () => {
+      const project = await createViaApi('Trip');
+      await breakFile('trip', (text) => text.replace('"groups": []', '"groups": [,]'));
+
+      const response = await app.inject({ method: 'GET', url: `/api/projects/${project.id}` });
+
+      expect(response.statusCode).toBe(422);
+      const body = response.json<{ issues: { path: string; message: string }[] }>();
+      expect(body.issues).toHaveLength(1);
+      expect(body.issues[0]?.message).toMatch(/^Not valid JSON: /);
+    });
+
+    it('stays out of the list', async () => {
+      const broken = await createViaApi('Broken');
+      const fine = await createViaApi('Fine');
+      await breakFile('broken', (text) => text.replace(/"name": "Broken"/, '"name": ""'));
+
+      const response = await app.inject({ method: 'GET', url: '/api/projects' });
+      const ids = response.json<{ id: string }[]>().map((summary) => summary.id);
+      expect(ids).toEqual([fine.id]);
+      expect(ids).not.toContain(broken.id);
+    });
+
+    it('cannot be overwritten before it is fixed', async () => {
+      const project = await createViaApi('Trip');
+      await breakFile('trip', (text) => text.replace('"fps": 25', '"fps": 29.97'));
+
+      const response = await app.inject({
+        method: 'PUT',
+        url: `/api/projects/${project.id}`,
+        payload: project,
+      });
+      expect(response.statusCode).toBe(422);
+    });
+
+    it('can still be moved to the trash', async () => {
+      const project = await createViaApi('Trip');
+      await breakFile('trip', (text) => text.replace('"fps": 25', '"fps": 29.97'));
+
+      const response = await app.inject({ method: 'DELETE', url: `/api/projects/${project.id}` });
+      expect(response.statusCode).toBe(204);
+      expect(await readdir(join(dataDir, 'projects'))).toEqual([]);
+    });
+  });
+
   it('handles parallel creates without picking the same folder twice', async () => {
     await Promise.all([createViaApi('Trip'), createViaApi('Trip'), createViaApi('Trip')]);
     expect((await readdir(join(dataDir, 'projects'))).sort()).toEqual(['trip', 'trip-2', 'trip-3']);

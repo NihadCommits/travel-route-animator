@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { toValidationIssues } from '@travel-route-animator/core';
-import { ProjectNotFoundError, ProjectValidationError, type ProjectStore } from './projectStore';
+import {
+  ProjectFileInvalidError,
+  ProjectNotFoundError,
+  ProjectValidationError,
+  type ProjectStore,
+} from './projectStore';
 
 const CreateProjectBody = z.strictObject({
   name: z.string().trim().min(1, 'A project needs a name').max(200),
@@ -22,6 +27,15 @@ export function registerProjectRoutes(app: FastifyInstance, store: ProjectStore)
         return reply.code(400).send({
           error: 'invalid_project',
           message: 'The project is not valid',
+          issues: error.issues,
+        });
+      }
+      // 422 rather than 404: the project is there, but its stored file cannot be processed.
+      if (error instanceof ProjectFileInvalidError) {
+        return reply.code(422).send({
+          error: 'invalid_project_file',
+          message: error.message,
+          file: error.file,
           issues: error.issues,
         });
       }
