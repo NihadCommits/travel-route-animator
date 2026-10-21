@@ -1,3 +1,10 @@
+import { resolve } from 'node:path';
+
+/** DATA_DIR from .env; relative paths count from the repo root, not from apps/server. */
+export function resolveDataDir(env: NodeJS.ProcessEnv, repoRoot: string): string {
+  return resolve(repoRoot, env.DATA_DIR?.trim() || './data');
+}
+
 export interface ListenOptions {
   host: string;
   port: number;
