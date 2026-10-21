@@ -19,13 +19,11 @@ export function registerProjectRoutes(app: FastifyInstance, store: ProjectStore)
         return reply.code(404).send({ error: 'not_found', message: error.message });
       }
       if (error instanceof ProjectValidationError) {
-        return reply
-          .code(400)
-          .send({
-            error: 'invalid_project',
-            message: 'The project is not valid',
-            issues: error.issues,
-          });
+        return reply.code(400).send({
+          error: 'invalid_project',
+          message: 'The project is not valid',
+          issues: error.issues,
+        });
       }
       return reply.send(error);
     });
