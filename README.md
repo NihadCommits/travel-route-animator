@@ -10,7 +10,7 @@ Travel Route Animator is a local tool that turns trip itineraries into map anima
 
 ### Status
 
-**Early development.** The foundation is in place: a pnpm monorepo with editor and server skeletons, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The editor itself is built module by module from here.
+**Early development.** The foundation is in place: a pnpm monorepo with editor and server skeletons, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor itself is built module by module from here.
 
 ### Planned features
 
@@ -42,27 +42,43 @@ pnpm dev
 
 `pnpm dev` starts the editor on <http://127.0.0.1:5173> and the server on <http://127.0.0.1:5174>. Both only listen on localhost. No API keys are needed yet; later modules read them from a `.env` file (copy `.env.example`).
 
-| Command             | What it does                                             |
-| ------------------- | -------------------------------------------------------- |
-| `pnpm dev`          | Editor and server in watch mode                          |
-| `pnpm test`         | All tests (Vitest)                                       |
-| `pnpm lint`         | ESLint, warnings count as errors                         |
-| `pnpm typecheck`    | TypeScript in every package                              |
-| `pnpm format`       | Format everything with Prettier                          |
-| `pnpm spike:studio` | Open the render spike in Remotion Studio                 |
-| `pnpm spike:render` | Render the spike to `output/spike/` (flat map and globe) |
+| Command              | What it does                                             |
+| -------------------- | -------------------------------------------------------- |
+| `pnpm dev`           | Editor and server in watch mode                          |
+| `pnpm test`          | All tests (Vitest)                                       |
+| `pnpm test:coverage` | Tests with a coverage report (as in CI)                  |
+| `pnpm lint`          | ESLint, warnings count as errors                         |
+| `pnpm typecheck`     | TypeScript in every package                              |
+| `pnpm format`        | Format everything with Prettier                          |
+| `pnpm spike:studio`  | Open the render spike in Remotion Studio                 |
+| `pnpm spike:render`  | Render the spike to `output/spike/` (flat map and globe) |
 
 The first render downloads Chrome Headless Shell (about 100 MB) once. `pnpm spike:render --gl=vulkan` tries another OpenGL backend, `--only=SpikeGlobe` renders a single composition.
 
 ### Project structure
 
-| Path              | Purpose                                                            |
-| ----------------- | ------------------------------------------------------------------ |
-| `apps/editor`     | Browser GUI (React + Vite)                                         |
-| `apps/server`     | Local Fastify server for projects, geocoding, routing, render jobs |
-| `packages/core`   | Shared types and pure logic such as geo math, fully tested         |
-| `packages/scene`  | Remotion compositions used by both the preview and the export      |
-| `packages/styles` | Map styles and themes                                              |
+| Path              | Purpose                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| `apps/editor`     | Browser GUI (React + Vite)                                                          |
+| `apps/server`     | Local Fastify server for projects, geocoding, routing, render jobs                  |
+| `packages/core`   | Data model (Zod schemas), inheritance, migrations and geo math; no UI, fully tested |
+| `packages/scene`  | Remotion compositions used by both the preview and the export                       |
+| `packages/styles` | Map styles and themes                                                               |
+| `examples`        | Example trip "Portugal 2026"                                                        |
+
+### Project files
+
+Projects are plain JSON files in `data/projects/<name>/project.json`; the `data/` folder is not part of the repository. Every file carries a `schemaVersion`. When a file is loaded, older formats are migrated and the content is validated, so mistakes such as a swapped coordinate or a track with a single waypoint are reported with their exact location, e.g. `groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1]`. Files are written atomically, and deleted projects move to `data/.trash/`. To open the example, copy `examples/portugal-2026/` into `data/projects/`.
+
+The local server exposes the projects:
+
+| Request                                   | Result                                                            |
+| ----------------------------------------- | ----------------------------------------------------------------- |
+| `GET /api/projects`                       | List with ID, name, folder and last change                        |
+| `POST /api/projects` with `{"name": "…"}` | A new, empty project                                              |
+| `GET /api/projects/:id`                   | The complete project                                              |
+| `PUT /api/projects/:id`                   | Save a project; invalid ones are rejected with a list of problems |
+| `DELETE /api/projects/:id`                | Move the project to the trash                                     |
 
 ### Data sources
 
@@ -80,7 +96,7 @@ Travel Route Animator ist ein lokales Tool, das Reiserouten in Kartenanimationen
 
 ### Status
 
-**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo mit Grundgerüsten für Editor und Server, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Der eigentliche Editor entsteht ab jetzt Modul für Modul.
+**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo mit Grundgerüsten für Editor und Server, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der eigentliche Editor entsteht ab jetzt Modul für Modul.
 
 ### Geplante Funktionen
 
@@ -112,27 +128,43 @@ pnpm dev
 
 `pnpm dev` startet den Editor unter <http://127.0.0.1:5173> und den Server unter <http://127.0.0.1:5174>. Beide sind nur lokal erreichbar. API-Keys braucht es noch keine; spätere Module lesen sie aus einer `.env`-Datei (Vorlage: `.env.example`).
 
-| Befehl              | Was er tut                                                      |
-| ------------------- | --------------------------------------------------------------- |
-| `pnpm dev`          | Editor und Server mit automatischem Neuladen                    |
-| `pnpm test`         | Alle Tests (Vitest)                                             |
-| `pnpm lint`         | ESLint, Warnungen zählen als Fehler                             |
-| `pnpm typecheck`    | TypeScript in allen Paketen                                     |
-| `pnpm format`       | Alles mit Prettier formatieren                                  |
-| `pnpm spike:studio` | Render-Prototyp in Remotion Studio öffnen                       |
-| `pnpm spike:render` | Render-Prototyp nach `output/spike/` rendern (Karte und Globus) |
+| Befehl               | Was er tut                                                      |
+| -------------------- | --------------------------------------------------------------- |
+| `pnpm dev`           | Editor und Server mit automatischem Neuladen                    |
+| `pnpm test`          | Alle Tests (Vitest)                                             |
+| `pnpm test:coverage` | Tests mit Abdeckungsbericht (wie im CI)                         |
+| `pnpm lint`          | ESLint, Warnungen zählen als Fehler                             |
+| `pnpm typecheck`     | TypeScript in allen Paketen                                     |
+| `pnpm format`        | Alles mit Prettier formatieren                                  |
+| `pnpm spike:studio`  | Render-Prototyp in Remotion Studio öffnen                       |
+| `pnpm spike:render`  | Render-Prototyp nach `output/spike/` rendern (Karte und Globus) |
 
 Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). `pnpm spike:render --gl=vulkan` probiert ein anderes OpenGL-Backend, `--only=SpikeGlobe` rendert nur eine Komposition.
 
 ### Projektstruktur
 
-| Pfad              | Zweck                                                                     |
-| ----------------- | ------------------------------------------------------------------------- |
-| `apps/editor`     | Oberfläche im Browser (React + Vite)                                      |
-| `apps/server`     | Lokaler Fastify-Server für Projekte, Ortssuche, Routing und Render-Jobs   |
-| `packages/core`   | Gemeinsame Typen und reine Logik wie Geo-Mathematik, vollständig getestet |
-| `packages/scene`  | Remotion-Kompositionen für Vorschau und Export                            |
-| `packages/styles` | Kartenstile und Themes                                                    |
+| Pfad              | Zweck                                                                                               |
+| ----------------- | --------------------------------------------------------------------------------------------------- |
+| `apps/editor`     | Oberfläche im Browser (React + Vite)                                                                |
+| `apps/server`     | Lokaler Fastify-Server für Projekte, Ortssuche, Routing und Render-Jobs                             |
+| `packages/core`   | Datenmodell (Zod-Schemas), Vererbung, Migrationen und Geo-Mathematik; ohne UI, vollständig getestet |
+| `packages/scene`  | Remotion-Kompositionen für Vorschau und Export                                                      |
+| `packages/styles` | Kartenstile und Themes                                                                              |
+| `examples`        | Beispielreise „Portugal 2026“                                                                       |
+
+### Projektdateien
+
+Projekte sind einfache JSON-Dateien unter `data/projects/<name>/project.json`; der Ordner `data/` gehört nicht zum Repository. Jede Datei trägt eine `schemaVersion`. Beim Laden werden ältere Formate migriert und der Inhalt geprüft, sodass Fehler wie eine vertauschte Koordinate oder ein Track mit nur einem Wegpunkt mit genauer Fundstelle gemeldet werden, z. B. `groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1]`. Dateien werden atomar geschrieben, gelöschte Projekte landen in `data/.trash/`. Um das Beispiel zu öffnen, `examples/portugal-2026/` nach `data/projects/` kopieren.
+
+Der lokale Server stellt die Projekte bereit:
+
+| Anfrage                                  | Ergebnis                                                                   |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| `GET /api/projects`                      | Liste mit ID, Name, Ordner und letzter Änderung                            |
+| `POST /api/projects` mit `{"name": "…"}` | Ein neues, leeres Projekt                                                  |
+| `GET /api/projects/:id`                  | Das komplette Projekt                                                      |
+| `PUT /api/projects/:id`                  | Projekt speichern; ungültige werden mit einer Liste der Probleme abgelehnt |
+| `DELETE /api/projects/:id`               | Projekt in den Papierkorb verschieben                                      |
 
 ### Datenquellen
 
