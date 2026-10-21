@@ -3,6 +3,15 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
+// jsdom has no layout engine and therefore no ResizeObserver; the resizable panels need one.
+// The panels never get a size in tests, which is fine for testing what they contain.
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+globalThis.ResizeObserver ??= ResizeObserverStub;
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

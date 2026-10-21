@@ -1,0 +1,52 @@
+import type { IssueCode, IssueValues, ValidationIssue } from '@travel-route-animator/core';
+import { de } from './de';
+
+// German texts for the rules in packages/core. Core keeps English messages (logs, API); the
+// editor looks them up here by their stable code.
+
+type Translate = (values: IssueValues) => string;
+
+const num = (value: string | number | undefined) =>
+  typeof value === 'number' ? value.toLocaleString('de-AT') : String(value ?? '');
+
+const vehicle = (value: string | number | undefined) =>
+  de.vehicles[String(value) as keyof typeof de.vehicles] ?? String(value);
+
+const ISSUE_TEXTS: Record<IssueCode, Translate> = {
+  'lngLat.longitudeRange': (v) => `Längengrad ${num(v.lng)} liegt außerhalb von −180 bis 180.`,
+  'lngLat.latitudeRange': (v) => `Breitengrad ${num(v.lat)} liegt außerhalb von −90 bis 90.`,
+  'lngLat.swapped': (v) =>
+    `Breitengrad ${num(v.lat)} liegt außerhalb von −90 bis 90. Vermutlich sind Breiten- und Längengrad vertauscht.`,
+  'waypoint.shapeHold': () =>
+    'Formpunkte sind unsichtbar und können keinen Halt haben. Mach daraus einen Stopp.',
+  'routing.avoidOnlyRoad': () => '„Vermeiden“ gibt es nur beim Straßen-Routing.',
+  'track.routingNotAllowed': (v) =>
+    `Dieses Routing passt nicht zum Fahrzeug ${vehicle(v.vehicle)}.`,
+  'track.flightOnlyPlane': () => 'Flug-Optionen gibt es nur beim Flugzeug.',
+  'style.onlyThemedBases': () => 'Themes gibt es nur bei Vektor- und Geländekarten.',
+  'output.transparentNeedsProres': () =>
+    'Ein transparentes Overlay braucht den Codec ProRes 4444 (mit Alphakanal).',
+  'view.flat2d': () => 'Die 2D-Ansicht schaut gerade von oben, die Neigung muss 0° sein.',
+  'project.duplicateId': (v) => `Die ID „${v.id}“ kommt doppelt vor.`,
+  'etappe.noTracks': () => 'Noch kein Fahrzeug. Füge mit „+ Fahrzeug“ eines hinzu.',
+  'track.tooFewWaypoints': (v) =>
+    v.count === 0
+      ? 'Noch keine Wegpunkte, mindestens 2 sind nötig.'
+      : 'Erst 1 Wegpunkt, mindestens 2 sind nötig.',
+  'track.endpointNotStop': (v) =>
+    `Der ${v.end === 'first' ? 'erste' : 'letzte'} Wegpunkt muss ein Stopp sein, kein Formpunkt.`,
+  'track.timingOutsideEtappe': (v) =>
+    Number(v.startSec) >= Number(v.etappeSec)
+      ? `Die Fahrt beginnt erst bei ${num(v.startSec)} s, die Etappe dauert nur ${num(v.etappeSec)} s.`
+      : `Die Fahrt dauert bis ${num(v.endSec)} s, die Etappe nur ${num(v.etappeSec)} s.`,
+  'camera.followTrackMissing': () =>
+    'Die Kamera soll einem Fahrzeug folgen, es ist aber noch keines gewählt.',
+  'camera.followTrackForeign': () =>
+    'Die Kamera folgt einem Fahrzeug, das nicht (mehr) zu dieser Etappe gehört.',
+  'camera.staticMissing': () => 'Für die feste Kamera fehlt noch die Position.',
+};
+
+/** The German text for an issue; falls back to core's English message for unknown cases. */
+export function translateIssue(issue: ValidationIssue): string {
+  return issue.code ? ISSUE_TEXTS[issue.code](issue.values ?? {}) : issue.message;
+}
