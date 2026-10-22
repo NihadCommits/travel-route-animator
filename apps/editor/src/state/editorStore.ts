@@ -3,6 +3,7 @@ import { createContext, useContext } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { createAutosave, type Autosave, type SaveStatus } from './autosave';
 import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
+import type { ProjectUiState } from './uiState';
 
 export interface ApplyOptions {
   /** Merges quick edits of the same thing into one undo step (see history.ts). */
@@ -14,6 +15,8 @@ export interface ApplyOptions {
 export interface EditorState {
   history: History<Project>;
   selectedId: Id | null;
+  /** Tree items the user closed; everything else is shown open. Not part of the undo history. */
+  collapsed: ReadonlySet<Id>;
   saveStatus: SaveStatus;
 
   /** Applies an edit (a pure function from core/edit) as one undoable step. */
@@ -23,12 +26,15 @@ export interface EditorState {
   undo: () => void;
   redo: () => void;
   select: (id: Id | null) => void;
+  setExpanded: (id: Id, open: boolean) => void;
   retrySave: () => Promise<void>;
 }
 
 export interface EditorStoreOptions {
   save: (project: Project) => Promise<unknown>;
   autosaveDelayMs?: number;
+  /** Selection and closed tree items from the last visit (see uiState.ts). */
+  ui?: ProjectUiState | undefined;
 }
 
 export interface EditorStore {
@@ -39,7 +45,7 @@ export interface EditorStore {
 /** One store per open project; the editor screen creates it after loading the project. */
 export function createEditorStore(
   project: Project,
-  { save, autosaveDelayMs }: EditorStoreOptions,
+  { save, autosaveDelayMs, ui }: EditorStoreOptions,
 ): EditorStore {
   const autosave = createAutosave<Project>({
     save,
@@ -60,7 +66,9 @@ export function createEditorStore(
 
     return {
       history: createHistory(project),
-      selectedId: null,
+      // The project may have changed elsewhere since the last visit; keep only what still exists.
+      selectedId: existingOrNull(project, ui?.selectedId ?? null),
+      collapsed: new Set(ui?.collapsed.filter((id) => locateItem(project, id))),
       saveStatus: { state: 'saved' },
 
       apply(change, { coalesceKey, select } = {}) {
@@ -79,6 +87,14 @@ export function createEditorStore(
       undo: () => update(undo(get().history)),
       redo: () => update(redo(get().history)),
       select: (id) => set({ selectedId: existingOrNull(get().history.present, id) }),
+      setExpanded(id, open) {
+        const { collapsed } = get();
+        if (collapsed.has(id) !== open) return;
+        const next = new Set(collapsed);
+        if (open) next.delete(id);
+        else next.add(id);
+        set({ collapsed: next });
+      },
       retrySave: () => autosave.flush(),
     };
   });

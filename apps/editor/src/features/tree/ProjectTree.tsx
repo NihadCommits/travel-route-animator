@@ -17,7 +17,7 @@ import {
 } from '@dnd-kit/dom';
 import { DragDropProvider, type DragDropEventHandlers } from '@dnd-kit/react';
 import { Folder, Plus, Route } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,9 +94,9 @@ export function ProjectTree() {
   const apply = useEditor((state) => state.apply);
   const add = useEditor((state) => state.add);
   const select = useEditor((state) => state.select);
+  const collapsed = useEditor((state) => state.collapsed);
+  const setExpanded = useEditor((state) => state.setExpanded);
 
-  // Everything starts expanded; only what the user closes is remembered.
-  const [collapsed, setCollapsed] = useState<ReadonlySet<Id>>(new Set());
   const [renamingId, setRenamingId] = useState<Id | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [vehicleForEtappe, setVehicleForEtappe] = useState<Id | null>(null);
@@ -140,13 +140,10 @@ export function ProjectTree() {
   const tabStopId = rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id;
   const treeRef = useRef<HTMLUListElement>(null);
 
-  const setExpanded = (id: Id, open: boolean) =>
-    setCollapsed((current) => {
-      const next = new Set(current);
-      if (open) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // A selection remembered from the last visit may be further down; bring it into view once.
+  useEffect(() => {
+    treeRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' });
+  }, []);
 
   function navigateFrom(id: Id, key: NavigationKey) {
     const result = navigate(rows, id, key);

@@ -1,5 +1,5 @@
 import { addEtappe, addGroup, createProject, type Project } from '@travel-route-animator/core';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders, createQueryClient } from '@/AppProviders';
@@ -142,6 +142,21 @@ describe('EditorScreen', () => {
     expect(row('Hinreise')).toHaveAttribute('aria-expanded', 'false');
     await user.keyboard('{ArrowDown}');
     expect(row('Rückreise')).toHaveFocus();
+  });
+
+  it('remembers the selection and the closed items for the next visit', async () => {
+    const outward = addGroup(createProject('Trip'), 'Hinreise');
+    const project = addEtappe(outward.project, outward.id, 'Wien').project;
+    const { user } = renderEditor(project);
+    await focusRow('Hinreise');
+    await user.keyboard('{ArrowLeft}');
+    expect(row('Hinreise')).toHaveAttribute('aria-expanded', 'false');
+
+    cleanup();
+    renderEditor(project);
+    const group = await screen.findByRole('treeitem', { name: 'Hinreise' });
+    expect(group).toHaveAttribute('aria-selected', 'true');
+    expect(group).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('asks before deleting a group and can undo it', async () => {
