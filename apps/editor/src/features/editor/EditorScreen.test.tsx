@@ -38,7 +38,9 @@ afterEach(() => {
 describe('EditorScreen', () => {
   it('shows the project with an empty tree and explains the first step', async () => {
     renderEditor(createProject('Portugal 2026'));
-    expect(await screen.findByRole('heading', { name: 'Portugal 2026' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Portugal 2026' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Noch keine Gruppe/)).toBeInTheDocument();
   });
 
@@ -54,7 +56,7 @@ describe('EditorScreen', () => {
 
   it('builds a group, a stage and a vehicle, and marks the unfinished stage', async () => {
     const { user } = renderEditor(createProject('Trip'));
-    await screen.findByRole('heading', { name: 'Trip' });
+    await screen.findByRole('heading', { level: 1, name: 'Trip' });
 
     // A new group starts in rename mode.
     await user.click(screen.getByRole('button', { name: /Gruppe/ }));
@@ -105,7 +107,7 @@ describe('EditorScreen', () => {
     // Inside the rename field Ctrl+Z belongs to the field, not to the project.
     await user.keyboard('{F2}');
     await user.keyboard('{Control>}z{/Control}');
-    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    expect(within(tree()).getByRole('textbox')).toBeInTheDocument();
     await user.keyboard('{Escape}');
     expect(row('Tag 2')).toHaveFocus();
 
@@ -178,7 +180,7 @@ describe('EditorScreen', () => {
   it('saves changes to the server on its own', async () => {
     const project = createProject('Trip');
     const { server, user } = renderEditor(project);
-    await screen.findByRole('heading', { name: 'Trip' });
+    await screen.findByRole('heading', { level: 1, name: 'Trip' });
 
     await user.click(screen.getByRole('button', { name: /Gruppe/ }));
     await user.keyboard('{Enter}');

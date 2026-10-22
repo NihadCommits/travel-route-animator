@@ -11,6 +11,7 @@ export function EditorHeader() {
   const canRedo = useEditor(selectCanRedo);
   const undo = useEditor((state) => state.undo);
   const redo = useEditor((state) => state.redo);
+  const select = useEditor((state) => state.select);
 
   return (
     <header className="bg-card flex h-10 shrink-0 items-center gap-2 border-b px-2">
@@ -19,7 +20,16 @@ export function EditorHeader() {
           <ArrowLeft /> {de.editor.backToProjects}
         </a>
       </Button>
-      <h1 className="truncate font-semibold">{project.name}</h1>
+      <h1 className="min-w-0 truncate font-semibold">
+        <button
+          type="button"
+          className="hover:text-primary max-w-full truncate"
+          title={de.editor.showProjectSettings}
+          onClick={() => select(project.id)}
+        >
+          {project.name}
+        </button>
+      </h1>
       <div className="ml-auto flex items-center gap-1">
         <IconButton label={de.editor.undo} disabled={!canUndo} onClick={undo}>
           <Undo2 />

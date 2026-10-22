@@ -85,6 +85,20 @@ describe('editor store', () => {
     expect(state().history.present.groups).toHaveLength(0);
   });
 
+  it('applies a change only if the project stays storable', () => {
+    const { state } = setup();
+    const before = state().history;
+
+    const issues = state().applyIfValid((p) => renameItem(p, p.id, '  '));
+    expect(issues.map((issue) => issue.path)).toEqual(['name']);
+    expect(state().history).toBe(before);
+
+    expect(state().applyIfValid((p) => renameItem(p, p.id, 'Portugal'))).toEqual([]);
+    expect(state().history.present.name).toBe('Portugal');
+    state().undo();
+    expect(state().history.present.name).toBe('Trip');
+  });
+
   it('refuses to select something that does not exist', () => {
     const { state } = setup();
     state().select('g_unknown');

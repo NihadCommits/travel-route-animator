@@ -1,4 +1,11 @@
-import { locateItem, type Added, type Id, type Project } from '@travel-route-animator/core';
+import {
+  locateItem,
+  validateProject,
+  type Added,
+  type Id,
+  type Project,
+  type ValidationIssue,
+} from '@travel-route-animator/core';
 import { createContext, useContext } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { createAutosave, type Autosave, type SaveStatus } from './autosave';
@@ -21,6 +28,14 @@ export interface EditorState {
 
   /** Applies an edit (a pure function from core/edit) as one undoable step. */
   apply: (change: (project: Project) => Project, options?: ApplyOptions) => void;
+  /**
+   * Like apply, but only if the project stays storable (ADR 0004). Returns what is wrong
+   * otherwise and leaves the project as it was.
+   */
+  applyIfValid: (
+    change: (project: Project) => Project,
+    options?: ApplyOptions,
+  ) => ValidationIssue[];
   /** Applies an edit that creates an item and selects the new item. */
   add: (change: (project: Project) => Added) => Id;
   undo: () => void;
@@ -77,6 +92,15 @@ export function createEditorStore(
           commit(history, change(history.present), coalesceKey ? { coalesceKey } : {}),
           select,
         );
+      },
+      applyIfValid(change, options) {
+        const next = change(get().history.present);
+        const result = validateProject(next);
+        if (!result.success) return result.issues;
+        // Commit the edited object itself, not Zod's parsed copy: unchanged groups, stages and
+        // tracks keep their identity, which is what keeps re-renders and undo cheap.
+        get().apply(() => next, options);
+        return [];
       },
       add(change) {
         const { history } = get();
