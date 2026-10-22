@@ -1,6 +1,8 @@
-import { cn } from '@/lib/utils';
+import { useDraggable } from '@dnd-kit/react';
+import type { Id } from '@travel-route-animator/core';
 import { ChevronRight, Plus, TriangleAlert } from 'lucide-react';
 import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -11,8 +13,11 @@ import {
 } from '@/components/ui/context-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { de } from '@/i18n/de';
+import type { DropPosition, TreeItemKind } from './drop';
 
 export interface TreeRowProps {
+  id: Id;
+  kind: TreeItemKind;
   level: number;
   label: string;
   icon: ReactNode;
@@ -30,12 +35,19 @@ export interface TreeRowProps {
   add?: { label: string; onAdd: () => void };
   /** Translated reasons why this item cannot be rendered yet (ADR 0002). */
   warnings?: readonly string[];
+  /** Where a dragged item would land on this row, if it is the current drop target. */
+  dropIndicator?: DropPosition | null;
   children?: ReactNode;
 }
 
 export function TreeRow(props: TreeRowProps) {
-  const { level, label, icon, expanded, selected, renaming, add, warnings = [], children } = props;
+  const { id, kind, level, label, icon, expanded, selected, renaming, add, children } = props;
+  const { warnings = [], dropIndicator } = props;
   const afterClose = useRef<(() => void) | null>(null);
+
+  // dnd-kit handles the dragging itself. Where the row lands is found from the pointer position
+  // via the data-tree-* attributes below (see dropTargetOf in ProjectTree) and decided in drop.ts.
+  const { ref: dragRef, isDragging } = useDraggable({ id, type: kind, disabled: renaming });
 
   function handleKeyDown(event: KeyboardEvent<HTMLLIElement>) {
     // Nested rows bubble their key events up; only react to keys on this row itself.
@@ -69,9 +81,18 @@ export function TreeRow(props: TreeRowProps) {
       <ContextMenu>
         <ContextMenuTrigger asChild>
           <div
+            ref={dragRef}
+            data-tree-id={id}
+            data-tree-kind={kind}
+            data-drop={dropIndicator ?? undefined}
             className={cn(
               'group/row ring-ring flex h-7 cursor-default items-center gap-1.5 pr-1 select-none',
               selected ? 'bg-primary/25' : 'hover:bg-accent',
+              isDragging && 'opacity-60',
+              // Insertion line above or below the row, or an outline when dropping into it.
+              dropIndicator === 'before' && 'shadow-[inset_0_2px_0_var(--primary)]',
+              dropIndicator === 'after' && 'shadow-[inset_0_-2px_0_var(--primary)]',
+              dropIndicator === 'inside' && 'ring-primary bg-primary/15 ring-1 ring-inset',
             )}
             // Indentation shows the hierarchy; 14 px per level reads well at 13 px text.
             style={{ paddingLeft: 4 + (level - 1) * 14 }}
