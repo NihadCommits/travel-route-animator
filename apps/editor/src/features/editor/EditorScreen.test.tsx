@@ -1,4 +1,4 @@
-import { createProject, type Project } from '@travel-route-animator/core';
+import { addEtappe, addGroup, createProject, type Project } from '@travel-route-animator/core';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -90,6 +90,58 @@ describe('EditorScreen', () => {
     expect(row('Tag 1')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: /Wiederholen/ }));
     expect(row('Tag 2')).toBeInTheDocument();
+  });
+
+  it('undoes and redoes with the keyboard, but leaves a name being typed alone', async () => {
+    const project = createProject('Trip');
+    project.groups.push({ id: 'g_1', name: 'Tag 1', etappen: [] });
+    const { user } = renderEditor(project);
+
+    await focusRow('Tag 1');
+    await user.keyboard('{F2}{Control>}a{/Control}Tag 2{Enter}');
+    // Enter puts the focus back on the row, so the keyboard keeps working there.
+    expect(row('Tag 2')).toHaveFocus();
+
+    // Inside the rename field Ctrl+Z belongs to the field, not to the project.
+    await user.keyboard('{F2}');
+    await user.keyboard('{Control>}z{/Control}');
+    expect(screen.getByRole('textbox')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(row('Tag 2')).toHaveFocus();
+
+    await user.keyboard('{Control>}z{/Control}');
+    expect(row('Tag 1')).toBeInTheDocument();
+    await user.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
+    expect(row('Tag 2')).toBeInTheDocument();
+    await user.keyboard('{Control>}z{/Control}{Control>}y{/Control}');
+    expect(row('Tag 2')).toBeInTheDocument();
+  });
+
+  it('moves through the tree with the arrow keys', async () => {
+    const outward = addGroup(createProject('Trip'), 'Hinreise');
+    const vienna = addEtappe(outward.project, outward.id, 'Wien');
+    const { user } = renderEditor(addGroup(vienna.project, 'Rückreise').project);
+
+    // Nothing is selected yet, so the first row is the one Tab reaches.
+    expect(await screen.findByRole('treeitem', { name: 'Hinreise' })).toHaveAttribute(
+      'tabindex',
+      '0',
+    );
+
+    await focusRow('Hinreise');
+    await user.keyboard('{ArrowDown}');
+    expect(row('Wien')).toHaveFocus();
+    expect(row('Wien')).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowDown}');
+    expect(row('Rückreise')).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(row('Hinreise')).toHaveFocus();
+
+    // Left closes the group; its stage is then skipped.
+    await user.keyboard('{ArrowLeft}');
+    expect(row('Hinreise')).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard('{ArrowDown}');
+    expect(row('Rückreise')).toHaveFocus();
   });
 
   it('asks before deleting a group and can undo it', async () => {

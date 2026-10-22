@@ -1,7 +1,7 @@
 import { useDraggable } from '@dnd-kit/react';
 import type { Id } from '@travel-route-animator/core';
 import { ChevronRight, Plus, TriangleAlert } from 'lucide-react';
-import { useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import {
   ContextMenu,
@@ -14,6 +14,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { de } from '@/i18n/de';
 import type { DropPosition, TreeItemKind } from './drop';
+import { isNavigationKey, type NavigationKey } from './navigation';
 
 export interface TreeRowProps {
   id: Id;
@@ -26,6 +27,9 @@ export interface TreeRowProps {
   onToggle?: () => void;
   selected: boolean;
   onSelect: () => void;
+  /** The one row that Tab reaches (roving tabindex): the selected one, else the first. */
+  tabStop: boolean;
+  onNavigate: (key: NavigationKey) => void;
   renaming: boolean;
   onStartRename: () => void;
   onRename: (name: string) => void;
@@ -44,10 +48,20 @@ export function TreeRow(props: TreeRowProps) {
   const { id, kind, level, label, icon, expanded, selected, renaming, add, children } = props;
   const { warnings = [], dropIndicator } = props;
   const afterClose = useRef<(() => void) | null>(null);
+  const itemRef = useRef<HTMLLIElement>(null);
+  const refocusAfterRename = useRef(false);
 
   // dnd-kit handles the dragging itself. Where the row lands is found from the pointer position
   // via the data-tree-* attributes below (see dropTargetOf in ProjectTree) and decided in drop.ts.
   const { ref: dragRef, isDragging } = useDraggable({ id, type: kind, disabled: renaming });
+
+  // Leaving the rename field with Enter or Escape keeps working from the keyboard: the focus
+  // goes back to this row. Leaving it by clicking elsewhere leaves the focus where it went.
+  useEffect(() => {
+    if (renaming || !refocusAfterRename.current) return;
+    refocusAfterRename.current = false;
+    itemRef.current?.focus();
+  }, [renaming]);
 
   function handleKeyDown(event: KeyboardEvent<HTMLLIElement>) {
     // Nested rows bubble their key events up; only react to keys on this row itself.
@@ -58,22 +72,22 @@ export function TreeRow(props: TreeRowProps) {
     } else if (event.key === 'Delete') {
       event.preventDefault();
       props.onDelete();
-    } else if (
-      expanded !== undefined &&
-      (event.key === 'ArrowRight' || event.key === 'ArrowLeft')
-    ) {
-      if ((event.key === 'ArrowRight') !== expanded) props.onToggle?.();
+    } else if (isNavigationKey(event.key)) {
+      // Also keeps the arrow keys from scrolling the tree.
+      event.preventDefault();
+      props.onNavigate(event.key);
     }
   }
 
   return (
     <li
+      ref={itemRef}
       role="treeitem"
       aria-level={level}
       aria-expanded={expanded}
       aria-selected={selected}
       aria-label={label || de.tree.unnamed}
-      tabIndex={selected ? 0 : -1}
+      tabIndex={props.tabStop ? 0 : -1}
       onFocus={(event) => event.target === event.currentTarget && !selected && props.onSelect()}
       onKeyDown={handleKeyDown}
       className="outline-none [&:focus-visible>div]:ring-1 [&:focus-visible>div]:ring-inset"
@@ -123,6 +137,7 @@ export function TreeRow(props: TreeRowProps) {
                 initial={label}
                 onDone={props.onRename}
                 onCancel={props.onCancelRename}
+                onKeyboardExit={() => (refocusAfterRename.current = true)}
               />
             ) : (
               <span
@@ -226,10 +241,13 @@ function RenameInput({
   initial,
   onDone,
   onCancel,
+  onKeyboardExit,
 }: {
   initial: string;
   onDone: (name: string) => void;
   onCancel: () => void;
+  /** Called right before Enter or Escape ends the editing. */
+  onKeyboardExit: () => void;
 }) {
   const [value, setValue] = useState(initial);
   return (
@@ -246,6 +264,7 @@ function RenameInput({
       onDoubleClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => {
         event.stopPropagation();
+        if (event.key === 'Enter' || event.key === 'Escape') onKeyboardExit();
         if (event.key === 'Enter') onDone(value.trim());
         if (event.key === 'Escape') onCancel();
       }}

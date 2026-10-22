@@ -34,6 +34,7 @@ import { de } from '@/i18n/de';
 import { translateIssue } from '@/i18n/issues';
 import { selectProject, useEditor } from '@/state/editorStore';
 import { dropPositionFor, resolveDrop, type DropTarget, type TreeItemKind } from './drop';
+import { navigate, visibleRows, type NavigationKey } from './navigation';
 import { TreeRow } from './TreeRow';
 import { VehiclePicker } from './VehiclePicker';
 
@@ -134,6 +135,11 @@ export function ProjectTree() {
     return byEtappe;
   }, [project]);
 
+  const rows = useMemo(() => visibleRows(project, collapsed), [project, collapsed]);
+  // Without a visible selection the first row takes the tab stop, so Tab always reaches the tree.
+  const tabStopId = rows.some((row) => row.id === selectedId) ? selectedId : rows[0]?.id;
+  const treeRef = useRef<HTMLUListElement>(null);
+
   const setExpanded = (id: Id, open: boolean) =>
     setCollapsed((current) => {
       const next = new Set(current);
@@ -142,10 +148,26 @@ export function ProjectTree() {
       return next;
     });
 
+  function navigateFrom(id: Id, key: NavigationKey) {
+    const result = navigate(rows, id, key);
+    if (!result) return;
+    if ('toggle' in result) {
+      setExpanded(result.toggle, result.open);
+      return;
+    }
+    // Focusing a row selects it (see TreeRow), like moving through a file tree.
+    const row = [...(treeRef.current?.querySelectorAll<HTMLElement>('[data-tree-id]') ?? [])].find(
+      (element) => element.dataset.treeId === result.focus,
+    );
+    row?.closest<HTMLElement>('[role="treeitem"]')?.focus();
+  }
+
   function rowHandlers(id: Id, name: string, deleteInfo?: PendingDelete) {
     return {
       selected: selectedId === id,
       onSelect: () => select(id),
+      tabStop: tabStopId === id,
+      onNavigate: (key: NavigationKey) => navigateFrom(id, key),
       renaming: renamingId === id,
       onStartRename: () => setRenamingId(id),
       onRename: (newName: string) => {
@@ -175,7 +197,7 @@ export function ProjectTree() {
         ) : (
           <DragDropProvider sensors={SENSORS} plugins={PLUGINS} {...dragHandlers}>
             {/* select-none: dragging across the hint rows would otherwise select their text. */}
-            <ul role="tree" aria-label={de.tree.label} className="pb-2 select-none">
+            <ul ref={treeRef} role="tree" aria-label={de.tree.label} className="pb-2 select-none">
               {project.groups.map((group) => (
                 <TreeRow
                   key={group.id}

@@ -3,9 +3,11 @@ import { Inspector } from '@/features/inspector/Inspector';
 import { ProjectTree } from '@/features/tree/ProjectTree';
 import { de } from '@/i18n/de';
 import { EditorHeader } from './EditorHeader';
+import { useEditorShortcuts } from './useEditorShortcuts';
 
 /** Like an editing app: structure left, picture in the middle, properties right, time below. */
 export function EditorLayout() {
+  useEditorShortcuts();
   return (
     <div className="flex h-screen flex-col">
       <EditorHeader />
