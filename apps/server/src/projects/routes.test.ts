@@ -241,7 +241,7 @@ describe('project API', () => {
         error: 'invalid_project_file',
         message: `Project "${project.id}" cannot be opened: projects/portugal-2026/project.json is not a valid project file`,
         file: 'projects/portugal-2026/project.json',
-        issues: [{ path: '', message: 'Unrecognized key: "colour"' }],
+        issues: [{ path: '', message: 'Unrecognized key: "colour"', check: { kind: 'other' } }],
       });
     });
 
