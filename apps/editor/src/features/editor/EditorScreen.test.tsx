@@ -1,5 +1,5 @@
-import { createProject, type Project } from '@travel-route-animator/core';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { addEtappe, addGroup, createProject, type Project } from '@travel-route-animator/core';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders, createQueryClient } from '@/AppProviders';
@@ -38,7 +38,9 @@ afterEach(() => {
 describe('EditorScreen', () => {
   it('shows the project with an empty tree and explains the first step', async () => {
     renderEditor(createProject('Portugal 2026'));
-    expect(await screen.findByRole('heading', { name: 'Portugal 2026' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Portugal 2026' }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/Noch keine Gruppe/)).toBeInTheDocument();
   });
 
@@ -54,7 +56,7 @@ describe('EditorScreen', () => {
 
   it('builds a group, a stage and a vehicle, and marks the unfinished stage', async () => {
     const { user } = renderEditor(createProject('Trip'));
-    await screen.findByRole('heading', { name: 'Trip' });
+    await screen.findByRole('heading', { level: 1, name: 'Trip' });
 
     // A new group starts in rename mode.
     await user.click(screen.getByRole('button', { name: /Gruppe/ }));
@@ -92,6 +94,73 @@ describe('EditorScreen', () => {
     expect(row('Tag 2')).toBeInTheDocument();
   });
 
+  it('undoes and redoes with the keyboard, but leaves a name being typed alone', async () => {
+    const project = createProject('Trip');
+    project.groups.push({ id: 'g_1', name: 'Tag 1', etappen: [] });
+    const { user } = renderEditor(project);
+
+    await focusRow('Tag 1');
+    await user.keyboard('{F2}{Control>}a{/Control}Tag 2{Enter}');
+    // Enter puts the focus back on the row, so the keyboard keeps working there.
+    expect(row('Tag 2')).toHaveFocus();
+
+    // Inside the rename field Ctrl+Z belongs to the field, not to the project.
+    await user.keyboard('{F2}');
+    await user.keyboard('{Control>}z{/Control}');
+    expect(within(tree()).getByRole('textbox')).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    expect(row('Tag 2')).toHaveFocus();
+
+    await user.keyboard('{Control>}z{/Control}');
+    expect(row('Tag 1')).toBeInTheDocument();
+    await user.keyboard('{Control>}{Shift>}z{/Shift}{/Control}');
+    expect(row('Tag 2')).toBeInTheDocument();
+    await user.keyboard('{Control>}z{/Control}{Control>}y{/Control}');
+    expect(row('Tag 2')).toBeInTheDocument();
+  });
+
+  it('moves through the tree with the arrow keys', async () => {
+    const outward = addGroup(createProject('Trip'), 'Hinreise');
+    const vienna = addEtappe(outward.project, outward.id, 'Wien');
+    const { user } = renderEditor(addGroup(vienna.project, 'Rückreise').project);
+
+    // Nothing is selected yet, so the first row is the one Tab reaches.
+    expect(await screen.findByRole('treeitem', { name: 'Hinreise' })).toHaveAttribute(
+      'tabindex',
+      '0',
+    );
+
+    await focusRow('Hinreise');
+    await user.keyboard('{ArrowDown}');
+    expect(row('Wien')).toHaveFocus();
+    expect(row('Wien')).toHaveAttribute('aria-selected', 'true');
+    await user.keyboard('{ArrowDown}');
+    expect(row('Rückreise')).toHaveFocus();
+    await user.keyboard('{Home}');
+    expect(row('Hinreise')).toHaveFocus();
+
+    // Left closes the group; its stage is then skipped.
+    await user.keyboard('{ArrowLeft}');
+    expect(row('Hinreise')).toHaveAttribute('aria-expanded', 'false');
+    await user.keyboard('{ArrowDown}');
+    expect(row('Rückreise')).toHaveFocus();
+  });
+
+  it('remembers the selection and the closed items for the next visit', async () => {
+    const outward = addGroup(createProject('Trip'), 'Hinreise');
+    const project = addEtappe(outward.project, outward.id, 'Wien').project;
+    const { user } = renderEditor(project);
+    await focusRow('Hinreise');
+    await user.keyboard('{ArrowLeft}');
+    expect(row('Hinreise')).toHaveAttribute('aria-expanded', 'false');
+
+    cleanup();
+    renderEditor(project);
+    const group = await screen.findByRole('treeitem', { name: 'Hinreise' });
+    expect(group).toHaveAttribute('aria-selected', 'true');
+    expect(group).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it('asks before deleting a group and can undo it', async () => {
     const project = createProject('Trip');
     project.groups.push({ id: 'g_1', name: 'Hinreise', etappen: [] });
@@ -111,7 +180,7 @@ describe('EditorScreen', () => {
   it('saves changes to the server on its own', async () => {
     const project = createProject('Trip');
     const { server, user } = renderEditor(project);
-    await screen.findByRole('heading', { name: 'Trip' });
+    await screen.findByRole('heading', { level: 1, name: 'Trip' });
 
     await user.click(screen.getByRole('button', { name: /Gruppe/ }));
     await user.keyboard('{Enter}');

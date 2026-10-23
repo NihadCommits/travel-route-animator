@@ -4,17 +4,24 @@ import { checkRenderReadiness } from '../model/readiness';
 import { describeIssues, validateProject } from '../model/validation';
 import { sampleProject } from '../testing/sampleProject';
 import { locateItem } from './locate';
+import { defaultFlightOptions } from '../model/defaults';
 import {
   addEtappe,
   addGroup,
   addTrack,
+  changeVehicleType,
   duplicateItem,
+  editEtappe,
+  editGroup,
+  editTrack,
   moveEtappe,
   moveGroup,
   moveTrack,
   removeItem,
   removeTrack,
   renameItem,
+  setCameraMode,
+  setViewMode,
 } from './operations';
 
 function predictableContext(): FactoryContext {
@@ -147,6 +154,109 @@ describe('renameItem', () => {
     expect(project.groups[1]!.name).toBe('Tag 4');
     expect(project.groups[0]!.etappen[1]!.name).toBe('Wien – Porto');
     expect(project.groups[1]!.etappen[0]!.tracks[0]!.label).toBe('Variante A');
+  });
+
+  it('removes the label of a track renamed to nothing, so the vehicle type shows instead', () => {
+    const project = renameItem(sampleProject(), 't_a', '');
+    expect(project.groups[1]!.etappen[0]!.tracks[0]).not.toHaveProperty('label');
+  });
+});
+
+describe('edit', () => {
+  it('replaces one group, stage or track by ID and leaves the rest alone', () => {
+    const original = sampleProject();
+    let project = editGroup(original, 'g_day4', (group) => ({ ...group, color: '#2680EB' }));
+    project = editEtappe(project, 'e_flight', (etappe) => ({ ...etappe, durationSec: 12 }));
+    project = editTrack(project, 't_b', (track) => ({
+      ...track,
+      style: { ...track.style, lineDash: 'dashed' },
+    }));
+
+    expect(project.groups[1]!.color).toBe('#2680EB');
+    expect(project.groups[0]!.etappen[1]!.durationSec).toBe(12);
+    expect(project.groups[1]!.etappen[0]!.tracks[1]!.style.lineDash).toBe('dashed');
+    expect(project.groups[0]!.etappen[0]).toBe(original.groups[0]!.etappen[0]);
+    expect(project.groups[1]!.etappen[0]!.tracks[0]).toBe(
+      original.groups[1]!.etappen[0]!.tracks[0],
+    );
+    expectStorable(project);
+  });
+
+  it('fails loudly when the ID belongs to something else', () => {
+    expect(() => editEtappe(sampleProject(), 't_a', (etappe) => etappe)).toThrow(/No etappe/);
+  });
+});
+
+describe('changeVehicleType', () => {
+  const trackOf = (project: ReturnType<typeof sampleProject>) =>
+    project.groups[1]!.etappen[0]!.tracks[0]!;
+
+  it('keeps the routing when the new vehicle allows it', () => {
+    const track = trackOf(changeVehicleType(sampleProject(), 't_a', 'bus'));
+    expect(track.vehicle).toEqual({ type: 'bus', variant: 'bus-default' });
+    expect(track.routing).toEqual({ mode: 'road', avoid: ['tolls'] });
+  });
+
+  it('falls back to the default routing of the new vehicle otherwise', () => {
+    const project = changeVehicleType(sampleProject(), 't_a', 'train');
+    expect(trackOf(project).routing).toEqual({ mode: 'smooth' });
+    expectStorable(project);
+  });
+
+  it('adds flight options for a plane and drops them for anything else', () => {
+    const plane = changeVehicleType(sampleProject(), 't_a', 'plane');
+    expect(trackOf(plane).flight).toEqual(defaultFlightOptions());
+    expect(trackOf(plane).routing).toEqual({ mode: 'great-circle' });
+    expectStorable(plane);
+
+    const car = changeVehicleType(sampleProject(), 't_plane', 'car');
+    expect(car.groups[0]!.etappen[1]!.tracks[0]).not.toHaveProperty('flight');
+    expectStorable(car);
+  });
+
+  it('changes nothing when the type stays the same', () => {
+    const project = sampleProject();
+    expect(changeVehicleType(project, 't_a', 'car').groups[1]!.etappen[0]!.tracks[0]).toBe(
+      trackOf(project),
+    );
+  });
+});
+
+describe('setViewMode', () => {
+  it('sets the typical tilt of the new view, so a 2d view stays flat', () => {
+    let project = setViewMode(sampleProject(), 'e_train', '3d-tilted');
+    expect(project.groups[0]!.etappen[0]!.view).toMatchObject({ mode: '3d-tilted', pitchDeg: 55 });
+    project = setViewMode(project, 'e_train', '2d');
+    expect(project.groups[0]!.etappen[0]!.view).toMatchObject({ mode: '2d', pitchDeg: 0 });
+    expectStorable(project);
+  });
+});
+
+describe('setCameraMode', () => {
+  const cameraOf = (project: ReturnType<typeof sampleProject>) =>
+    project.groups[1]!.etappen[0]!.view.camera;
+
+  it('follows the first vehicle when none is chosen yet', () => {
+    const project = setCameraMode(sampleProject(), 'e_options', 'follow');
+    expect(cameraOf(project)).toMatchObject({ mode: 'follow', followTrackId: 't_a' });
+    expect(checkRenderReadiness(project, ['e_options'])).toEqual([]);
+  });
+
+  it('remembers the chosen vehicle when switching away and back', () => {
+    let project = editEtappe(sampleProject(), 'e_options', (etappe) => ({
+      ...etappe,
+      view: { ...etappe.view, camera: { ...etappe.view.camera, followTrackId: 't_b' } },
+    }));
+    project = setCameraMode(project, 'e_options', 'overview');
+    project = setCameraMode(project, 'e_options', 'follow');
+    expect(cameraOf(project)).toMatchObject({ mode: 'follow', followTrackId: 't_b' });
+  });
+
+  it('leaves following without a target for a stage without vehicles', () => {
+    const { project, id } = addEtappe(sampleProject(), 'g_day4', 'Empty');
+    const camera = setCameraMode(project, id, 'follow').groups[1]!.etappen[1]!.view.camera;
+    expect(camera.mode).toBe('follow');
+    expect(camera).not.toHaveProperty('followTrackId');
   });
 });
 

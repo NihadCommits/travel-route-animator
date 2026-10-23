@@ -65,6 +65,10 @@ export function defaultFlightOptions(): FlightOptions {
 /** Typical tilt per view; a 2d view must stay at 0. */
 const PITCH_BY_VIEW: Record<ViewMode, number> = { '2d': 0, '3d-tilted': 55, globe: 0 };
 
+export function defaultPitch(mode: ViewMode): number {
+  return PITCH_BY_VIEW[mode];
+}
+
 export function defaultView(mode: ViewMode, camera: CameraSettings): ViewSettings {
   return {
     mode,

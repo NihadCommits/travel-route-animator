@@ -114,8 +114,29 @@ describe('validateProject (always checked, "storable")', () => {
         'groups[0].etappen[0].durationSec',
         /expected number to be >0/i,
       );
-      // Zod's own checks carry no code; the editor translates them via Zod's German locale.
+      // Zod's own checks carry no code but say which check failed, so the editor can explain it.
       expect(issue.code).toBeUndefined();
+      expect(issue.check).toEqual({
+        kind: 'too_small',
+        origin: 'number',
+        limit: 0,
+        inclusive: false,
+      });
+    });
+
+    it('describes the built-in checks behind other mistakes', () => {
+      const project = sampleProject();
+      trainEtappe(project).view.pitchDeg = 90;
+      (trainEtappe(project) as { name: unknown }).name = 7;
+      const result = validateProject(project);
+      expect(result.success).toBe(false);
+      const checks = result.success ? [] : result.issues.map((issue) => issue.check);
+      expect(checks).toEqual(
+        expect.arrayContaining([
+          { kind: 'too_big', origin: 'number', limit: 85, inclusive: true },
+          { kind: 'invalid_type', expected: 'string' },
+        ]),
+      );
     });
   });
 

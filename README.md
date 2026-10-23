@@ -10,7 +10,7 @@ Travel Route Animator is a local tool that turns trip itineraries into map anima
 
 ### Status
 
-**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor already lists projects and builds their structure (groups, stages, vehicles) in a project tree, with autosave and undo/redo. Waypoints, the map, the preview and the export follow module by module.
+**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints, the map, the preview and the export follow module by module.
 
 ### Planned features
 
@@ -55,6 +55,17 @@ pnpm dev
 
 The first render downloads Chrome Headless Shell (about 100 MB) once. `pnpm spike:render --gl=vulkan` tries another OpenGL backend, `--only=SpikeGlobe` renders a single composition.
 
+### Keyboard shortcuts in the editor
+
+| Keys                                  | Action                                                |
+| ------------------------------------- | ----------------------------------------------------- |
+| `Ctrl+Z` / `Ctrl+Shift+Z` or `Ctrl+Y` | Undo / redo (outside of text fields)                  |
+| `F2`                                  | Rename the selected item                              |
+| `Del`                                 | Delete the selected item (asks for groups and stages) |
+| `↑` `↓` `Home` `End`                  | Move through the project tree                         |
+| `←` `→`                               | Close or open an item, or step out to its parent      |
+| `↑` `↓` in a number field             | Change the value step by step (`Shift`: ten steps)    |
+
 ### Project structure
 
 | Path              | Purpose                                                                             |
@@ -96,7 +107,7 @@ Travel Route Animator ist ein lokales Tool, das Reiserouten in Kartenanimationen
 
 ### Status
 
-**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet bereits Projekte auf und baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum auf, mit automatischem Speichern und Rückgängig/Wiederholen. Wegpunkte, Karte, Vorschau und Export folgen Modul für Modul.
+**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte, Karte, Vorschau und Export folgen Modul für Modul.
 
 ### Geplante Funktionen
 
@@ -140,6 +151,17 @@ pnpm dev
 | `pnpm spike:render`  | Render-Prototyp nach `output/spike/` rendern (Karte und Globus) |
 
 Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). `pnpm spike:render --gl=vulkan` probiert ein anderes OpenGL-Backend, `--only=SpikeGlobe` rendert nur eine Komposition.
+
+### Tastenkürzel im Editor
+
+| Tasten                                     | Aktion                                                               |
+| ------------------------------------------ | -------------------------------------------------------------------- |
+| `Strg+Z` / `Strg+Umschalt+Z` oder `Strg+Y` | Rückgängig / Wiederholen (außerhalb von Textfeldern)                 |
+| `F2`                                       | Ausgewähltes Element umbenennen                                      |
+| `Entf`                                     | Ausgewähltes Element löschen (mit Rückfrage bei Gruppen und Etappen) |
+| `↑` `↓` `Pos1` `Ende`                      | Durch den Projektbaum wandern                                        |
+| `←` `→`                                    | Element zu- oder aufklappen bzw. zum übergeordneten springen         |
+| `↑` `↓` in einem Zahlenfeld                | Wert schrittweise ändern (`Umschalt`: zehn Schritte)                 |
 
 ### Projektstruktur
 

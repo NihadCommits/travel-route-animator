@@ -1,4 +1,4 @@
-import type { VehicleType } from '../model/enums';
+import type { CameraMode, VehicleType, ViewMode } from '../model/enums';
 import type { Etappe } from '../model/etappe';
 import {
   createEtappe,
@@ -10,8 +10,8 @@ import {
 import type { Id } from '../model/primitives';
 import type { Group, Project } from '../model/project';
 import type { Track } from '../model/track';
-import { recommendViewMode } from '../model/vehicles';
-import { defaultView } from '../model/defaults';
+import { isRoutingAllowed, recommendViewMode, VEHICLE_CATALOG } from '../model/vehicles';
+import { defaultFlightOptions, defaultPitch, defaultView } from '../model/defaults';
 import { locateItem, requireLocation, type ItemLocation } from './locate';
 
 // Every operation returns a new project and leaves the input untouched. Unchanged groups,
@@ -130,16 +130,90 @@ export function renameItem(project: Project, id: Id, name: string): Project {
         name,
       }));
     case 'track':
-      return updateEtappe(project, location.groupIndex, location.etappeIndex, (etappe) => ({
-        ...etappe,
-        tracks: replaceAt(etappe.tracks, location.trackIndex, {
-          ...etappe.tracks[location.trackIndex]!,
-          label: name,
-        }),
-      }));
+      // Without a label the editor shows the vehicle type ("Auto"), which beats an empty name.
+      return editTrack(project, id, ({ label: _old, ...track }) =>
+        name === '' ? track : { ...track, label: name },
+      );
     default:
       return project;
   }
+}
+
+// ---------- edit ----------
+
+// Generic edits by ID for the inspector: `update` gets the current item and returns the new
+// one. Whether the result is valid is up to the caller (the editor checks with validateProject).
+
+export function editGroup(project: Project, groupId: Id, update: (group: Group) => Group): Project {
+  const { groupIndex } = requireLocation(project, groupId, 'group');
+  return updateGroup(project, groupIndex, update);
+}
+
+export function editEtappe(
+  project: Project,
+  etappeId: Id,
+  update: (etappe: Etappe) => Etappe,
+): Project {
+  const { groupIndex, etappeIndex } = requireLocation(project, etappeId, 'etappe');
+  return updateEtappe(project, groupIndex, etappeIndex, update);
+}
+
+export function editTrack(project: Project, trackId: Id, update: (track: Track) => Track): Project {
+  const { groupIndex, etappeIndex, trackIndex } = requireLocation(project, trackId, 'track');
+  return updateEtappe(project, groupIndex, etappeIndex, (etappe) => ({
+    ...etappe,
+    tracks: replaceAt(etappe.tracks, trackIndex, update(etappe.tracks[trackIndex]!)),
+  }));
+}
+
+/**
+ * Switches a track to another vehicle and keeps it consistent with the vehicle catalog: the
+ * routing stays if the new vehicle allows it (a car switched to a bus keeps "straight"),
+ * otherwise it becomes the vehicle's default; flight options come and go with the plane.
+ */
+export function changeVehicleType(project: Project, trackId: Id, type: VehicleType): Project {
+  return editTrack(project, trackId, (track) => {
+    if (track.vehicle.type === type) return track;
+    const { flight: _flight, ...rest } = track;
+    const keepRouting = isRoutingAllowed(type, track.routing.mode);
+    return {
+      ...rest,
+      vehicle: { type, variant: `${type}-default` },
+      routing: keepRouting ? track.routing : { mode: VEHICLE_CATALOG[type].defaultRouting },
+      ...(type === 'plane' && { flight: track.flight ?? defaultFlightOptions() }),
+    };
+  });
+}
+
+/** Changes how a stage is shown; the tilt goes to the typical value of the new view. */
+export function setViewMode(project: Project, etappeId: Id, mode: ViewMode): Project {
+  return editEtappe(project, etappeId, (etappe) =>
+    etappe.view.mode === mode
+      ? etappe
+      : { ...etappe, view: { ...etappe.view, mode, pitchDeg: defaultPitch(mode) } },
+  );
+}
+
+/**
+ * Changes the camera mode. Following needs a vehicle; if none is chosen yet (or the chosen one
+ * is gone), the camera takes the first vehicle of the stage. Other modes keep the choice, so
+ * switching back to following remembers it.
+ */
+export function setCameraMode(project: Project, etappeId: Id, mode: CameraMode): Project {
+  return editEtappe(project, etappeId, (etappe) => {
+    const { camera } = etappe.view;
+    const [firstTrack] = etappe.tracks;
+    const hasTarget = etappe.tracks.some((track) => track.id === camera.followTrackId);
+    const followTrackId =
+      mode === 'follow' && !hasTarget && firstTrack ? firstTrack.id : camera.followTrackId;
+    return {
+      ...etappe,
+      view: {
+        ...etappe.view,
+        camera: { ...camera, mode, ...(followTrackId !== undefined && { followTrackId }) },
+      },
+    };
+  });
 }
 
 // ---------- remove ----------

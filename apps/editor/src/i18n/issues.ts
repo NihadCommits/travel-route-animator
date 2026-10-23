@@ -1,4 +1,9 @@
-import type { IssueCode, IssueValues, ValidationIssue } from '@travel-route-animator/core';
+import type {
+  BuiltInCheck,
+  IssueCode,
+  IssueValues,
+  ValidationIssue,
+} from '@travel-route-animator/core';
 import { de } from './de';
 
 // German texts for the rules in packages/core. Core keeps English messages (logs, API); the
@@ -46,7 +51,36 @@ const ISSUE_TEXTS: Record<IssueCode, Translate> = {
   'camera.staticMissing': () => 'Für die feste Kamera fehlt noch die Position.',
 };
 
+/** Zod's built-in checks, explained from their limit (ADR 0004). */
+function translateCheck(check: BuiltInCheck): string {
+  switch (check.kind) {
+    case 'too_small':
+      if (check.origin === 'string') {
+        return check.limit <= 1
+          ? 'Darf nicht leer sein.'
+          : `Mindestens ${num(check.limit)} Zeichen.`;
+      }
+      return check.inclusive
+        ? `Mindestens ${num(check.limit)}.`
+        : `Muss größer als ${num(check.limit)} sein.`;
+    case 'too_big':
+      if (check.origin === 'string') return `Höchstens ${num(check.limit)} Zeichen.`;
+      return check.inclusive
+        ? `Höchstens ${num(check.limit)}.`
+        : `Muss kleiner als ${num(check.limit)} sein.`;
+    case 'invalid_type':
+      return check.expected === 'number' ? 'Bitte eine Zahl eingeben.' : 'Ungültiger Wert.';
+    case 'invalid_format':
+      return 'Das Format stimmt nicht.';
+    case 'invalid_value':
+      return 'Dieser Wert ist hier nicht erlaubt.';
+    case 'other':
+      return 'Ungültiger Wert.';
+  }
+}
+
 /** The German text for an issue; falls back to core's English message for unknown cases. */
 export function translateIssue(issue: ValidationIssue): string {
-  return issue.code ? ISSUE_TEXTS[issue.code](issue.values ?? {}) : issue.message;
+  if (issue.code) return ISSUE_TEXTS[issue.code](issue.values ?? {});
+  return issue.check ? translateCheck(issue.check) : issue.message;
 }

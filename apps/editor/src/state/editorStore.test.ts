@@ -54,6 +54,51 @@ describe('editor store', () => {
     expect(state().selectedId).toBeNull();
   });
 
+  it('starts with the remembered selection and closed items, as far as they still exist', () => {
+    const { project, id } = addGroup(createProject('Trip'), 'Hinreise');
+    const { store } = createEditorStore(project, {
+      save: () => Promise.resolve(),
+      ui: { selectedId: id, collapsed: [id, 'g_deleted'] },
+    });
+    expect(store.getState().selectedId).toBe(id);
+    expect([...store.getState().collapsed]).toEqual([id]);
+
+    const { store: stale } = createEditorStore(project, {
+      save: () => Promise.resolve(),
+      ui: { selectedId: 'g_deleted', collapsed: [] },
+    });
+    expect(stale.getState().selectedId).toBeNull();
+  });
+
+  it('opens and closes tree items without an undo step', () => {
+    const { state } = setup();
+    const id = state().add((p) => addGroup(p, 'Outbound'));
+    state().setExpanded(id, false);
+    expect(state().collapsed.has(id)).toBe(true);
+    const closed = state().collapsed;
+    state().setExpanded(id, false);
+    expect(state().collapsed).toBe(closed);
+
+    state().setExpanded(id, true);
+    expect(state().collapsed.has(id)).toBe(false);
+    state().undo();
+    expect(state().history.present.groups).toHaveLength(0);
+  });
+
+  it('applies a change only if the project stays storable', () => {
+    const { state } = setup();
+    const before = state().history;
+
+    const issues = state().applyIfValid((p) => renameItem(p, p.id, '  '));
+    expect(issues.map((issue) => issue.path)).toEqual(['name']);
+    expect(state().history).toBe(before);
+
+    expect(state().applyIfValid((p) => renameItem(p, p.id, 'Portugal'))).toEqual([]);
+    expect(state().history.present.name).toBe('Portugal');
+    state().undo();
+    expect(state().history.present.name).toBe('Trip');
+  });
+
   it('refuses to select something that does not exist', () => {
     const { state } = setup();
     state().select('g_unknown');

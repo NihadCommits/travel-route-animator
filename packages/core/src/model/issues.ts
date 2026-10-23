@@ -29,6 +29,22 @@ export type IssueCode =
 /** Values the message refers to, so a translation can use them too. */
 export type IssueValues = Record<string, string | number>;
 
+/**
+ * Which of Zod's built-in checks failed, with its limit. Lets the editor explain it in its own
+ * words ("Muss größer als 0 sein.") instead of passing on Zod's developer-facing message.
+ */
+export type BuiltInCheck =
+  | {
+      kind: 'too_small' | 'too_big';
+      /** What was checked: "number", "string" (its length), "array" (its size) … */
+      origin: string;
+      limit: number;
+      /** Whether the limit itself is allowed (>= rather than >). */
+      inclusive: boolean;
+    }
+  | { kind: 'invalid_type'; expected: string }
+  | { kind: 'invalid_format' | 'invalid_value' | 'other' };
+
 export interface ValidationIssue {
   /** Where the problem is, e.g. groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1] */
   path: string;
@@ -36,6 +52,8 @@ export interface ValidationIssue {
   /** Present for our own rules; missing for Zod's built-in checks (types, ranges …). */
   code?: IssueCode;
   values?: IssueValues;
+  /** Present for Zod's built-in checks, i.e. exactly when `code` is missing. */
+  check?: BuiltInCheck;
 }
 
 export interface CustomIssue {

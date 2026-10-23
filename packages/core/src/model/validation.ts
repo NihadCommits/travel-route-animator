@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { IssueCode, IssueValues, ValidationIssue } from './issues';
+import type { BuiltInCheck, IssueCode, IssueValues, ValidationIssue } from './issues';
 import { formatPath, ProjectSchema, type Project } from './project';
 
 export type ValidationResult<T> =
@@ -13,12 +13,31 @@ interface IssueParams {
 export function toValidationIssues(error: z.ZodError): ValidationIssue[] {
   return error.issues.map((issue) => {
     const params = (issue.code === 'custom' ? issue.params : undefined) as IssueParams | undefined;
-    return {
-      path: formatPath(issue.path),
-      message: issue.message,
-      ...(params?.issueCode && { code: params.issueCode, values: params.values ?? {} }),
-    };
+    const base = { path: formatPath(issue.path), message: issue.message };
+    return params?.issueCode
+      ? { ...base, code: params.issueCode, values: params.values ?? {} }
+      : { ...base, check: builtInCheck(issue) };
   });
+}
+
+function builtInCheck(issue: z.core.$ZodIssue): BuiltInCheck {
+  switch (issue.code) {
+    case 'too_small':
+    case 'too_big':
+      return {
+        kind: issue.code,
+        origin: issue.origin,
+        limit: Number(issue.code === 'too_small' ? issue.minimum : issue.maximum),
+        inclusive: issue.inclusive ?? false,
+      };
+    case 'invalid_type':
+      return { kind: 'invalid_type', expected: issue.expected };
+    case 'invalid_format':
+    case 'invalid_value':
+      return { kind: issue.code };
+    default:
+      return { kind: 'other' };
+  }
 }
 
 /**

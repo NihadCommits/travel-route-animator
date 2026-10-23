@@ -12,6 +12,9 @@ class ResizeObserverStub {
 }
 globalThis.ResizeObserver ??= ResizeObserverStub;
 
+// Nor does it scroll; the tree scrolls the selected row into view.
+Element.prototype.scrollIntoView = function scrollIntoView() {};
+
 afterEach(() => {
   cleanup();
   localStorage.clear();

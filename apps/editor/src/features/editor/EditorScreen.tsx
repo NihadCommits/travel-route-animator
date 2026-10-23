@@ -5,6 +5,7 @@ import { de } from '@/i18n/de';
 import { translateIssue } from '@/i18n/issues';
 import { api, ApiError } from '@/lib/api';
 import { createEditorStore, EditorStoreContext, type EditorStore } from '@/state/editorStore';
+import { loadUiState, rememberUiState } from '@/state/uiState';
 import { PROJECTS_QUERY_KEY } from '@/features/overview/ProjectOverview';
 import { EditorLayout } from './EditorLayout';
 
@@ -31,8 +32,11 @@ function LoadedEditor({ project }: { project: Project }) {
         // The overview shows names and dates; let it refetch next time.
         void queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY });
       },
+      ui: loadUiState(project.id),
     }),
   );
+
+  useEffect(() => rememberUiState(editor.store, project.id), [editor, project.id]);
 
   useEffect(() => {
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
