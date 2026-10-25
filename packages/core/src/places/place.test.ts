@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { LngLat } from '../geo/lngLat';
 import { mergePlaceResults, PlaceSchema, waypointFromPlace, type Place } from './place';
 
 const vie: Place = {
@@ -55,8 +56,29 @@ describe('mergePlaceResults', () => {
     expect(ids(merged)).toEqual(['photon:W1', 'photon:R1']);
   });
 
+  it('shows a place mapped twice close together once, but keeps namesakes elsewhere', () => {
+    const station: Place = {
+      id: 'photon:N1',
+      name: 'Wien Kaiserebersdorf',
+      lngLat: [16.4654, 48.1462],
+      kind: 'station',
+      source: 'search',
+    };
+    const platform = { ...station, id: 'photon:N2', lngLat: [16.4657, 48.1459] as LngLat };
+    const otherTown = { ...wien, id: 'photon:R9', lngLat: [-80.9, 35.2] as LngLat };
+    const merged = mergePlaceResults([], [station, platform, wien, otherTown], {
+      query: 'Wien',
+      preferAirports: false,
+    });
+    expect(ids(merged)).toEqual(['photon:N1', 'photon:R1', 'photon:R9']);
+  });
+
   it('keeps the list short', () => {
-    const many = Array.from({ length: 15 }, (_, i) => ({ ...wien, id: `photon:${i}` }));
+    const many = Array.from({ length: 15 }, (_, i) => ({
+      ...wien,
+      id: `photon:${i}`,
+      lngLat: [i, 48] as LngLat,
+    }));
     expect(mergePlaceResults([], many, { query: 'x', preferAirports: false })).toHaveLength(10);
   });
 });

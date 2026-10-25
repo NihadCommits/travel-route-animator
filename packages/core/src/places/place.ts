@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { LngLat } from '../geo/lngLat';
 import type { CreateWaypointInput } from '../model/factories';
 import { LngLatSchema } from '../model/primitives';
 
@@ -49,6 +50,21 @@ export interface MergeOptions {
   limit?: number;
 }
 
+/** Rough ground distance; enough to tell "the same station" from "another one". */
+function distanceKm([lng1, lat1]: LngLat, [lng2, lat2]: LngLat): number {
+  const KM_PER_DEGREE = 111.32;
+  const x = (lng2 - lng1) * KM_PER_DEGREE * Math.cos((((lat1 + lat2) / 2) * Math.PI) / 180);
+  const y = (lat2 - lat1) * KM_PER_DEGREE;
+  return Math.hypot(x, y);
+}
+
+/**
+ * OpenStreetMap often maps one place several times, e.g. a station and its platform stop;
+ * with the same name and kind a few hundred metres apart, the user means the same place.
+ */
+const isNearDuplicate = (a: Place, b: Place) =>
+  a.name === b.name && a.kind === b.kind && distanceKm(a.lngLat, b.lngLat) < 0.5;
+
 /**
  * Combines the local airport search and the place search into one list. An airport the place
  * search already found (the server adds the IATA code to those) appears only once, keeping the
@@ -66,7 +82,10 @@ export function mergePlaceResults(
     ...airports.filter(
       ({ airportCode }) => airportCode === undefined || !codesFound.has(airportCode),
     ),
-  ];
+  ].filter(
+    (place, index, list) =>
+      !list.slice(0, index).some((earlier) => isNearDuplicate(earlier, place)),
+  );
 
   const code = query.trim().toUpperCase();
   const rank = (place: Place) => {
