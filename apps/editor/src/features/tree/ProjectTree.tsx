@@ -9,12 +9,6 @@ import {
   type Id,
   type ReadinessIssue,
 } from '@travel-route-animator/core';
-import {
-  Accessibility,
-  defaultPreset,
-  PointerActivationConstraints,
-  PointerSensor,
-} from '@dnd-kit/dom';
 import { DragDropProvider, type DragDropEventHandlers } from '@dnd-kit/react';
 import { Folder, Plus, Route } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -32,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { VEHICLE_ICONS } from '@/features/editor/vehicleIcons';
 import { de } from '@/i18n/de';
 import { translateIssue } from '@/i18n/issues';
+import { DND_PLUGINS, DND_SENSORS, rowUnderPointer, type DragOperation } from '@/lib/dnd';
 import { selectProject, useEditor } from '@/state/editorStore';
 import { dropPositionFor, resolveDrop, type DropTarget, type TreeItemKind } from './drop';
 import { navigate, visibleRows, type NavigationKey } from './navigation';
@@ -44,48 +39,16 @@ interface PendingDelete {
   description: string;
 }
 
-// Start dragging only after the pointer has moved a few pixels. The default would also start
-// after holding still for 200 ms, which turns a slow click on a row into a drag.
-const SENSORS = [
-  PointerSensor.configure({
-    activationConstraints: [new PointerActivationConstraints.Distance({ value: 6 })],
-  }),
-];
-
-// dnd-kit's accessibility plugin would turn every row into a focusable role="button" with
-// instructions for keyboard dragging. That breaks the tree's own keyboard navigation (one tab
-// stop, arrow keys), and there is no keyboard dragging here.
-const PLUGINS = defaultPreset.plugins.filter((plugin) => plugin !== Accessibility);
-
-type DragOperation = Parameters<NonNullable<DragDropEventHandlers['onDragMove']>>[0]['operation'];
-
-/**
- * The row under the pointer and where the dragged item would land on it, or null if that is
- * not a valid drop. Found by hit-testing the pointer position ourselves: dnd-kit computes its
- * collisions a frame later, so at the moment of release its target can still be the row from
- * the previous pointer position. For the same reason the position comes from the native
- * pointer event when there is one; dnd-kit updates its own only once per animation frame.
- */
-function dropTargetOf({ source, position }: DragOperation, nativeEvent?: Event): DropTarget | null {
-  if (!source) return null;
-  const { x, y } =
-    nativeEvent instanceof MouseEvent
-      ? { x: nativeEvent.clientX, y: nativeEvent.clientY }
-      : position.current;
-  // The dragged row itself moves along under the pointer; look at what lies beneath it.
-  for (const element of document.elementsFromPoint(x, y)) {
-    const row = element.closest<HTMLElement>('[data-tree-id]');
-    const rowId = row?.dataset.treeId;
-    if (!row || rowId === undefined || rowId === String(source.id)) continue;
-    const rect = row.getBoundingClientRect();
-    const dropPosition = dropPositionFor(
-      source.type as TreeItemKind,
-      row.dataset.treeKind as TreeItemKind,
-      rect.height > 0 ? (y - rect.top) / rect.height : 0.5,
-    );
-    return dropPosition ? { id: rowId, position: dropPosition } : null;
-  }
-  return null;
+/** The row under the pointer and where the dragged item would land on it, if it may. */
+function dropTargetOf(operation: DragOperation, nativeEvent?: Event): DropTarget | null {
+  const row = rowUnderPointer(operation, nativeEvent, 'data-tree-id');
+  if (!row || !operation.source) return null;
+  const dropPosition = dropPositionFor(
+    operation.source.type as TreeItemKind,
+    row.element.dataset.treeKind as TreeItemKind,
+    row.relativeY,
+  );
+  return dropPosition ? { id: row.id, position: dropPosition } : null;
 }
 
 export function ProjectTree() {
@@ -192,7 +155,7 @@ export function ProjectTree() {
         {project.groups.length === 0 ? (
           <p className="text-muted-foreground px-3 py-2">{de.tree.emptyProject}</p>
         ) : (
-          <DragDropProvider sensors={SENSORS} plugins={PLUGINS} {...dragHandlers}>
+          <DragDropProvider sensors={DND_SENSORS} plugins={DND_PLUGINS} {...dragHandlers}>
             {/* select-none: dragging across the hint rows would otherwise select their text. */}
             <ul ref={treeRef} role="tree" aria-label={de.tree.label} className="pb-2 select-none">
               {project.groups.map((group) => (
