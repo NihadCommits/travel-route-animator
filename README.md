@@ -10,7 +10,7 @@ Travel Route Animator is a local tool that turns trip itineraries into map anima
 
 ### Status
 
-**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints, the map, the preview and the export follow module by module.
+**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints are added by place search or airport code (`VIE`, `OPO`) and can be renamed, reordered and turned into shape points. The interactive map, routing, the preview and the export follow module by module.
 
 ### Planned features
 
@@ -37,21 +37,23 @@ TypeScript monorepo with pnpm workspaces · React + Vite editor · Remotion for 
 
 ```bash
 pnpm install
+pnpm data:airports
 pnpm dev
 ```
 
-`pnpm dev` starts the editor on <http://127.0.0.1:5173> and the server on <http://127.0.0.1:5174>. Both only listen on localhost. No API keys are needed yet; later modules read them from a `.env` file (copy `.env.example`).
+`pnpm data:airports` downloads the airport list once (see Data sources). `pnpm dev` starts the editor on <http://127.0.0.1:5173> and the server on <http://127.0.0.1:5174>. Both only listen on localhost. Settings live in a `.env` file (copy `.env.example`): `SERVICE_CONTACT` is sent to free services such as Photon, as their fair-use policies ask (a profile URL works); API keys are not needed yet.
 
-| Command              | What it does                                             |
-| -------------------- | -------------------------------------------------------- |
-| `pnpm dev`           | Editor and server in watch mode                          |
-| `pnpm test`          | All tests (Vitest)                                       |
-| `pnpm test:coverage` | Tests with a coverage report (as in CI)                  |
-| `pnpm lint`          | ESLint, warnings count as errors                         |
-| `pnpm typecheck`     | TypeScript in every package                              |
-| `pnpm format`        | Format everything with Prettier                          |
-| `pnpm spike:studio`  | Open the render spike in Remotion Studio                 |
-| `pnpm spike:render`  | Render the spike to `output/spike/` (flat map and globe) |
+| Command              | What it does                                               |
+| -------------------- | ---------------------------------------------------------- |
+| `pnpm dev`           | Editor and server in watch mode                            |
+| `pnpm test`          | All tests (Vitest)                                         |
+| `pnpm test:coverage` | Tests with a coverage report (as in CI)                    |
+| `pnpm lint`          | ESLint, warnings count as errors                           |
+| `pnpm typecheck`     | TypeScript in every package                                |
+| `pnpm format`        | Format everything with Prettier                            |
+| `pnpm data:airports` | Download and filter the airport list into `data/airports/` |
+| `pnpm spike:studio`  | Open the render spike in Remotion Studio                   |
+| `pnpm spike:render`  | Render the spike to `output/spike/` (flat map and globe)   |
 
 The first render downloads Chrome Headless Shell (about 100 MB) once. `pnpm spike:render --gl=vulkan` tries another OpenGL backend, `--only=SpikeGlobe` renders a single composition.
 
@@ -90,10 +92,16 @@ The local server exposes the projects:
 | `GET /api/projects/:id`                   | The complete project; if its file is broken, a 422 listing the problems |
 | `PUT /api/projects/:id`                   | Save a project; invalid ones are rejected with a list of problems       |
 | `DELETE /api/projects/:id`                | Move the project to the trash                                           |
+| `GET /api/geocode?q=&bias=lng,lat,zoom`   | Place search (Photon), cached and at most one request per second        |
+| `GET /api/reverse?lng=&lat=`              | The place at a point                                                    |
+| `GET /api/airports?q=`                    | Airport search by IATA or ICAO code, name and town                      |
 
 ### Data sources
 
 The tool relies on open data and free services, including OpenStreetMap, OpenFreeMap, openrouteservice, Photon and OurAirports. Exported videos will carry an optional attribution corner, and the full credits will be listed here.
+
+- **Place search:** [Photon](https://photon.komoot.io) by komoot, with data © OpenStreetMap contributors. The browser never calls Photon directly; the local server caches results in `data/cache/geocode/` and sends at most one request per second.
+- **Airports:** [OurAirports](https://ourairports.com/data/), released to the public domain. Only large and medium airports with an IATA code are kept.
 
 ### License
 
@@ -107,7 +115,7 @@ Travel Route Animator ist ein lokales Tool, das Reiserouten in Kartenanimationen
 
 ### Status
 
-**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte, Karte, Vorschau und Export folgen Modul für Modul.
+**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte kommen per Ortssuche oder Flughafen-Code (`VIE`, `OPO`) dazu und lassen sich umbenennen, umsortieren und zu Formpunkten machen. Interaktive Karte, Routing, Vorschau und Export folgen Modul für Modul.
 
 ### Geplante Funktionen
 
@@ -134,10 +142,11 @@ TypeScript-Monorepo mit pnpm-Workspaces · Editor mit React + Vite · Remotion f
 
 ```bash
 pnpm install
+pnpm data:airports
 pnpm dev
 ```
 
-`pnpm dev` startet den Editor unter <http://127.0.0.1:5173> und den Server unter <http://127.0.0.1:5174>. Beide sind nur lokal erreichbar. API-Keys braucht es noch keine; spätere Module lesen sie aus einer `.env`-Datei (Vorlage: `.env.example`).
+`pnpm data:airports` lädt einmalig die Flughafenliste (siehe Datenquellen). `pnpm dev` startet den Editor unter <http://127.0.0.1:5173> und den Server unter <http://127.0.0.1:5174>. Beide sind nur lokal erreichbar. Einstellungen stehen in einer `.env`-Datei (Vorlage: `.env.example`): `SERVICE_CONTACT` geht an kostenlose Dienste wie Photon, wie es deren Fair-Use-Regeln erbitten (eine Profil-URL genügt); API-Keys braucht es noch keine.
 
 | Befehl               | Was er tut                                                      |
 | -------------------- | --------------------------------------------------------------- |
@@ -147,6 +156,7 @@ pnpm dev
 | `pnpm lint`          | ESLint, Warnungen zählen als Fehler                             |
 | `pnpm typecheck`     | TypeScript in allen Paketen                                     |
 | `pnpm format`        | Alles mit Prettier formatieren                                  |
+| `pnpm data:airports` | Flughafenliste laden und nach `data/airports/` filtern          |
 | `pnpm spike:studio`  | Render-Prototyp in Remotion Studio öffnen                       |
 | `pnpm spike:render`  | Render-Prototyp nach `output/spike/` rendern (Karte und Globus) |
 
@@ -187,10 +197,16 @@ Der lokale Server stellt die Projekte bereit:
 | `GET /api/projects/:id`                  | Das komplette Projekt; ist seine Datei kaputt, eine 422 mit Liste der Probleme |
 | `PUT /api/projects/:id`                  | Projekt speichern; ungültige werden mit einer Liste der Probleme abgelehnt     |
 | `DELETE /api/projects/:id`               | Projekt in den Papierkorb verschieben                                          |
+| `GET /api/geocode?q=&bias=lng,lat,zoom`  | Ortssuche (Photon), zwischengespeichert, höchstens eine Anfrage pro Sekunde    |
+| `GET /api/reverse?lng=&lat=`             | Der Ort an einem Punkt                                                         |
+| `GET /api/airports?q=`                   | Flughafensuche nach IATA- oder ICAO-Code, Name und Ort                         |
 
 ### Datenquellen
 
 Das Tool nutzt offene Daten und kostenlose Dienste, darunter OpenStreetMap, OpenFreeMap, openrouteservice, Photon und OurAirports. Exportierte Videos bekommen eine abschaltbare Attribution-Ecke, die vollständigen Credits stehen künftig hier.
+
+- **Ortssuche:** [Photon](https://photon.komoot.io) von komoot, Daten © OpenStreetMap-Mitwirkende. Der Browser ruft Photon nie direkt auf; der lokale Server speichert Ergebnisse in `data/cache/geocode/` zwischen und schickt höchstens eine Anfrage pro Sekunde.
+- **Flughäfen:** [OurAirports](https://ourairports.com/data/), gemeinfrei (Public Domain). Übernommen werden nur große und mittlere Flughäfen mit IATA-Code.
 
 ### Lizenz
 
