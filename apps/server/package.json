@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "data:airports": "tsx src/airports/cli.ts"
   },
   "dependencies": {
     "@travel-route-animator/core": "workspace:*",
