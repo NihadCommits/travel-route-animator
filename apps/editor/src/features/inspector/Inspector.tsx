@@ -19,8 +19,10 @@ export function Inspector() {
         {de.inspector.title}
       </header>
       {/* Native scrolling, vertical only: long names are truncated instead of widening the panel.
-          Keyed by the selection, so another item starts at the top instead of the old position. */}
-      <div key={selectedId} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
+          Keyed by the selection, so another item starts at the top instead of the old position.
+          `relative` keeps visually hidden labels (sr-only, absolutely positioned) inside this
+          scroll area; otherwise they hang off the page and make the whole page scroll. */}
+      <div key={selectedId} className="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
         <div className="space-y-3 px-3 pb-4">
           <SelectedForm />
         </div>

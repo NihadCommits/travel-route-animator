@@ -20,17 +20,9 @@ import { NumberField } from './fields/NumberField';
 import { SelectField } from './fields/SelectField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
-import {
-  FormHeading,
-  LaterNote,
-  optionsOf,
-  ReadinessNote,
-  Row,
-  Section,
-  trackName,
-  WaypointList,
-} from './parts';
+import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
 import { useEdit } from './useEdit';
+import { WaypointList } from './waypoints/WaypointList';
 
 const LINE_DASHES = ['solid', 'dashed', 'dotted'] as const;
 
@@ -119,6 +111,8 @@ export function TrackForm({
         onCommit={setRouting}
       />
 
+      <WaypointList track={track} etappe={etappe} edit={edit} />
+
       <Section title={de.inspector.track.timing}>
         <Row>
           <NumberField
@@ -185,7 +179,6 @@ export function TrackForm({
         />
       </Section>
 
-      <WaypointList track={track} />
       <LaterNote text={de.inspector.track.later} />
     </>
   );

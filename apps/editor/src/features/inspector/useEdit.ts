@@ -58,3 +58,6 @@ export function useEdit(location: ItemLocation) {
     return issue ? translateIssue(issue) : null;
   };
 }
+
+/** The write path a form hands down to its parts, e.g. to the waypoint rows. */
+export type Edit = ReturnType<typeof useEdit>;

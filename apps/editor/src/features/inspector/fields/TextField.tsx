@@ -8,6 +8,7 @@ export interface TextFieldProps {
   onCommit: Commit<string>;
   placeholder?: string | undefined;
   hint?: string | undefined;
+  labelHidden?: boolean | undefined;
   className?: string | undefined;
 }
 
@@ -19,6 +20,7 @@ export function TextField({
   onCommit,
   placeholder,
   hint,
+  labelHidden,
   className,
 }: TextFieldProps) {
   const id = useId();
@@ -32,6 +34,7 @@ export function TextField({
       messageId={messageId}
       error={field.error}
       hint={hint}
+      labelHidden={labelHidden}
       className={className}
     >
       <input

@@ -13,6 +13,8 @@ export interface NumberFieldProps {
   /** Step for the arrow keys; Shift takes ten steps. */
   step?: number | undefined;
   disabled?: boolean | undefined;
+  /** Shown and stepped decimals; coordinates need more than the default 3. */
+  fractionDigits?: number | undefined;
   hint?: string | undefined;
   className?: string | undefined;
 }
@@ -27,8 +29,11 @@ export function parseNumber(text: string): Parsed<number> {
   return { value: Number(trimmed.replace(',', '.')) };
 }
 
-export function formatNumber(value: number): string {
-  return value.toLocaleString('de-AT', { maximumFractionDigits: 3, useGrouping: false });
+export function formatNumber(value: number, fractionDigits = 3): string {
+  return value.toLocaleString('de-AT', {
+    maximumFractionDigits: fractionDigits,
+    useGrouping: false,
+  });
 }
 
 export function NumberField({
@@ -38,18 +43,21 @@ export function NumberField({
   unit,
   step = 1,
   disabled,
+  fractionDigits = 3,
   hint,
   className,
 }: NumberFieldProps) {
   const id = useId();
   const messageId = `${id}-message`;
-  const field = useDraft(value, formatNumber, parseNumber, onCommit);
+  const format = (number: number) => formatNumber(number, fractionDigits);
+  const field = useDraft(value, format, parseNumber, onCommit);
 
   function nudge(by: number) {
     const parsed = parseNumber(field.text);
     const current = 'value' in parsed ? parsed.value : value;
     // Rounding keeps 0.1 + 0.2 from showing up as 0,30000000000000004.
-    field.change(formatNumber(Math.round((current + by) * 1000) / 1000));
+    const scale = 10 ** fractionDigits;
+    field.change(format(Math.round((current + by) * scale) / scale));
   }
 
   return (

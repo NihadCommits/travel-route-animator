@@ -10,6 +10,8 @@ export interface FieldShellProps {
   error?: string | null | undefined;
   /** Shown below the control when there is no error, e.g. "folgt mit der Karte". */
   hint?: string | undefined;
+  /** For compact rows: the label is only read out, the row itself shows what the field is. */
+  labelHidden?: boolean | undefined;
   className?: string | undefined;
   children: ReactNode;
 }
@@ -21,13 +23,17 @@ export function FieldShell({
   messageId,
   error,
   hint,
+  labelHidden,
   className,
   children,
 }: FieldShellProps) {
   const message = error ?? hint;
   return (
     <div className={cn('min-w-0 space-y-1', className)}>
-      <label htmlFor={controlId} className="text-muted-foreground block truncate text-xs">
+      <label
+        htmlFor={controlId}
+        className={cn('text-muted-foreground block truncate text-xs', labelHidden && 'sr-only')}
+      >
         {label}
       </label>
       {children}
