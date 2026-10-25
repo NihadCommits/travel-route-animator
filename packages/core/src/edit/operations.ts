@@ -12,6 +12,7 @@ import type { Group, Project } from '../model/project';
 import type { Track } from '../model/track';
 import { isRoutingAllowed, recommendViewMode, VEHICLE_CATALOG } from '../model/vehicles';
 import { defaultFlightOptions, defaultPitch, defaultView } from '../model/defaults';
+import { insertAt, removeAt, replaceAt } from './arrays';
 import { locateItem, requireLocation, type ItemLocation } from './locate';
 
 // Every operation returns a new project and leaves the input untouched. Unchanged groups,
@@ -25,21 +26,6 @@ export interface Added {
   project: Project;
   /** ID of the new item, so the editor can select it right away. */
   id: Id;
-}
-
-// ---------- small immutable array helpers ----------
-
-function replaceAt<T>(items: readonly T[], index: number, item: T): T[] {
-  return items.map((existing, i) => (i === index ? item : existing));
-}
-
-function insertAt<T>(items: readonly T[], index: number, item: T): T[] {
-  const at = Math.max(0, Math.min(index, items.length));
-  return [...items.slice(0, at), item, ...items.slice(at)];
-}
-
-function removeAt<T>(items: readonly T[], index: number): T[] {
-  return items.filter((_, i) => i !== index);
 }
 
 function updateGroup(project: Project, groupIndex: number, update: (g: Group) => Group): Project {

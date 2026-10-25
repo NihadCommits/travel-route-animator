@@ -6,6 +6,7 @@ import {
   type Id,
   type Project,
 } from '@travel-route-animator/core';
+import { insertIndex } from '@/lib/insertIndex';
 
 export type TreeItemKind = 'group' | 'etappe' | 'track';
 
@@ -37,12 +38,6 @@ export function dropPositionFor(
   if (!ACCEPTS[target].includes(dragged)) return null;
   if (dragged === 'etappe' && target === 'group') return 'inside';
   return relativeY < 0.5 ? 'before' : 'after';
-}
-
-/** Index to insert at after the item at `from` has been taken out of the same list. */
-function insertIndex(targetIndex: number, position: DropPosition, from: number | null): number {
-  const index = targetIndex + (position === 'after' ? 1 : 0);
-  return from !== null && from < index ? index - 1 : index;
 }
 
 /**

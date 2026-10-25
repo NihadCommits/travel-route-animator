@@ -66,29 +66,6 @@ export function ReadinessNote({
   );
 }
 
-/** Read-only until M3 brings search and the map. */
-export function WaypointList({ track }: { track: Track }) {
-  return (
-    <Section title={de.inspector.waypoints}>
-      {track.waypoints.length === 0 ? (
-        <p className="text-muted-foreground">{de.inspector.noWaypoints}</p>
-      ) : (
-        <ol className="space-y-1">
-          {track.waypoints.map((waypoint) => (
-            <li key={waypoint.id} className="flex items-baseline justify-between gap-2">
-              <span className="truncate">{waypoint.name || de.tree.unnamed}</span>
-              <span className="text-muted-foreground shrink-0 text-xs">
-                {de.inspector.waypointKinds[waypoint.kind]} · {waypoint.lngLat[0].toFixed(4)},{' '}
-                {waypoint.lngLat[1].toFixed(4)}
-              </span>
-            </li>
-          ))}
-        </ol>
-      )}
-    </Section>
-  );
-}
-
 /** Select options from a fixed list of values and their German labels. */
 export function optionsOf<T extends string>(
   values: readonly T[],

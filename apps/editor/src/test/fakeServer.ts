@@ -1,11 +1,18 @@
-import { createProject, type Project } from '@travel-route-animator/core';
+import { createProject, type Place, type Project } from '@travel-route-animator/core';
 import { vi } from 'vitest';
 
+export interface FakeSearch {
+  /** Answers /api/airports; undefined stands for missing airport data (503). */
+  airports?: (query: string) => Place[];
+  /** Answers /api/geocode; undefined stands for an unreachable place search (502). */
+  places?: (query: string, bias: string | null) => Place[];
+}
+
 /**
- * A tiny in-memory stand-in for the local server's project API, installed as `fetch`.
+ * A tiny in-memory stand-in for the local server's API, installed as `fetch`.
  * Tests work against the same requests the real editor sends.
  */
-export function installFakeServer(initial: Project[] = []) {
+export function installFakeServer(initial: Project[] = [], search: FakeSearch = {}) {
   const projects = new Map(initial.map((project) => [project.id, project]));
   const calls: { method: string; path: string; body?: unknown }[] = [];
   let failAll = false;
@@ -24,6 +31,23 @@ export function installFakeServer(initial: Project[] = []) {
     calls.push({ method, path, body });
 
     if (failAll) return Promise.reject(new TypeError('Failed to fetch'));
+
+    const searchUrl = new URL(path, 'http://editor.test');
+    const q = searchUrl.searchParams.get('q') ?? '';
+    if (searchUrl.pathname === '/airports') {
+      return Promise.resolve(
+        search.airports
+          ? json(200, { places: search.airports(q) })
+          : json(503, { error: 'airports_missing', message: 'run pnpm data:airports' }),
+      );
+    }
+    if (searchUrl.pathname === '/geocode') {
+      return Promise.resolve(
+        search.places
+          ? json(200, { places: search.places(q, searchUrl.searchParams.get('bias')) })
+          : json(502, { error: 'geocoding_unavailable', message: 'down' }),
+      );
+    }
 
     const id = decodeURIComponent(path.replace(/^\/projects\/?/, ''));
     if (path === '/projects' && method === 'GET') {

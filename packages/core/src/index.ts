@@ -1,5 +1,6 @@
 export type { LngLat } from './geo/lngLat';
 export { sliceLineByProgress } from './geo/sliceLineByProgress';
+export * from './geo/closestSegment';
 
 export * from './model/enums';
 export * from './model/primitives';
@@ -21,3 +22,5 @@ export * from './model/issues';
 export * from './model/readiness';
 export * from './edit/locate';
 export * from './edit/operations';
+export * from './edit/waypoints';
+export * from './places/place';

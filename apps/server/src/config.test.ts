@@ -1,6 +1,6 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveDataDir, resolveListenOptions } from './config';
+import { resolveDataDir, resolveListenOptions, resolveServiceConfig } from './config';
 
 describe('resolveDataDir', () => {
   const repoRoot = resolve('/repo');
@@ -38,5 +38,22 @@ describe('resolveListenOptions', () => {
   it('rejects invalid ports', () => {
     expect(() => resolveListenOptions({ PORT: 'abc' })).toThrow(/PORT/);
     expect(() => resolveListenOptions({ PORT: '70000' })).toThrow(/PORT/);
+  });
+});
+
+describe('resolveServiceConfig', () => {
+  it('uses the public Photon and names the contact in the User-Agent', () => {
+    expect(resolveServiceConfig({ SERVICE_CONTACT: ' https://github.com/someone ' })).toEqual({
+      photonUrl: 'https://photon.komoot.io',
+      userAgent: 'travel-route-animator (local tool; https://github.com/someone)',
+    });
+    expect(resolveServiceConfig({}).userAgent).toBe('travel-route-animator (local tool)');
+  });
+
+  it('accepts another Photon, but only over http(s)', () => {
+    expect(resolveServiceConfig({ PHOTON_URL: 'http://127.0.0.1:2322' }).photonUrl).toBe(
+      'http://127.0.0.1:2322',
+    );
+    expect(() => resolveServiceConfig({ PHOTON_URL: 'ftp://photon' })).toThrow(/PHOTON_URL/);
   });
 });
