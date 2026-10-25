@@ -38,6 +38,27 @@ describe('createAirportIndex', () => {
     expect(codes('Vien')).toEqual(['VIE']);
   });
 
+  it('ranks whole words above words that only start with the query', () => {
+    const base = airports[0]!;
+    const wordIndex = createAirportIndex([
+      {
+        ...base,
+        iata: 'POZ',
+        name: 'Poznań Airport',
+        municipality: 'Poznań',
+        keywords: ['Henryk Wieniawski'],
+      },
+      {
+        ...base,
+        iata: 'OTZ',
+        name: 'Ralph Wien Memorial Airport',
+        municipality: 'Kotzebue',
+        size: 'medium',
+      },
+    ]);
+    expect(wordIndex.search('Wien').map((airport) => airport.iata)).toEqual(['OTZ', 'POZ']);
+  });
+
   it('returns nothing for a query that names no airport', () => {
     expect(codes('Flughafen')).toEqual([]);
     expect(codes('xy')).toEqual([]);

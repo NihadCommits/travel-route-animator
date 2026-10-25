@@ -132,7 +132,9 @@ export function createAirportIndex(airports: readonly Airport[]): AirportIndex {
           tokens.every((token) => [...haystack].some((word) => word.startsWith(token)))
         ) {
           const inTown = tokens.some((token) => fold(airport.municipality ?? '').startsWith(token));
-          score = 50 + (inTown ? 10 : 0);
+          // "Wien" as a whole word beats "Wien" as the start of "Wieniawski".
+          const wholeWords = tokens.filter((token) => haystack.has(token)).length;
+          score = 50 + wholeWords * 8 + (inTown ? 10 : 0);
         }
         if (score === 0) return [];
         return [{ airport, score: score + (airport.size === 'large' ? 5 : 0) }];
