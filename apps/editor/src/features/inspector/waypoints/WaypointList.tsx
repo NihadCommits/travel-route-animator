@@ -1,9 +1,12 @@
 import { moveWaypoint, type Etappe, type Id, type Track } from '@travel-route-animator/core';
 import { DragDropProvider, type DragDropEventHandlers } from '@dnd-kit/react';
+import { Crosshair } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { Button } from '@/components/ui/button';
 import { de } from '@/i18n/de';
 import { DND_PLUGINS, DND_SENSORS, rowUnderPointer, type DragOperation } from '@/lib/dnd';
 import { insertIndex } from '@/lib/insertIndex';
+import { useEditor } from '@/state/editorStore';
 import { Section } from '../parts';
 import type { Edit } from '../useEdit';
 import { CoordinatesDialog } from './CoordinatesDialog';
@@ -30,6 +33,11 @@ export function WaypointList({
   edit: Edit;
 }) {
   const { waypoints } = track;
+  const selectedWaypointId = useEditor((state) => state.selectedWaypointId);
+  const selectWaypoint = useEditor((state) => state.selectWaypoint);
+  const showOnMap = useEditor((state) => state.showOnMap);
+  const mapTool = useEditor((state) => state.mapTool);
+  const setMapTool = useEditor((state) => state.setMapTool);
   const [coordinatesFor, setCoordinatesFor] = useState<Id | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   // onDragMove fires on every pointer move; only re-render when the target actually changes.
@@ -63,7 +71,21 @@ export function WaypointList({
 
   return (
     <Section title={de.waypoints.title}>
-      <PlaceSearch track={track} etappe={etappe} edit={edit} />
+      <div className="flex items-start gap-1.5">
+        <div className="min-w-0 flex-1">
+          <PlaceSearch track={track} etappe={etappe} edit={edit} />
+        </div>
+        <Button
+          variant={mapTool === 'add-point' ? 'default' : 'outline'}
+          size="icon-sm"
+          aria-label={de.map.addPoint}
+          title={de.map.addPoint}
+          aria-pressed={mapTool === 'add-point'}
+          onClick={() => setMapTool(mapTool === 'add-point' ? 'select' : 'add-point')}
+        >
+          <Crosshair />
+        </Button>
+      </div>
       {waypoints.length === 0 ? (
         <p className="text-muted-foreground">{de.waypoints.empty}</p>
       ) : (
@@ -79,10 +101,19 @@ export function WaypointList({
                 color={track.style.lineColor}
                 edit={edit}
                 dropIndicator={dropTarget?.id === waypoint.id ? dropTarget.position : null}
+                selected={waypoint.id === selectedWaypointId}
+                onSelect={() => selectWaypoint(waypoint.id)}
+                onShowOnMap={() => {
+                  selectWaypoint(waypoint.id);
+                  showOnMap(waypoint.lngLat);
+                }}
                 onEditCoordinates={() => setCoordinatesFor(waypoint.id)}
               />
             ))}
           </ol>
+          {waypoints.length >= 2 && (
+            <p className="text-muted-foreground text-xs">{de.waypoints.mapHint}</p>
+          )}
         </DragDropProvider>
       )}
       <CoordinatesDialog

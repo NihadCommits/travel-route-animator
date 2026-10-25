@@ -1,6 +1,7 @@
 import { useDefaultLayout } from 'react-resizable-panels';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { Inspector } from '@/features/inspector/Inspector';
+import { EditMap } from '@/features/map/EditMap';
 import { ProjectTree } from '@/features/tree/ProjectTree';
 import { de } from '@/i18n/de';
 import { layoutStorage } from '@/state/uiState';
@@ -35,7 +36,7 @@ export function EditorLayout() {
             onLayoutChanged={center.onLayoutChanged}
           >
             <ResizablePanel id="workspace" defaultSize="75" minSize="30">
-              <Placeholder text={de.editor.workspacePlaceholder} />
+              <EditMap />
             </ResizablePanel>
             <ResizableHandle />
             <ResizablePanel id="timeline" defaultSize="25" minSize="10" className="bg-card">

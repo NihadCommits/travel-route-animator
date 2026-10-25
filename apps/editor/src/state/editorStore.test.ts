@@ -99,6 +99,29 @@ describe('editor store', () => {
     expect(state().history.present.name).toBe('Trip');
   });
 
+  it('forgets the chosen waypoint and the map tool when another item is selected', () => {
+    const { state } = setup();
+    const first = state().add((p) => addGroup(p, 'Outbound'));
+    const second = state().add((p) => addGroup(p, 'Return'));
+    state().select(first);
+    state().selectWaypoint('w_1');
+    state().setMapTool('add-point');
+
+    state().select(first);
+    expect(state()).toMatchObject({ selectedWaypointId: 'w_1', mapTool: 'add-point' });
+    state().select(second);
+    expect(state()).toMatchObject({ selectedWaypointId: null, mapTool: 'select' });
+  });
+
+  it('asks the map to show a point again, also the same one', () => {
+    const { state } = setup();
+    state().showOnMap([16.37, 48.21]);
+    const first = state().mapFocus;
+    state().showOnMap([16.37, 48.21]);
+    expect(state().mapFocus).toEqual({ lngLat: [16.37, 48.21], seq: (first?.seq ?? 0) + 1 });
+    expect(state().history.past).toHaveLength(0);
+  });
+
   it('refuses to select something that does not exist', () => {
     const { state } = setup();
     state().select('g_unknown');

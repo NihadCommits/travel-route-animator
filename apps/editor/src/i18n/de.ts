@@ -49,7 +49,6 @@ export const de = {
       error: 'Nicht gespeichert',
     },
     unsavedOnLeave: 'Es gibt noch ungespeicherte Änderungen.',
-    workspacePlaceholder: 'Hier erscheint ab Modul M3 die Karte.',
     timelinePlaceholder: 'Die Timeline folgt in Modul M6.',
   },
   tree: {
@@ -190,6 +189,20 @@ export const de = {
     latitude: 'Breitengrad',
     done: 'Fertig',
     unnamedShape: 'Formpunkt',
+    mapHint:
+      'Auf der Karte lassen sich Punkte ziehen; ein Klick auf die Linie fügt einen Formpunkt ein.',
+  },
+  map: {
+    label: 'Bearbeitungskarte',
+    loading: 'Karte wird geladen …',
+    unavailable:
+      'Die Karte lässt sich hier nicht anzeigen (WebGL fehlt). Wegpunkte gehen weiter über die Suche.',
+    pickTrack: 'Wähle links ein Fahrzeug, um seine Punkte auf der Karte zu bearbeiten.',
+    addPoint: 'Punkt auf Karte setzen',
+    addPointHint: 'Klick auf die Karte setzt einen Punkt. Esc beendet.',
+    done: 'Fertig',
+    newPoint: (n: number) => `Punkt ${n}`,
+    showOnMap: 'Auf Karte zeigen',
   },
   search: {
     label: 'Ort oder Flughafen suchen',
