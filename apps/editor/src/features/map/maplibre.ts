@@ -49,28 +49,25 @@ export function addSceneLayers(map: MapLibreMap): void {
   map.addSource(LINES, { type: 'geojson', data: EMPTY });
   map.addSource(OTHER_POINTS, { type: 'geojson', data: EMPTY });
 
-  // Dashed on purpose: until routing arrives in M4 these are straight placeholder lines.
-  map.addLayer({
-    id: 'tra-lines-other',
-    type: 'line',
-    source: LINES,
-    filter: ['!=', ['get', 'active'], true],
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: {
-      'line-color': ['get', 'color'],
-      'line-width': 3,
-      'line-opacity': 0.45,
-      'line-dasharray': [2, 2],
-    },
-  });
-  map.addLayer({
-    id: 'tra-lines-active',
-    type: 'line',
-    source: LINES,
-    filter: ['==', ['get', 'active'], true],
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': ['get', 'color'], 'line-width': 4, 'line-dasharray': [2, 1.5] },
-  });
+  // A computed route is solid. Straight lines stand in, dashed, while the route is missing or
+  // no longer fits the points. Separate layers because line-dasharray cannot depend on data.
+  for (const active of [false, true]) {
+    for (const routed of [true, false]) {
+      map.addLayer({
+        id: `tra-lines-${active ? 'active' : 'other'}${routed ? '' : '-draft'}`,
+        type: 'line',
+        source: LINES,
+        filter: ['all', ['==', ['get', 'active'], active], ['==', ['get', 'routed'], routed]],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': ['get', 'color'],
+          'line-width': active ? 4 : 3,
+          'line-opacity': active ? 1 : 0.45,
+          ...(!routed && { 'line-dasharray': active ? [2, 1.5] : [2, 2] }),
+        },
+      });
+    }
+  }
   map.addLayer({
     id: ACTIVE_LINE_HIT_LAYER,
     type: 'line',

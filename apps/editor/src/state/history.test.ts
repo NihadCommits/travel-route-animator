@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { canRedo, canUndo, commit, createHistory, HISTORY_LIMIT, redo, undo } from './history';
+import {
+  canRedo,
+  canUndo,
+  commit,
+  createHistory,
+  HISTORY_LIMIT,
+  redo,
+  replacePresent,
+  undo,
+} from './history';
 
 describe('history', () => {
   it('steps back and forth through edits', () => {
@@ -90,5 +99,17 @@ describe('history', () => {
     const history = createHistory('x');
     expect(undo(history)).toBe(history);
     expect(redo(history)).toBe(history);
+  });
+
+  it('swaps the present without an undo step and keeps merging with the last edit', () => {
+    let history = commit(createHistory('a'), 'b', { coalesceKey: 'name', now: 0 });
+    history = replacePresent(history, 'b+route');
+    expect(history.present).toBe('b+route');
+    expect(undo(history).present).toBe('a');
+    expect(redo(undo(history)).present).toBe('b+route');
+
+    history = commit(history, 'bc+route', { coalesceKey: 'name', now: 200 });
+    expect(undo(history).present).toBe('a');
+    expect(replacePresent(history, history.present)).toBe(history);
   });
 });

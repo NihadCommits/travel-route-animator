@@ -56,6 +56,16 @@ export function commit<T>(history: History<T>, next: T, options: CommitOptions =
   };
 }
 
+/**
+ * Swaps the present without an undo step of its own, for data derived from it (a computed
+ * route): it belongs to the edit the user made. Undo then returns to the previous state with
+ * the route that fitted it, and a following edit still merges with the last one as before.
+ */
+export function replacePresent<T>(history: History<T>, next: T): History<T> {
+  if (Object.is(next, history.present)) return history;
+  return { ...history, present: next };
+}
+
 export function undo<T>(history: History<T>): History<T> {
   const previous = history.past.at(-1);
   if (previous === undefined) return history;

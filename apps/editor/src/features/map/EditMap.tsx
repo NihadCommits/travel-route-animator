@@ -3,6 +3,7 @@ import {
   closestSegment,
   editWaypoint,
   insertShapePoint,
+  legIndexAtSegment,
   locateItem,
   type Id,
   type LngLat,
@@ -16,7 +17,7 @@ import { Button } from '@/components/ui/button';
 import { de } from '@/i18n/de';
 import { api } from '@/lib/api';
 import { selectProject, useEditor, useEditorStore } from '@/state/editorStore';
-import { buildMapScene, type MapFit } from './mapData';
+import { buildMapScene, worldCopyShift, type MapFit } from './mapData';
 import type { MapLibreMap } from './maplibre';
 import { suggestWaypointName } from './suggestName';
 
@@ -183,7 +184,7 @@ export function EditMap() {
       // A click on a marker reaches the map too; the marker has handled it already.
       if ((event.originalEvent.target as Element | null)?.closest('.maplibregl-marker')) return;
       const { history, selectedId: id, applyIfValid, selectWaypoint } = store.getState();
-      const track = buildMapScene(history.present, id).activeTrack;
+      const { activeTrack: track, activeLine } = buildMapScene(history.present, id);
       if (!track) return;
       const lngLat = toLngLat(event.lngLat.wrap());
 
@@ -220,18 +221,21 @@ export function EditMap() {
       const onLine = map.queryRenderedFeatures(event.point, {
         layers: [maplibre.ACTIVE_LINE_HIT_LAYER],
       });
-      if (onLine.length === 0) {
+      if (onLine.length === 0 || !activeLine) {
         selectWaypoint(null);
         return;
       }
-      // Find the segment in screen pixels: "close to the line" means what the user sees.
-      const pixels = track.waypoints.map((w): Point2 => {
-        const { x, y } = map.project(w.lngLat);
+      // Find the segment in screen pixels: "close to the line" means what the user sees. The
+      // drawn line may be a route with many points; its legs say between which waypoints.
+      const shift = worldCopyShift(activeLine.coordinates, event.lngLat.lng);
+      const pixels = activeLine.coordinates.map(([lng, lat]): Point2 => {
+        const { x, y } = map.project([lng + shift, lat]);
         return [x, y];
       });
       const hit = closestSegment(pixels, [event.point.x, event.point.y]);
       if (!hit) return;
-      const inserted = insertShapePoint(history.present, track.id, hit.index, lngLat);
+      const leg = legIndexAtSegment(activeLine, hit.index);
+      const inserted = insertShapePoint(history.present, track.id, leg, lngLat);
       if (applyIfValid(() => inserted.project).length === 0) selectWaypoint(inserted.id);
     });
     return () => subscription.unsubscribe();

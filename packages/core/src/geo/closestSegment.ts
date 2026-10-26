@@ -22,7 +22,8 @@ export function closestSegment(points: readonly Point2[], point: Point2): Segmen
   return best;
 }
 
-function distanceToSegment([px, py]: Point2, [ax, ay]: Point2, [bx, by]: Point2): number {
+/** Shortest distance from a point to the segment a → b, in the units of the coordinates. */
+export function distanceToSegment([px, py]: Point2, [ax, ay]: Point2, [bx, by]: Point2): number {
   const dx = bx - ax;
   const dy = by - ay;
   const lengthSquared = dx * dx + dy * dy;
