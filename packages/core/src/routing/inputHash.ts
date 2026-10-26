@@ -3,7 +3,8 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import type { Track } from '../model/track';
 import { canonicalJson } from './canonicalJson';
 
-type RouteInput = Pick<Track, 'waypoints' | 'routing'>;
+/** What a route is computed from: the waypoints and the routing settings of a track. */
+export type RouteInput = Pick<Track, 'waypoints' | 'routing'>;
 
 /**
  * Fingerprint of everything that changes the shape of a route: waypoint positions and kinds

@@ -1,6 +1,12 @@
 export type { LngLat } from './geo/lngLat';
 export { sliceLineByProgress } from './geo/sliceLineByProgress';
 export * from './geo/closestSegment';
+export * from './geo/distance';
+export * from './geo/greatCircle';
+export * from './geo/mercator';
+export * from './geo/simplify';
+export * from './geo/smooth';
+export * from './geo/unwrap';
 
 export * from './model/enums';
 export * from './model/primitives';
@@ -16,6 +22,9 @@ export * from './model/factories';
 
 export * from './routing/canonicalJson';
 export * from './routing/inputHash';
+export * from './routing/assemble';
+export * from './routing/localRoute';
+export * from './routing/legs';
 export * from './resolve/resolve';
 export * from './migrations/migrations';
 export * from './model/issues';
