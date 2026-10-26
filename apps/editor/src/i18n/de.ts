@@ -131,7 +131,23 @@ export const de = {
       ghostRoute: 'Ganze Route vorab blass zeigen',
       vehicleScale: 'Fahrzeuggröße',
       later:
-        '„Vermeiden“ beim Routing (M4) sowie Flug-Optionen und Badges (M8) kommen mit ihren Modulen dazu.',
+        '„Vermeiden“ beim Straßen-Routing (M4) sowie Flug-Optionen und Badges (M8) kommen mit ihren Modulen dazu.',
+      route: {
+        label: 'Route',
+        fresh: (distance: string, via: string) => `${distance} · ${via}`,
+        tooFewPoints: 'Die Route erscheint ab zwei Wegpunkten.',
+        computing: 'Route wird berechnet …',
+        roadLater:
+          'Straßenrouten berechnet der Editor noch nicht, sie folgen mit openrouteservice. Bis dahin zeigt die Karte gerade Linien.',
+        providers: {
+          'local-great-circle': 'Großkreis',
+          'local-smooth': 'geglättete Kurve',
+          'local-straight': 'gerade Linien',
+          ors: 'openrouteservice',
+          osrm: 'OSRM',
+          gpx: 'GPX-Datei',
+        } as Record<string, string>,
+      },
     },
     laterModule: 'folgt in einem späteren Modul',
     viewModes: { '2d': '2D (von oben)', '3d-tilted': '3D geneigt', globe: 'Globus' },
@@ -245,6 +261,24 @@ export const de = {
     ferry: 'Fähre',
   } satisfies Record<VehicleType, string>,
 } as const;
+
+const kilometres = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
+const kilometresShort = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 1 });
+
+/** "8,4 km" for short routes, "2.045 km" for long ones: a decimal only where it says something. */
+export function formatDistance(metres: number): string {
+  const km = metres / 1000;
+  return `${(km < 10 ? kilometresShort : kilometres).format(km)} km`;
+}
+
+/** Driving time as a router estimates it: "3 h 20 min", "45 min". */
+export function formatDuration(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  if (hours === 0) return `${minutes} min`;
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
+}
 
 const dateFormat = new Intl.DateTimeFormat('de-AT', { dateStyle: 'medium', timeStyle: 'short' });
 

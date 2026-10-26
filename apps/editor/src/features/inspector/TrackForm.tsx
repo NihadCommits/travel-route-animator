@@ -21,6 +21,7 @@ import { SelectField } from './fields/SelectField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
+import { RouteStatus } from './RouteStatus';
 import { useEdit } from './useEdit';
 import { WaypointList } from './waypoints/WaypointList';
 
@@ -110,6 +111,7 @@ export function TrackForm({
         )}
         onCommit={setRouting}
       />
+      <RouteStatus track={track} />
 
       <WaypointList track={track} etappe={etappe} edit={edit} />
 

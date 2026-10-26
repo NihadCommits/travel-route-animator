@@ -242,4 +242,35 @@ describe('waypoints in the inspector', () => {
     const map = screen.getByRole('region', { name: 'Bearbeitungskarte' });
     expect(await within(map).findByText(/WebGL fehlt/)).toBeInTheDocument();
   });
+
+  it('shows how long the route is and where it comes from', async () => {
+    await renderEditor(
+      trip('plane', 'Flugzeug', [
+        ['Wien', vie.lngLat],
+        ['Porto', opo.lngLat],
+      ]),
+      { airports: () => [], places: () => [] },
+    );
+    await selectRow('Flugzeug');
+    expect(inspector().getByRole('status', { name: 'Route' })).toHaveTextContent(
+      // de-AT groups thousands with a (narrow) non-breaking space.
+      /^2[.\s\u00a0\u202f]?\d{3} km · Großkreis$/,
+    );
+  });
+
+  it('says what is missing for a route', async () => {
+    const { user } = await renderEditor(trip('car', 'Auto', [['Lisboa', [-9.1393, 38.7223]]]), {
+      airports: () => [],
+      places: () => [porto],
+    });
+    await selectRow('Auto');
+    const status = () => inspector().getByRole('status', { name: 'Route' });
+    expect(status()).toHaveTextContent('ab zwei Wegpunkten');
+
+    await search(user, 'Porto');
+    await waitFor(() => expect(suggestions()).toHaveLength(1));
+    await user.keyboard('{Enter}');
+    // Road routes follow with openrouteservice; until then the map draws straight lines.
+    expect(status()).toHaveTextContent('Straßenrouten berechnet der Editor noch nicht');
+  });
 });
