@@ -1,7 +1,7 @@
 import type { LngLat, Place } from '@travel-route-animator/core';
-import type { FileCache } from './fileCache';
+import type { FileCache } from '../lib/fileCache';
 import type { GeocodingProvider, SearchBias, SearchQuery } from './provider';
-import type { Throttle } from './throttle';
+import type { Throttle } from '../lib/throttle';
 
 export interface GeocoderOptions {
   provider: GeocodingProvider;

@@ -1,6 +1,6 @@
 import type { Place } from '@travel-route-animator/core';
 import { describe, expect, it, vi } from 'vitest';
-import type { FileCache } from './fileCache';
+import type { FileCache } from '../lib/fileCache';
 import { createGeocoder } from './geocoder';
 import type { GeocodingProvider } from './provider';
 

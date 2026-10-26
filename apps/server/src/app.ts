@@ -3,11 +3,11 @@ import type { Place } from '@travel-route-animator/core';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createAirportStore } from './airports/airportStore';
 import { registerAirportRoutes } from './airports/routes';
-import { createFileCache } from './geocoding/fileCache';
+import { createFileCache } from './lib/fileCache';
 import { createGeocoder } from './geocoding/geocoder';
 import { GeocodingUnavailableError, type GeocodingProvider } from './geocoding/provider';
 import { registerGeocodingRoutes } from './geocoding/routes';
-import { createThrottle } from './geocoding/throttle';
+import { createThrottle } from './lib/throttle';
 import { createProjectStore } from './projects/projectStore';
 import { registerProjectRoutes } from './projects/routes';
 
