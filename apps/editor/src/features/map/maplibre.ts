@@ -28,6 +28,15 @@ export const ACTIVE_LINE_HIT_LAYER = 'tra-lines-active-hit';
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
+// Road routes come from openrouteservice or the FOSSGIS OSRM, both built on OpenStreetMap
+// (credited by the base map). Their terms ask for a credit, FOSSGIS also for a way to report
+// map errors; MapLibre shows a source's attribution next to the map's own.
+const ROUTING_ATTRIBUTION = [
+  'Routen: <a href="https://openrouteservice.org/" target="_blank" rel="noopener">© openrouteservice.org by HeiGIT</a>',
+  '<a href="https://routing.openstreetmap.de/about.html" target="_blank" rel="noopener">FOSSGIS-Routing</a>',
+  '<a href="https://www.openstreetmap.org/fixthemap" target="_blank" rel="noopener">Kartenfehler melden</a>',
+].join(' · ');
+
 export function createEditMap(
   container: HTMLElement,
   view: { center: LngLat; zoom: number },
@@ -46,7 +55,7 @@ export function createEditMap(
 
 /** Our own sources and layers on top of the base map; call once the style has loaded. */
 export function addSceneLayers(map: MapLibreMap): void {
-  map.addSource(LINES, { type: 'geojson', data: EMPTY });
+  map.addSource(LINES, { type: 'geojson', data: EMPTY, attribution: ROUTING_ATTRIBUTION });
   map.addSource(OTHER_POINTS, { type: 'geojson', data: EMPTY });
 
   // A computed route is solid. Straight lines stand in, dashed, while the route is missing or

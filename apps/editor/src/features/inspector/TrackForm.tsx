@@ -2,12 +2,14 @@ import {
   changeVehicleType,
   checkEtappeReadiness,
   EasingSchema,
+  RoadAvoidSchema,
   editTrack,
   renameItem,
   VEHICLE_CATALOG,
   VEHICLE_TYPES,
   type Etappe,
   type ItemLocation,
+  type RoadAvoid,
   type RoutingMode,
   type Track,
   type TrackStyle,
@@ -26,6 +28,7 @@ import { useEdit } from './useEdit';
 import { WaypointList } from './waypoints/WaypointList';
 
 const LINE_DASHES = ['solid', 'dashed', 'dotted'] as const;
+const ROAD_AVOIDS = RoadAvoidSchema.options;
 
 export function TrackForm({
   track,
@@ -59,6 +62,15 @@ export function TrackForm({
       ...t,
       routing: mode === 'road' ? { ...t.routing, mode } : { mode },
     }));
+
+  // An empty list is the same as none; leave the field out so the file stays tidy.
+  const setAvoid = (avoid: RoadAvoid, on: boolean) =>
+    change('routing.avoid', (t) => {
+      const current = (t.routing.avoid ?? []).filter((a) => a !== avoid);
+      const next = on ? [...current, avoid] : current;
+      const { avoid: _old, ...routing } = t.routing;
+      return { ...t, routing: next.length > 0 ? { ...routing, avoid: next } : routing };
+    });
 
   // Without its own duration a track drives until the stage ends. Switching that off starts
   // with exactly that time, so nothing visibly changes until the duration is edited.
@@ -111,6 +123,19 @@ export function TrackForm({
         )}
         onCommit={setRouting}
       />
+      {track.routing.mode === 'road' && (
+        <fieldset className="space-y-1.5">
+          <legend className="sr-only">{de.inspector.track.avoid}</legend>
+          {ROAD_AVOIDS.map((avoid) => (
+            <SwitchField
+              key={avoid}
+              label={de.inspector.track.avoids[avoid]}
+              checked={track.routing.avoid?.includes(avoid) ?? false}
+              onCommit={(on) => setAvoid(avoid, on)}
+            />
+          ))}
+        </fieldset>
+      )}
       <RouteStatus track={track} />
 
       <WaypointList track={track} etappe={etappe} edit={edit} />

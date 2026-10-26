@@ -3,9 +3,11 @@ import {
   addGroup,
   addTrack,
   addWaypoint,
+  assembleComputedRoute,
   createProject,
   type Place,
   type Project,
+  type RouteRequest,
   type VehicleType,
 } from '@travel-route-animator/core';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
@@ -259,9 +261,38 @@ describe('waypoints in the inspector', () => {
   });
 
   it('says what is missing for a route', async () => {
+    await renderEditor(trip('car', 'Auto', [['Lisboa', [-9.1393, 38.7223]]]), {
+      airports: () => [],
+      places: () => [],
+    });
+    await selectRow('Auto');
+    expect(inspector().getByRole('status', { name: 'Route' })).toHaveTextContent(
+      'ab zwei Wegpunkten',
+    );
+  });
+
+  it('asks the server for a road route and offers OSRM when openrouteservice has no key', async () => {
+    const routed: RouteRequest[] = [];
     const { user } = await renderEditor(trip('car', 'Auto', [['Lisboa', [-9.1393, 38.7223]]]), {
       airports: () => [],
       places: () => [porto],
+      route: (request) => {
+        routed.push(request);
+        if (request.router !== 'osrm') {
+          return { status: 503, body: { error: 'no_key', message: 'ORS_API_KEY is not set' } };
+        }
+        const legs = [
+          { line: request.waypoints.map((w) => w.lngLat), distanceM: 313_400, durationS: 11_400 },
+        ];
+        return {
+          status: 200,
+          body: assembleComputedRoute(
+            request,
+            { provider: 'osrm', legs },
+            new Date().toISOString(),
+          ),
+        };
+      },
     });
     await selectRow('Auto');
     const status = () => inspector().getByRole('status', { name: 'Route' });
@@ -270,7 +301,35 @@ describe('waypoints in the inspector', () => {
     await search(user, 'Porto');
     await waitFor(() => expect(suggestions()).toHaveLength(1));
     await user.keyboard('{Enter}');
-    // Road routes follow with openrouteservice; until then the map draws straight lines.
-    expect(status()).toHaveTextContent('Straßenrouten berechnet der Editor noch nicht');
+    expect(status()).toHaveTextContent('Route wird berechnet');
+    // After the quiet time the server is asked once, and says why it cannot.
+    await waitFor(() => expect(status()).toHaveTextContent(/Kein openrouteservice-Key/), {
+      timeout: 3000,
+    });
+    expect(routed).toHaveLength(1);
+    expect(routed[0]!.waypoints.map((w) => Object.keys(w).sort())).toEqual([
+      ['id', 'kind', 'lngLat'],
+      ['id', 'kind', 'lngLat'],
+    ]);
+
+    await user.click(inspector().getByRole('button', { name: 'Mit OSRM berechnen' }));
+    await waitFor(() => expect(status()).toHaveTextContent('313 km · 3 h 10 min · OSRM'));
+    expect(routed).toHaveLength(2);
+  });
+
+  it('lets a road route avoid motorways, tolls and ferries', async () => {
+    await renderEditor(
+      trip('car', 'Auto', [
+        ['Lisboa', [-9.1393, 38.7223]],
+        ['Faro', [-7.9304, 37.0194]],
+      ]),
+      { airports: () => [], places: () => [] },
+    );
+    await selectRow('Auto');
+    const tolls = inspector().getByRole('switch', { name: 'Mautstraßen meiden' });
+    expect(tolls).not.toBeChecked();
+    focus(tolls);
+    await userEvent.setup().keyboard(' ');
+    expect(tolls).toBeChecked();
   });
 });
