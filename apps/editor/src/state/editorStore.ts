@@ -1,5 +1,6 @@
 import {
   locateItem,
+  refreshLocalRoutes,
   validateProject,
   type Added,
   type Id,
@@ -10,7 +11,16 @@ import {
 import { createContext, useContext } from 'react';
 import { createStore, useStore, type StoreApi } from 'zustand';
 import { createAutosave, type Autosave, type SaveStatus } from './autosave';
-import { canRedo, canUndo, commit, createHistory, redo, undo, type History } from './history';
+import {
+  canRedo,
+  canUndo,
+  commit,
+  createHistory,
+  redo,
+  replacePresent,
+  undo,
+  type History,
+} from './history';
 import type { ProjectUiState } from './uiState';
 
 export interface ApplyOptions {
@@ -93,9 +103,10 @@ export function createEditorStore(
   });
 
   const store = createStore<EditorState>()((set, get) => {
-    function update(history: History<Project>, select?: Id | null) {
+    function update(edited: History<Project>, select?: Id | null) {
       const current = get();
-      if (history === current.history) return;
+      if (edited === current.history) return;
+      const history = withLocalRoutes(edited);
       const wanted = select === undefined ? current.selectedId : select;
       set({ history, selectedId: existingOrNull(history.present, wanted) });
       // Undo and redo are changes too: the server should always hold what the user sees.
@@ -103,7 +114,9 @@ export function createEditorStore(
     }
 
     return {
-      history: createHistory(project),
+      // Routes missing in the file (older project, edited by hand) are there from the start.
+      // Not saved until the next edit: opening a project should not write it.
+      history: withLocalRoutes(createHistory(project)),
       // The project may have changed elsewhere since the last visit; keep only what still exists.
       selectedId: existingOrNull(project, ui?.selectedId ?? null),
       collapsed: new Set(ui?.collapsed.filter((id) => locateItem(project, id))),
@@ -161,6 +174,15 @@ export function createEditorStore(
   });
 
   return { store, autosave };
+}
+
+/**
+ * Planes, trains, ferries and straight lines get their route right with the edit, in the same
+ * undo step, so the map never shows a stale line for them. Road routes need the server and
+ * follow asynchronously (M4b).
+ */
+function withLocalRoutes(history: History<Project>): History<Project> {
+  return replacePresent(history, refreshLocalRoutes(history.present, new Date().toISOString()));
 }
 
 /** A selection must point at something that exists; after undoing an "add" it may not. */

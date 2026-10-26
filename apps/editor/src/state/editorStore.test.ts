@@ -1,6 +1,11 @@
 import {
+  addEtappe,
   addGroup,
+  addTrack,
+  addWaypoint,
   createProject,
+  editWaypoint,
+  isRouteStale,
   removeItem,
   renameItem,
   type Project,
@@ -159,5 +164,39 @@ describe('editor store', () => {
     state().apply((p) => p);
     await vi.advanceTimersByTimeAsync(1000);
     expect(save).not.toHaveBeenCalled();
+  });
+
+  it('gives a train its route with the edit, in the same undo step', () => {
+    const group = addGroup(createProject('Trip'), 'Hinreise');
+    const stage = addEtappe(group.project, group.id, 'Salzburg – Wien');
+    const train = addTrack(stage.project, stage.id, 'train');
+    const car = addTrack(train.project, stage.id, 'car');
+    let project = car.project;
+    for (const id of [train.id, car.id]) {
+      project = addWaypoint(project, id, { name: 'Salzburg', lngLat: [13.0458, 47.8128] }).project;
+      project = addWaypoint(project, id, { name: 'Wien', lngLat: [16.3752, 48.1852] }).project;
+    }
+    const { store } = createEditorStore(project, { save: () => Promise.resolve() });
+    const state = () => store.getState();
+    const trackOf = (id: string) =>
+      state().history.present.groups[0]!.etappen[0]!.tracks.find((t) => t.id === id)!;
+
+    // Missing in the file, there right after opening, and nothing to undo yet.
+    expect(isRouteStale(trackOf(train.id))).toBe(false);
+    expect(state().history.past).toHaveLength(0);
+    // Road routes come from the server (M4b).
+    expect(trackOf(car.id).computed).toBeUndefined();
+
+    const before = trackOf(train.id).computed;
+    const wien = trackOf(train.id).waypoints[1]!.id;
+    state().apply((p) =>
+      editWaypoint(p, train.id, wien, (w) => ({ ...w, lngLat: [16.3375, 48.1966] })),
+    );
+    expect(isRouteStale(trackOf(train.id))).toBe(false);
+    expect(trackOf(train.id).computed).not.toBe(before);
+
+    state().undo();
+    expect(trackOf(train.id).computed).toBe(before);
+    expect(state().history.past).toHaveLength(0);
   });
 });
