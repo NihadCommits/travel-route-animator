@@ -4,12 +4,14 @@ import {
   addTrack,
   addWaypoint,
   createProject,
+  editWaypoint,
+  refreshLocalRoutes,
   setWaypointKind,
   type Place,
   type Project,
 } from '@travel-route-animator/core';
 import { describe, expect, it } from 'vitest';
-import { buildMapScene, fitFor } from './mapData';
+import { buildMapScene, fitFor, worldCopyShift } from './mapData';
 import { suggestWaypointName } from './suggestName';
 
 /** A stage with a car (Lisboa → Silves → Faro) and a bus with one stop in Porto. */
@@ -47,7 +49,7 @@ describe('buildMapScene', () => {
     ]);
     // Only tracks with two points have a line; the active one is drawn last, on top.
     expect(scene.lines.features.map((line) => line.properties)).toEqual([
-      { trackId: carId, color: expect.any(String) as string, active: true },
+      { trackId: carId, color: expect.any(String) as string, active: true, routed: false },
     ]);
     expect(scene.otherPoints.features.map((point) => point.properties.trackId)).toEqual([busId]);
     expect(scene.fit).toEqual({
@@ -78,6 +80,73 @@ describe('buildMapScene', () => {
       expect(scene.lines.features).toEqual([]);
       expect(scene.fit).toBeUndefined();
     }
+  });
+});
+
+/** A stage with one flight between the given airports, its route computed as in the editor. */
+function flight(from: [number, number], to: [number, number]) {
+  const group = addGroup(createProject('Trip'), 'Hinreise');
+  const stage = addEtappe(group.project, group.id, 'Flug');
+  const plane = addTrack(stage.project, stage.id, 'plane');
+  let project = addWaypoint(plane.project, plane.id, { name: 'A', lngLat: from }).project;
+  project = addWaypoint(project, plane.id, { name: 'B', lngLat: to }).project;
+  return { project: refreshLocalRoutes(project, '2026-10-26T12:00:00.000Z'), planeId: plane.id };
+}
+
+describe('routes on the map', () => {
+  it('draws a computed route solid and fits the map to its arc', () => {
+    // Lisbon → New York: the great circle rises far north of both airports.
+    const { project, planeId } = flight([-9.1359, 38.7756], [-73.7781, 40.6413]);
+    const scene = buildMapScene(project, planeId);
+    const [line] = scene.lines.features;
+    expect(line!.properties.routed).toBe(true);
+    expect(line!.geometry.coordinates.length).toBeGreaterThan(2);
+    expect(scene.activeLine!.legs.map((leg) => leg.startIndex)).toEqual([0]);
+    expect(scene.fit).toMatchObject({ kind: 'bounds', southWest: [-73.7781, 38.7756] });
+    if (scene.fit?.kind === 'bounds') expect(scene.fit.northEast[1]).toBeGreaterThan(44);
+  });
+
+  it('draws a flight over the Pacific in one piece and fits the map around the Pacific', () => {
+    const { project, planeId } = flight([139.7798, 35.5494], [-118.4085, 33.9416]);
+    const scene = buildMapScene(project, planeId);
+    const coordinates = scene.activeLine!.coordinates;
+    const steps = coordinates.slice(1).map(([lng], i) => Math.abs(lng - coordinates[i]![0]));
+    expect(Math.max(...steps)).toBeLessThan(5);
+    expect(coordinates.at(-1)![0]).toBeCloseTo(241.5915, 4);
+    expect(scene.fit).toMatchObject({ southWest: [139.7798, 33.9416] });
+    if (scene.fit?.kind === 'bounds') expect(scene.fit.northEast[0]).toBeCloseTo(241.5915, 4);
+  });
+
+  it('falls back to dashed straight lines while the route does not fit the points', () => {
+    const { project, planeId } = flight([16.5697, 48.1103], [-8.6814, 41.2481]);
+    const plane = project.groups[0]!.etappen[0]!.tracks[0]!;
+    const moved = editWaypoint(project, planeId, plane.waypoints[1]!.id, (w) => ({
+      ...w,
+      lngLat: [-9.1359, 38.7756],
+    }));
+    const scene = buildMapScene(moved, planeId);
+    expect(scene.activeLine).toEqual({
+      coordinates: [
+        [16.5697, 48.1103],
+        [-9.1359, 38.7756],
+      ],
+      routed: false,
+      legs: [{ startIndex: 0 }],
+    });
+  });
+});
+
+describe('worldCopyShift', () => {
+  const pacific: [number, number][] = [
+    [139.8, 35.5],
+    [241.6, 33.9],
+  ];
+
+  it('moves a line into the copy of the world where the click was', () => {
+    expect(worldCopyShift(pacific, -118)).toBe(-360);
+    expect(worldCopyShift(pacific, 200)).toBe(0);
+    expect(worldCopyShift(pacific, 560)).toBe(360);
+    expect(worldCopyShift([], 10)).toBe(0);
   });
 });
 

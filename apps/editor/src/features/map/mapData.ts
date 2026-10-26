@@ -1,5 +1,7 @@
 import {
+  isRouteStale,
   locateItem,
+  unwrapLongitudes,
   type Etappe,
   type Id,
   type LngLat,
@@ -15,7 +17,8 @@ import {
 export interface LineFeature {
   type: 'Feature';
   geometry: { type: 'LineString'; coordinates: LngLat[] };
-  properties: { trackId: Id; color: string; active: boolean };
+  /** routed: the computed route; otherwise straight lines while it is missing or stale. */
+  properties: { trackId: Id; color: string; active: boolean; routed: boolean };
 }
 
 export interface PointFeature {
@@ -41,13 +44,23 @@ export interface EditablePoint {
 export type MapFit =
   { kind: 'bounds'; southWest: LngLat; northEast: LngLat } | { kind: 'point'; lngLat: LngLat };
 
+/** The line drawn for a track, with where each leg (waypoint i → i + 1) starts in it. */
+export interface DrawnLine {
+  /** Unwrapped (see unwrapLongitudes), so flights over the date line are drawn in one piece. */
+  coordinates: LngLat[];
+  routed: boolean;
+  legs: { startIndex: number }[];
+}
+
 export interface MapScene {
   /** The stage whose tracks are shown; undefined for a project or group selection. */
   etappeId: Id | undefined;
   /** The track whose points can be dragged, if a track is selected. */
   activeTrack: Track | undefined;
-  /** Straight lines through the waypoints; real routes arrive in M4. */
+  /** The routes of the stage, the active track last. */
   lines: FeatureCollection<LineFeature>;
+  /** The line of the active track, for clicks on it. */
+  activeLine: DrawnLine | undefined;
   /** Points of the other tracks of the stage, drawn small and not draggable. */
   otherPoints: FeatureCollection<PointFeature>;
   editablePoints: EditablePoint[];
@@ -60,15 +73,51 @@ const collection = <F>(features: F[]): FeatureCollection<F> => ({
   features,
 });
 
-function lineOf(track: Track, active: boolean): LineFeature[] {
-  if (track.waypoints.length < 2) return [];
+/**
+ * The computed route when it fits the waypoints; otherwise straight lines through them, which
+ * the map draws dashed until the route is there (road routes come from the server).
+ */
+export function drawnLineOf(track: Track): DrawnLine | undefined {
+  if (track.waypoints.length < 2) return undefined;
+  if (track.computed && !isRouteStale(track)) {
+    return {
+      coordinates: unwrapLongitudes(track.computed.geometry),
+      routed: true,
+      legs: track.computed.legs,
+    };
+  }
+  return {
+    coordinates: unwrapLongitudes(track.waypoints.map((w) => w.lngLat)),
+    routed: false,
+    legs: track.waypoints.slice(1).map((_, startIndex) => ({ startIndex })),
+  };
+}
+
+function lineOf(track: Track, line: DrawnLine | undefined, active: boolean): LineFeature[] {
+  if (!line) return [];
   return [
     {
       type: 'Feature',
-      geometry: { type: 'LineString', coordinates: track.waypoints.map((w) => w.lngLat) },
-      properties: { trackId: track.id, color: track.style.lineColor, active },
+      geometry: { type: 'LineString', coordinates: line.coordinates },
+      properties: { trackId: track.id, color: track.style.lineColor, active, routed: line.routed },
     },
   ];
+}
+
+/**
+ * Whole turns to add to a line's longitudes to bring it next to `lng`. MapLibre repeats the
+ * world side by side; an unwrapped flight over the Pacific (139° → 242°) may be on screen in
+ * the copy to the left (−221° → −118°), where the user clicked.
+ */
+export function worldCopyShift(line: readonly LngLat[], lng: number): number {
+  let west = Infinity;
+  let east = -Infinity;
+  for (const [x] of line) {
+    west = Math.min(west, x);
+    east = Math.max(east, x);
+  }
+  if (west > east) return 0;
+  return 360 * Math.round((lng - (west + east) / 2) / 360);
 }
 
 /** The smallest box around the points, or the point itself when there is only one place. */
@@ -113,8 +162,12 @@ export function buildMapScene(project: Project, selectedId: Id | null): MapScene
     number: waypoint.kind === 'stop' ? ++stops : stops,
   }));
 
-  const fitPoints = (activeTrack ? [activeTrack] : tracks).flatMap((track) =>
-    track.waypoints.map((waypoint) => waypoint.lngLat),
+  const drawn = new Map(tracks.map((track) => [track, drawnLineOf(track)]));
+  const activeLine = activeTrack && drawn.get(activeTrack);
+  // Fit to the drawn lines, not just the points: a flight arcs north of both airports, and
+  // over the Pacific only the unwrapped line knows which way round to look.
+  const fitPoints = (activeTrack ? [activeTrack] : tracks).flatMap(
+    (track) => drawn.get(track)?.coordinates ?? track.waypoints.map((w) => w.lngLat),
   );
 
   return {
@@ -122,9 +175,10 @@ export function buildMapScene(project: Project, selectedId: Id | null): MapScene
     activeTrack,
     // The active track last, so its line lies on top.
     lines: collection([
-      ...others.flatMap((track) => lineOf(track, false)),
-      ...(activeTrack ? lineOf(activeTrack, true) : []),
+      ...others.flatMap((track) => lineOf(track, drawn.get(track), false)),
+      ...(activeTrack ? lineOf(activeTrack, activeLine, true) : []),
     ]),
+    activeLine,
     otherPoints: collection(
       others.flatMap((track) =>
         track.waypoints.map((waypoint): PointFeature => ({
