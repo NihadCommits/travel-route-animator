@@ -75,7 +75,7 @@ export function RouteStatus({ track }: { track: Track }) {
     if (computed.durationS !== undefined) length.push(formatDuration(computed.durationS));
     text = texts.fresh(length.join(' · '), via);
     if (computed.provider === 'osrm' && (track.routing.avoid?.length ?? 0) > 0) {
-      text += ` ${texts.osrmIgnoresAvoid}`;
+      text += `. ${texts.osrmIgnoresAvoid}`;
     }
   } else if (track.waypoints.length < 2) {
     text = texts.tooFewPoints;
