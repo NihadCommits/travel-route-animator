@@ -21,6 +21,12 @@ export const COALESCE_MS = 1000;
 export interface CommitOptions {
   /** Same key + short gap = same undo step. Typing "Lissabon" should not take 8 undos. */
   coalesceKey?: string;
+  /**
+   * How short the gap must be, default COALESCE_MS. A follow-up that arrives late but belongs
+   * to the last step (the name for a point set on the map) passes Infinity: it merges as long
+   * as nothing else was committed in between.
+   */
+  coalesceWindowMs?: number;
   now?: number;
 }
 
@@ -30,13 +36,13 @@ export function createHistory<T>(present: T): History<T> {
 
 export function commit<T>(history: History<T>, next: T, options: CommitOptions = {}): History<T> {
   if (Object.is(next, history.present)) return history;
-  const { coalesceKey, now = Date.now() } = options;
+  const { coalesceKey, coalesceWindowMs = COALESCE_MS, now = Date.now() } = options;
 
   const continuesLastEdit =
     coalesceKey !== undefined &&
     coalesceKey === history.lastKey &&
     history.lastAt !== undefined &&
-    now - history.lastAt < COALESCE_MS;
+    now - history.lastAt < coalesceWindowMs;
 
   if (continuesLastEdit) {
     return { ...history, present: next, future: [], lastAt: now };

@@ -50,6 +50,26 @@ describe('history', () => {
     expect(history.past).toEqual(['a', 'ab', 'abc']);
   });
 
+  it('merges a late follow-up into the last step, but only if nothing came in between', () => {
+    // A point set on the map, and its name from the place search a few seconds later.
+    let history = commit(createHistory('none'), 'point', { coalesceKey: 'placed:w1', now: 0 });
+    history = commit(history, 'point named', {
+      coalesceKey: 'placed:w1',
+      coalesceWindowMs: Infinity,
+      now: 5000,
+    });
+    expect(history.past).toEqual(['none']);
+
+    let other = commit(createHistory('none'), 'point', { coalesceKey: 'placed:w1', now: 0 });
+    other = commit(other, 'point moved', { now: 100 });
+    other = commit(other, 'point moved, named', {
+      coalesceKey: 'placed:w1',
+      coalesceWindowMs: Infinity,
+      now: 5000,
+    });
+    expect(other.past).toEqual(['none', 'point', 'point moved']);
+  });
+
   it('never merges edits without a key', () => {
     let history = createHistory(0);
     history = commit(history, 1, { now: 0 });

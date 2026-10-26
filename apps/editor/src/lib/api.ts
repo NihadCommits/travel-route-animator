@@ -70,4 +70,8 @@ export const api = {
     }),
   searchPlaces: (query: string, bias: SearchBias | undefined, signal?: AbortSignal) =>
     request<{ places: Place[] }>(placeSearchPath(query, bias), { ...(signal && { signal }) }),
+  reversePlace: ([lng, lat]: LngLat) =>
+    request<{ place: Place | null }>(
+      `/reverse?${new URLSearchParams({ lng: String(lng), lat: String(lat), lang: PLACE_LANGUAGE })}`,
+    ),
 };

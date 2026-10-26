@@ -3,6 +3,7 @@ import {
   validateProject,
   type Added,
   type Id,
+  type LngLat,
   type Project,
   type ValidationIssue,
 } from '@travel-route-animator/core';
@@ -15,13 +16,31 @@ import type { ProjectUiState } from './uiState';
 export interface ApplyOptions {
   /** Merges quick edits of the same thing into one undo step (see history.ts). */
   coalesceKey?: string;
+  /** How close together such edits must be; see CommitOptions in history.ts. */
+  coalesceWindowMs?: number;
   /** Item to select afterwards; `null` clears the selection. Default: keep it. */
   select?: Id | null;
+}
+
+/** What a click on the map does: pick and drag points, or set a new point. */
+export type MapTool = 'select' | 'add-point';
+
+/** The visible part of the map, so the place search can prefer it. */
+export interface MapView {
+  center: LngLat;
+  zoom: number;
 }
 
 export interface EditorState {
   history: History<Project>;
   selectedId: Id | null;
+  // UI state of the edit map. None of it is part of the undo history or the project file.
+  /** A waypoint of the selected track, highlighted on the map and in the list. */
+  selectedWaypointId: Id | null;
+  mapTool: MapTool;
+  mapView: MapView | null;
+  /** Asks the map to show a point; `seq` changes on every request, also for the same point. */
+  mapFocus: { lngLat: LngLat; seq: number } | null;
   /** Tree items the user closed; everything else is shown open. Not part of the undo history. */
   collapsed: ReadonlySet<Id>;
   saveStatus: SaveStatus;
@@ -42,6 +61,10 @@ export interface EditorState {
   redo: () => void;
   select: (id: Id | null) => void;
   setExpanded: (id: Id, open: boolean) => void;
+  selectWaypoint: (id: Id | null) => void;
+  setMapTool: (tool: MapTool) => void;
+  setMapView: (view: MapView) => void;
+  showOnMap: (lngLat: LngLat) => void;
   retrySave: () => Promise<void>;
 }
 
@@ -84,14 +107,19 @@ export function createEditorStore(
       // The project may have changed elsewhere since the last visit; keep only what still exists.
       selectedId: existingOrNull(project, ui?.selectedId ?? null),
       collapsed: new Set(ui?.collapsed.filter((id) => locateItem(project, id))),
+      selectedWaypointId: null,
+      mapTool: 'select',
+      mapView: null,
+      mapFocus: null,
       saveStatus: { state: 'saved' },
 
-      apply(change, { coalesceKey, select } = {}) {
+      apply(change, { coalesceKey, coalesceWindowMs, select } = {}) {
         const { history } = get();
-        update(
-          commit(history, change(history.present), coalesceKey ? { coalesceKey } : {}),
-          select,
-        );
+        const options = {
+          ...(coalesceKey !== undefined && { coalesceKey }),
+          ...(coalesceWindowMs !== undefined && { coalesceWindowMs }),
+        };
+        update(commit(history, change(history.present), options), select);
       },
       applyIfValid(change, options) {
         const next = change(get().history.present);
@@ -110,7 +138,12 @@ export function createEditorStore(
       },
       undo: () => update(undo(get().history)),
       redo: () => update(redo(get().history)),
-      select: (id) => set({ selectedId: existingOrNull(get().history.present, id) }),
+      select(id) {
+        const selectedId = existingOrNull(get().history.present, id);
+        if (selectedId === get().selectedId) return;
+        // Points and the "set a point" tool belong to the track that was selected.
+        set({ selectedId, selectedWaypointId: null, mapTool: 'select' });
+      },
       setExpanded(id, open) {
         const { collapsed } = get();
         if (collapsed.has(id) !== open) return;
@@ -119,6 +152,10 @@ export function createEditorStore(
         else next.add(id);
         set({ collapsed: next });
       },
+      selectWaypoint: (selectedWaypointId) => set({ selectedWaypointId }),
+      setMapTool: (mapTool) => set({ mapTool }),
+      setMapView: (mapView) => set({ mapView }),
+      showOnMap: (lngLat) => set({ mapFocus: { lngLat, seq: (get().mapFocus?.seq ?? 0) + 1 } }),
       retrySave: () => autosave.flush(),
     };
   });
@@ -136,9 +173,17 @@ function existingOrNull(project: Project, id: Id | null): Id | null {
 export const EditorStoreContext = createContext<StoreApi<EditorState> | null>(null);
 
 export function useEditor<T>(selector: (state: EditorState) => T): T {
+  return useStore(useEditorStore(), selector);
+}
+
+/**
+ * The store itself, for code outside React's render cycle that must read the latest state,
+ * e.g. map event handlers registered once.
+ */
+export function useEditorStore(): StoreApi<EditorState> {
   const store = useContext(EditorStoreContext);
   if (!store) throw new Error('useEditor must be used inside the editor screen');
-  return useStore(store, selector);
+  return store;
 }
 
 export const selectProject = (state: EditorState) => state.history.present;

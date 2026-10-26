@@ -32,6 +32,10 @@ export interface WaypointRowProps {
   color: string;
   edit: Edit;
   dropIndicator: 'before' | 'after' | null;
+  /** Highlighted together with its marker on the map. */
+  selected: boolean;
+  onSelect: () => void;
+  onShowOnMap: () => void;
   onEditCoordinates: () => void;
 }
 
@@ -43,6 +47,9 @@ export function WaypointRow({
   color,
   edit,
   dropIndicator,
+  selected,
+  onSelect,
+  onShowOnMap,
   onEditCoordinates,
 }: WaypointRowProps) {
   const number = index + 1;
@@ -66,8 +73,11 @@ export function WaypointRow({
       ref={ref}
       data-waypoint-id={waypoint.id}
       aria-label={`${de.waypoints.number(number)}: ${waypoint.name || de.waypoints.unnamedShape}`}
+      // Working in a row (its name, its hold) selects the point, as clicking its marker does.
+      onFocus={onSelect}
       className={cn(
         'rounded-md py-1.5',
+        selected && 'bg-primary/10 ring-primary/50 ring-1',
         isDragging && 'opacity-60',
         // Insertion line above or below, as in the project tree.
         dropIndicator === 'before' && 'shadow-[inset_0_2px_0_var(--primary)]',
@@ -148,6 +158,7 @@ export function WaypointRow({
               action();
             }}
           >
+            <DropdownMenuItem onSelect={onShowOnMap}>{de.map.showOnMap}</DropdownMenuItem>
             <DropdownMenuItem onSelect={() => (afterClose.current = onEditCoordinates)}>
               {de.waypoints.editCoordinates}
             </DropdownMenuItem>
@@ -169,18 +180,20 @@ export function WaypointRow({
       </div>
 
       {isStop ? (
-        <div className="mt-1.5 grid grid-cols-2 items-end gap-2 pl-[2.75rem]">
+        // Wraps instead of squeezing: in a narrow inspector the switch moves below the hold.
+        <div className="mt-1.5 flex flex-wrap items-end gap-x-3 gap-y-1.5 pl-[2.75rem]">
           <NumberField
             label={de.waypoints.hold}
             value={waypoint.holdSec}
             unit={de.fields.seconds}
             step={0.5}
+            className="w-20 shrink-0"
             onCommit={(holdSec) => change('holdSec', (w) => ({ ...w, holdSec }), true)}
           />
           <SwitchField
             label={de.waypoints.showLabel}
             checked={waypoint.showLabel}
-            className="pb-1.5"
+            className="min-w-0 flex-1 basis-28 pb-1.5"
             onCommit={(showLabel) => change('showLabel', (w) => ({ ...w, showLabel }))}
           />
         </div>

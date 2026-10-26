@@ -10,7 +10,7 @@ Travel Route Animator is a local tool that turns trip itineraries into map anima
 
 ### Status
 
-**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints are added by place search or airport code (`VIE`, `OPO`) and can be renamed, reordered and turned into shape points. The interactive map, routing, the preview and the export follow module by module.
+**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints are added by place search, by airport code (`VIE`, `OPO`) or by a click on the interactive map, which suggests a name such as "Silves, Faro". On the map, points can be dragged, and a click on the line adds a shape point that bends the route. Routing, the preview and the export follow module by module.
 
 ### Planned features
 
@@ -67,6 +67,7 @@ The first render downloads Chrome Headless Shell (about 100 MB) once. `pnpm spik
 | `↑` `↓` `Home` `End`                  | Move through the project tree                         |
 | `←` `→`                               | Close or open an item, or step out to its parent      |
 | `↑` `↓` in a number field             | Change the value step by step (`Shift`: ten steps)    |
+| `Esc` on the map                      | Stop setting points by click                          |
 
 ### Project structure
 
@@ -115,7 +116,7 @@ Travel Route Animator ist ein lokales Tool, das Reiserouten in Kartenanimationen
 
 ### Status
 
-**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte kommen per Ortssuche oder Flughafen-Code (`VIE`, `OPO`) dazu und lassen sich umbenennen, umsortieren und zu Formpunkten machen. Interaktive Karte, Routing, Vorschau und Export folgen Modul für Modul.
+**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte kommen per Ortssuche, Flughafen-Code (`VIE`, `OPO`) oder Klick auf die interaktive Karte dazu; die Karte schlägt dabei einen Namen wie „Silves, Faro“ vor. Auf der Karte lassen sich Punkte ziehen, und ein Klick auf die Linie fügt einen Formpunkt ein, der die Route lenkt. Routing, Vorschau und Export folgen Modul für Modul.
 
 ### Geplante Funktionen
 
@@ -172,6 +173,7 @@ Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa
 | `↑` `↓` `Pos1` `Ende`                      | Durch den Projektbaum wandern                                        |
 | `←` `→`                                    | Element zu- oder aufklappen bzw. zum übergeordneten springen         |
 | `↑` `↓` in einem Zahlenfeld                | Wert schrittweise ändern (`Umschalt`: zehn Schritte)                 |
+| `Esc` auf der Karte                        | Punkte setzen per Klick beenden                                      |
 
 ### Projektstruktur
 

@@ -24,6 +24,7 @@ import { de } from '@/i18n/de';
 import { api, ApiError, type SearchBias } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useDebouncedValue } from '@/lib/useDebouncedValue';
+import { useEditor, type MapView } from '@/state/editorStore';
 import { CONTROL_CLASS } from '../fields/FieldShell';
 import type { Edit } from '../useEdit';
 
@@ -43,11 +44,18 @@ const KIND_ICONS: Record<PlaceKind, LucideIcon> = {
   poi: Landmark,
 };
 
+const round = (value: number, digits: number) => Number(value.toFixed(digits));
+
 /**
- * Until the map arrives (M3b) the search prefers the area of the trip so far: the track's last
- * waypoint, else any waypoint of the stage. "Silves" then finds the town in Portugal.
+ * The search prefers what the map shows: with the map on Portugal, "Silves" finds the town in
+ * the Algarve. Rounded, so that nudging the map a little does not start a new search. Without
+ * a map (no WebGL) it prefers the trip so far: the track's last waypoint, else the stage's.
  */
-function biasFor(track: Track, etappe: Etappe): SearchBias | undefined {
+function biasFor(track: Track, etappe: Etappe, mapView: MapView | null): SearchBias | undefined {
+  if (mapView) {
+    const [lng, lat] = mapView.center;
+    return { lngLat: [round(lng, 2), round(lat, 2)], zoom: Math.round(mapView.zoom) };
+  }
   const near = track.waypoints.at(-1) ?? etappe.tracks.flatMap((other) => other.waypoints).at(-1);
   return near ? { lngLat: near.lngLat, zoom: BIAS_ZOOM } : undefined;
 }
@@ -79,7 +87,8 @@ export function PlaceSearch({ track, etappe, edit }: { track: Track; etappe: Eta
   // Ask only for what is in the field and has stopped changing. Otherwise the old text would
   // be searched again right after a choice, because the new waypoint moves the bias.
   const enabled = expanded && settled;
-  const bias = biasFor(track, etappe);
+  const mapView = useEditor((state) => state.mapView);
+  const bias = biasFor(track, etappe, mapView);
   const biasKey = bias ? [...bias.lngLat, bias.zoom].join(',') : '';
 
   // TanStack Query cancels a request whose query is no longer needed, so typing on aborts the

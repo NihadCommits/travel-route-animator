@@ -220,4 +220,26 @@ describe('waypoints in the inspector', () => {
     expect(latitude).toBeInvalid();
     expect(latitude).toHaveAccessibleDescription(/vertauscht/);
   });
+
+  it('switches to setting points on the map and back', async () => {
+    const { user } = await renderEditor(trip('car', 'Auto'), {
+      airports: () => [],
+      places: () => [],
+    });
+    await selectRow('Auto');
+    const crosshair = inspector().getByRole('button', { name: 'Punkt auf Karte setzen' });
+    expect(crosshair).toHaveAttribute('aria-pressed', 'false');
+
+    await user.click(crosshair);
+    expect(crosshair).toHaveAttribute('aria-pressed', 'true');
+    // Escape ends the mode wherever the focus is, as on the map.
+    await user.keyboard('{Escape}');
+    expect(crosshair).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('keeps the editor working without WebGL and says why the map is missing', async () => {
+    await renderEditor(trip('car', 'Auto'), { airports: () => [], places: () => [] });
+    const map = screen.getByRole('region', { name: 'Bearbeitungskarte' });
+    expect(await within(map).findByText(/WebGL fehlt/)).toBeInTheDocument();
+  });
 });
