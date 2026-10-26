@@ -1,4 +1,9 @@
-import { createProject, type Place, type Project } from '@travel-route-animator/core';
+import {
+  createProject,
+  type Place,
+  type Project,
+  type RouteRequest,
+} from '@travel-route-animator/core';
 import { vi } from 'vitest';
 
 export interface FakeSearch {
@@ -6,6 +11,8 @@ export interface FakeSearch {
   airports?: (query: string) => Place[];
   /** Answers /api/geocode; undefined stands for an unreachable place search (502). */
   places?: (query: string, bias: string | null) => Place[];
+  /** Answers POST /api/route; undefined stands for a server without ORS key (503 no_key). */
+  route?: (request: RouteRequest) => { status: number; body: unknown };
 }
 
 /**
@@ -47,6 +54,13 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
           ? json(200, { places: search.places(q, searchUrl.searchParams.get('bias')) })
           : json(502, { error: 'geocoding_unavailable', message: 'down' }),
       );
+    }
+
+    if (searchUrl.pathname === '/route') {
+      const answer = search.route
+        ? search.route(body as RouteRequest)
+        : { status: 503, body: { error: 'no_key', message: 'ORS_API_KEY is not set in .env' } };
+      return Promise.resolve(json(answer.status, answer.body));
     }
 
     const id = decodeURIComponent(path.replace(/^\/projects\/?/, ''));

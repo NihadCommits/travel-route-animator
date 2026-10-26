@@ -1,11 +1,16 @@
 import {
+  computeRouteInputHash,
+  editTrack,
   locateItem,
   refreshLocalRoutes,
   validateProject,
   type Added,
+  type ComputedRoute,
   type Id,
   type LngLat,
   type Project,
+  type RouteFailure,
+  type RouterId,
   type ValidationIssue,
 } from '@travel-route-animator/core';
 import { createContext, useContext } from 'react';
@@ -41,6 +46,20 @@ export interface MapView {
   zoom: number;
 }
 
+/** Why a route job failed: what the server said, or that our own server did not answer. */
+export type RouteJobFailure = RouteFailure | { error: 'server_down'; message: string };
+
+/**
+ * A road route on its way from the server, or why it could not be computed. Belongs to one
+ * input hash: once the points change, a new job replaces it (see features/routing/routeSync).
+ */
+export interface RouteJob {
+  inputHash: string;
+  router: RouterId;
+  state: 'waiting' | 'computing' | 'failed';
+  failure?: RouteJobFailure;
+}
+
 export interface EditorState {
   history: History<Project>;
   selectedId: Id | null;
@@ -53,6 +72,8 @@ export interface EditorState {
   mapFocus: { lngLat: LngLat; seq: number } | null;
   /** Tree items the user closed; everything else is shown open. Not part of the undo history. */
   collapsed: ReadonlySet<Id>;
+  /** Road routes being computed or failed, by track. Not saved, not in the undo history. */
+  routeJobs: Readonly<Record<Id, RouteJob>>;
   saveStatus: SaveStatus;
 
   /** Applies an edit (a pure function from core/edit) as one undoable step. */
@@ -76,6 +97,15 @@ export interface EditorState {
   setMapView: (view: MapView) => void;
   showOnMap: (lngLat: LngLat) => void;
   retrySave: () => Promise<void>;
+  /** Sets or (null) removes the route jobs of several tracks at once. */
+  setRouteJobs: (jobs: Record<Id, RouteJob | null>) => void;
+  /**
+   * Stores a route from the server in its track, without an undo step, if it still fits the
+   * track's points. Returns false for an outdated answer (the user moved a point meanwhile).
+   */
+  applyComputedRoute: (trackId: Id, route: ComputedRoute) => boolean;
+  /** Asks again for a failed route, with the same or the other router. */
+  retryRoute: (trackId: Id, router: RouterId) => void;
 }
 
 export interface EditorStoreOptions {
@@ -124,6 +154,7 @@ export function createEditorStore(
       mapTool: 'select',
       mapView: null,
       mapFocus: null,
+      routeJobs: {},
       saveStatus: { state: 'saved' },
 
       apply(change, { coalesceKey, coalesceWindowMs, select } = {}) {
@@ -170,6 +201,34 @@ export function createEditorStore(
       setMapView: (mapView) => set({ mapView }),
       showOnMap: (lngLat) => set({ mapFocus: { lngLat, seq: (get().mapFocus?.seq ?? 0) + 1 } }),
       retrySave: () => autosave.flush(),
+      setRouteJobs(changes) {
+        const routeJobs = { ...get().routeJobs };
+        for (const [trackId, job] of Object.entries(changes)) {
+          if (job) routeJobs[trackId] = job;
+          else delete routeJobs[trackId];
+        }
+        set({ routeJobs });
+      },
+      applyComputedRoute(trackId, route) {
+        const { history } = get();
+        const location = locateItem(history.present, trackId);
+        if (location?.kind !== 'track') return false;
+        const { groupIndex, etappeIndex, trackIndex } = location;
+        const track = history.present.groups[groupIndex]!.etappen[etappeIndex]!.tracks[trackIndex]!;
+        if (computeRouteInputHash(track) !== route.inputHash) return false;
+        update(
+          replacePresent(
+            history,
+            editTrack(history.present, trackId, (t) => ({ ...t, computed: route })),
+          ),
+        );
+        return true;
+      },
+      retryRoute(trackId, router) {
+        const job = get().routeJobs[trackId];
+        if (!job) return;
+        get().setRouteJobs({ [trackId]: { inputHash: job.inputHash, router, state: 'waiting' } });
+      },
     };
   });
 
