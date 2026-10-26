@@ -1,10 +1,19 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
-import type { Track } from '../model/track';
+import type { RoutingSettings, Track, Waypoint } from '../model/track';
 import { canonicalJson } from './canonicalJson';
 
-/** What a route is computed from: the waypoints and the routing settings of a track. */
-export type RouteInput = Pick<Track, 'waypoints' | 'routing'>;
+/** The parts of a waypoint a route depends on, plus its ID to tie the legs to it. */
+export type RouteWaypoint = Pick<Waypoint, 'id' | 'lngLat' | 'kind'>;
+
+/**
+ * What a route is computed from: the waypoints and the routing settings of a track. A whole
+ * Track fits; the editor sends only these fields to the server.
+ */
+export interface RouteInput {
+  waypoints: readonly RouteWaypoint[];
+  routing: RoutingSettings;
+}
 
 /**
  * Fingerprint of everything that changes the shape of a route: waypoint positions and kinds

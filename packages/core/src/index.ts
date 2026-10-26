@@ -26,6 +26,7 @@ export * from './routing/assemble';
 export * from './routing/localRoute';
 export * from './routing/legs';
 export * from './routing/refresh';
+export * from './routing/request';
 export * from './resolve/resolve';
 export * from './migrations/migrations';
 export * from './model/issues';
