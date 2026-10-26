@@ -78,7 +78,9 @@ export function EditMap() {
         const view = store.getState().mapView ?? START_VIEW;
         map = maplibre.createEditMap(containerRef.current, view);
         const created = map;
-        created.on('load', () => {
+        // 'style.load', not 'load': our sources and layers only need the style, while 'load'
+        // also waits for every first tile and font, which took 8 to 13 seconds in tests.
+        created.once('style.load', () => {
           maplibre.addSceneLayers(created);
           setLoaded({ map: created, maplibre });
         });
