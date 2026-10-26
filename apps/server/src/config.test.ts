@@ -45,9 +45,18 @@ describe('resolveServiceConfig', () => {
   it('uses the public Photon and names the contact in the User-Agent', () => {
     expect(resolveServiceConfig({ SERVICE_CONTACT: ' https://github.com/someone ' })).toEqual({
       photonUrl: 'https://photon.komoot.io',
+      orsUrl: 'https://api.openrouteservice.org',
+      orsApiKey: undefined,
+      osrmUrl: 'https://routing.openstreetmap.de',
       userAgent: 'travel-route-animator (local tool; https://github.com/someone)',
     });
     expect(resolveServiceConfig({}).userAgent).toBe('travel-route-animator (local tool)');
+  });
+
+  it('reads the openrouteservice key and treats an empty one as missing', () => {
+    expect(resolveServiceConfig({ ORS_API_KEY: ' abc123 ' }).orsApiKey).toBe('abc123');
+    expect(resolveServiceConfig({ ORS_API_KEY: '' }).orsApiKey).toBeUndefined();
+    expect(() => resolveServiceConfig({ OSRM_URL: 'routing.local' })).toThrow(/OSRM_URL/);
   });
 
   it('accepts another Photon, but only over http(s)', () => {
