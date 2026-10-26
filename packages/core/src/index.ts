@@ -25,6 +25,7 @@ export * from './routing/inputHash';
 export * from './routing/assemble';
 export * from './routing/localRoute';
 export * from './routing/legs';
+export * from './routing/refresh';
 export * from './resolve/resolve';
 export * from './migrations/migrations';
 export * from './model/issues';
