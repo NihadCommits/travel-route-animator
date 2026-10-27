@@ -10,7 +10,7 @@ Travel Route Animator is a local tool that turns trip itineraries into map anima
 
 ### Status
 
-**Early development.** The foundation is in place: a pnpm monorepo, CI, and a render spike that proves a MapLibre map can be rendered to MP4 with Remotion. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints are added by place search, by airport code (`VIE`, `OPO`) or by a click on the interactive map, which suggests a name such as "Silves, Faro". On the map, points can be dragged, and a click on the line adds a shape point that bends the route. Cars, bikes and walkers get real routes from openrouteservice (with OSRM as a way out), optionally avoiding motorways, tolls or ferries; flights follow the great circle, also across the date line, and trains and ferries run on a smooth curve through their points. Routes update while editing, are stored in the project and are never requested twice for the same points. The preview and the export follow module by module.
+**Early development.** The foundation is in place: a pnpm monorepo, CI and a Remotion setup that renders MapLibre maps to MP4. The data model exists as validated schemas, and the local server stores projects as files. The editor lists projects, builds their structure (groups, stages, vehicles) in a project tree with drag and drop, and edits every item in an inspector. Input is checked against the same schemas the server uses, and problems are explained right at the field. Changes are saved automatically and can be undone. Waypoints are added by place search, by airport code (`VIE`, `OPO`) or by a click on the interactive map, which suggests a name such as "Silves, Faro". On the map, points can be dragged, and a click on the line adds a shape point that bends the route. Cars, bikes and walkers get real routes from openrouteservice (with OSRM as a way out), optionally avoiding motorways, tolls or ferries; flights follow the great circle, also across the date line, and trains and ferries run on a smooth curve through their points. Routes update while editing, are stored in the project and are never requested twice for the same points. A stage renders to MP4 by script: lines grow, vehicles drive and turn with the road, several of them in parallel with their own start and duration, pause at stops, and the camera follows one vehicle, keeps all of them in the picture or shows the overview. A 4K export looks exactly like 1080p, only sharper. The preview in the editor and the export from it follow module by module.
 
 ### Planned features
 
@@ -52,10 +52,16 @@ pnpm dev
 | `pnpm typecheck`     | TypeScript in every package                                |
 | `pnpm format`        | Format everything with Prettier                            |
 | `pnpm data:airports` | Download and filter the airport list into `data/airports/` |
-| `pnpm spike:studio`  | Open the render spike in Remotion Studio                   |
-| `pnpm spike:render`  | Render the spike to `output/spike/` (flat map and globe)   |
+| `pnpm render:etappe` | Render one stage of a project to MP4 (see below)           |
+| `pnpm studio`        | Open the stage composition in Remotion Studio              |
 
-The first render downloads Chrome Headless Shell (about 100 MB) once. `pnpm spike:render --gl=vulkan` tries another OpenGL backend, `--only=SpikeGlobe` renders a single composition.
+To render a stage, point the script at a project file and name the stage:
+
+```bash
+pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin morgen?"
+```
+
+The video lands in `output/<project>/`. `--aspect 9:16`, `--resolution 2160p` and `--fps 30` override the project's output settings, `--gl vulkan` tries another OpenGL backend (default `angle`, the GPU). Road routes the project does not hold yet come from the local server, so keep `pnpm dev` running. The first render downloads Chrome Headless Shell (about 100 MB) once. Remotion Studio listens on your whole network, not only on localhost (Remotion has no option for that), so only start it on networks you trust.
 
 ### Keyboard shortcuts in the editor
 
@@ -118,7 +124,7 @@ Travel Route Animator ist ein lokales Tool, das Reiserouten in Kartenanimationen
 
 ### Status
 
-**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Render-Prototyp, der zeigt, dass sich eine MapLibre-Karte mit Remotion als MP4 rendern lässt. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte kommen per Ortssuche, Flughafen-Code (`VIE`, `OPO`) oder Klick auf die interaktive Karte dazu; die Karte schlägt dabei einen Namen wie „Silves, Faro“ vor. Auf der Karte lassen sich Punkte ziehen, und ein Klick auf die Linie fügt einen Formpunkt ein, der die Route lenkt. Autos, Fahrräder und Fußwege bekommen echte Routen von openrouteservice (OSRM als Ausweg), auf Wunsch ohne Autobahnen, Maut oder Fähren; Flüge folgen dem Großkreis, auch über die Datumsgrenze, Züge und Fähren fahren auf einer geglätteten Kurve durch ihre Punkte. Routen passen sich beim Bearbeiten an, werden im Projekt gespeichert und für dieselben Punkte nie zweimal angefragt. Vorschau und Export folgen Modul für Modul.
+**Frühe Entwicklung.** Das Fundament steht: ein pnpm-Monorepo, CI und ein Remotion-Aufbau, der MapLibre-Karten als MP4 rendert. Das Datenmodell existiert als validierte Schemas, und der lokale Server speichert Projekte als Dateien. Der Editor listet Projekte auf, baut ihre Struktur (Gruppen, Etappen, Fahrzeuge) in einem Projektbaum mit Drag & Drop auf und bearbeitet jedes Element in einem Eigenschaften-Bereich. Eingaben werden mit denselben Schemas geprüft wie auf dem Server, Probleme werden direkt am Feld erklärt. Änderungen werden automatisch gespeichert und lassen sich rückgängig machen. Wegpunkte kommen per Ortssuche, Flughafen-Code (`VIE`, `OPO`) oder Klick auf die interaktive Karte dazu; die Karte schlägt dabei einen Namen wie „Silves, Faro“ vor. Auf der Karte lassen sich Punkte ziehen, und ein Klick auf die Linie fügt einen Formpunkt ein, der die Route lenkt. Autos, Fahrräder und Fußwege bekommen echte Routen von openrouteservice (OSRM als Ausweg), auf Wunsch ohne Autobahnen, Maut oder Fähren; Flüge folgen dem Großkreis, auch über die Datumsgrenze, Züge und Fähren fahren auf einer geglätteten Kurve durch ihre Punkte. Routen passen sich beim Bearbeiten an, werden im Projekt gespeichert und für dieselben Punkte nie zweimal angefragt. Eine Etappe lässt sich per Skript als MP4 rendern: Linien wachsen, Fahrzeuge fahren und drehen sich mit der Straße, mehrere parallel mit eigenem Start und eigener Dauer, sie halten an Stopps, und die Kamera folgt einem Fahrzeug, hält alle im Bild oder zeigt den Überblick. Ein 4K-Export sieht genauso aus wie 1080p, nur schärfer. Vorschau und Export aus dem Editor folgen Modul für Modul.
 
 ### Geplante Funktionen
 
@@ -151,19 +157,25 @@ pnpm dev
 
 `pnpm data:airports` lädt einmalig die Flughafenliste (siehe Datenquellen). `pnpm dev` startet den Editor unter <http://127.0.0.1:5173> und den Server unter <http://127.0.0.1:5174>. Beide sind nur lokal erreichbar. Einstellungen stehen in einer `.env`-Datei (Vorlage: `.env.example`): `SERVICE_CONTACT` geht an kostenlose Dienste wie Photon und OSRM, wie es deren Fair-Use-Regeln erbitten (eine Profil-URL genügt). Routen für Auto, Rad und zu Fuß brauchen einen kostenlosen [openrouteservice](https://openrouteservice.org/dev/)-Key in `ORS_API_KEY`; er bleibt auf dem lokalen Server und wird nie geloggt. Fehlt er, erklärt der Editor das und bietet OSRM an.
 
-| Befehl               | Was er tut                                                      |
-| -------------------- | --------------------------------------------------------------- |
-| `pnpm dev`           | Editor und Server mit automatischem Neuladen                    |
-| `pnpm test`          | Alle Tests (Vitest)                                             |
-| `pnpm test:coverage` | Tests mit Abdeckungsbericht (wie im CI)                         |
-| `pnpm lint`          | ESLint, Warnungen zählen als Fehler                             |
-| `pnpm typecheck`     | TypeScript in allen Paketen                                     |
-| `pnpm format`        | Alles mit Prettier formatieren                                  |
-| `pnpm data:airports` | Flughafenliste laden und nach `data/airports/` filtern          |
-| `pnpm spike:studio`  | Render-Prototyp in Remotion Studio öffnen                       |
-| `pnpm spike:render`  | Render-Prototyp nach `output/spike/` rendern (Karte und Globus) |
+| Befehl               | Was er tut                                               |
+| -------------------- | -------------------------------------------------------- |
+| `pnpm dev`           | Editor und Server mit automatischem Neuladen             |
+| `pnpm test`          | Alle Tests (Vitest)                                      |
+| `pnpm test:coverage` | Tests mit Abdeckungsbericht (wie im CI)                  |
+| `pnpm lint`          | ESLint, Warnungen zählen als Fehler                      |
+| `pnpm typecheck`     | TypeScript in allen Paketen                              |
+| `pnpm format`        | Alles mit Prettier formatieren                           |
+| `pnpm data:airports` | Flughafenliste laden und nach `data/airports/` filtern   |
+| `pnpm render:etappe` | Eine Etappe eines Projekts als MP4 rendern (siehe unten) |
+| `pnpm studio`        | Die Etappen-Komposition in Remotion Studio öffnen        |
 
-Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). `pnpm spike:render --gl=vulkan` probiert ein anderes OpenGL-Backend, `--only=SpikeGlobe` rendert nur eine Komposition.
+Zum Rendern einer Etappe bekommt das Skript eine Projektdatei und den Namen der Etappe:
+
+```bash
+pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin morgen?"
+```
+
+Das Video landet in `output/<projekt>/`. `--aspect 9:16`, `--resolution 2160p` und `--fps 30` überschreiben die Ausgabe-Einstellungen des Projekts, `--gl vulkan` probiert ein anderes OpenGL-Backend (Standard `angle`, die GPU). Straßenrouten, die im Projekt noch fehlen, holt das Skript vom lokalen Server, `pnpm dev` muss also laufen. Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). Remotion Studio ist im ganzen Netzwerk erreichbar, nicht nur lokal (Remotion bietet dafür keine Einstellung), also nur in vertrauenswürdigen Netzen starten.
 
 ### Tastenkürzel im Editor
 
