@@ -40,6 +40,21 @@ describe('compileTimeline', () => {
     });
   });
 
+  it('draws a lighter preview with fewer pixels but the same framing', () => {
+    const { project, etappeId } = trip({ tracks: [{ points: [['A', A], ['C', C]] }] });
+    const full = compileTimeline(project, etappeId);
+    const half = compileTimeline(project, etappeId, { previewScale: 0.5 });
+    expect([half.width, half.height, half.scale]).toEqual([960, 540, 0.5]);
+    expect(half.viewport).toEqual(full.viewport);
+    expect(half.durationInFrames).toBe(full.durationInFrames);
+    const vertical = compileTimeline(project, etappeId, {
+      output: { aspect: '9:16' },
+      previewScale: 0.5,
+    });
+    expect([vertical.width, vertical.height]).toEqual([540, 960]);
+    expect(vertical.viewport).toEqual({ width: 1080, height: 1920 });
+  });
+
   it('drives the whole way in one eased stretch when there are no holds', () => {
     const { project, etappeId } = trip({
       durationSec: 8,
