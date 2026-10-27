@@ -35,28 +35,63 @@ export function metersPerPixel(zoom: number, lat: number): number {
   return (EARTH_CIRCUMFERENCE_M * Math.cos((lat * Math.PI) / 180)) / (TILE_SIZE * 2 ** zoom);
 }
 
+/** Free space in pixels on each side of the picture. */
+export interface Padding {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 /**
- * Centre and zoom that show the box with `paddingPx` free on every side: the Web Mercator
- * version of map.fitBounds, but as plain maths. That keeps the camera testable and free of
- * asynchronous map calls (ARCHITEKTUR: Kamera). With a tilted map it is an approximation.
+ * Centre and zoom that show the box with the padding free around it: the Web Mercator version
+ * of map.fitBounds, but as plain maths. That keeps the camera testable and free of asynchronous
+ * map calls (ARCHITEKTUR: Kamera). With a tilted map it is an approximation.
  */
 export function fitBounds(
   bounds: Bounds,
   viewport: Viewport,
-  paddingPx: number,
+  padding: number | Padding,
   maxZoom = MAX_ZOOM,
 ): { center: LngLat; zoom: number } {
+  const pad =
+    typeof padding === 'number'
+      ? { top: padding, right: padding, bottom: padding, left: padding }
+      : padding;
   const x0 = mercatorX(bounds.west);
   const x1 = mercatorX(bounds.east);
   const y0 = mercatorY(bounds.north);
   const y1 = mercatorY(bounds.south);
-  const width = Math.max(1, viewport.width - 2 * paddingPx);
-  const height = Math.max(1, viewport.height - 2 * paddingPx);
+  const width = Math.max(1, viewport.width - pad.left - pad.right);
+  const height = Math.max(1, viewport.height - pad.top - pad.bottom);
   // A box without width or height (one point, or all vehicles at the start) fits at any zoom.
   const zoomX = x1 > x0 ? Math.log2(width / ((x1 - x0) * TILE_SIZE)) : Infinity;
   const zoomY = y1 > y0 ? Math.log2(height / ((y1 - y0) * TILE_SIZE)) : Infinity;
   const zoom = Math.max(0, Math.min(maxZoom, zoomX, zoomY));
-  return { center: [lngOf((x0 + x1) / 2), latOf((y0 + y1) / 2)], zoom };
+  // With uneven padding the box sits in the middle of the free area, not of the picture, so
+  // the map centre moves by half the difference.
+  const world = TILE_SIZE * 2 ** zoom;
+  const shiftX = (pad.right - pad.left) / 2 / world;
+  const shiftY = (pad.bottom - pad.top) / 2 / world;
+  return { center: [lngOf((x0 + x1) / 2 + shiftX), latOf((y0 + y1) / 2 + shiftY)], zoom };
+}
+
+/**
+ * Bands the overlays take: the title at the top, the kilometre counter at the bottom (see
+ * packages/scene/src/overlays). Fits keep routes and vehicles out of them.
+ */
+export const OVERLAY_BAND_PX = 130;
+
+/** The camera's padding plus the bands of the overlays this stage shows. */
+export function framePadding(timeline: Timeline): Padding {
+  const { paddingPx } = timeline.view.camera;
+  const { title, distanceCounter } = timeline.overlays;
+  return {
+    top: paddingPx + (title ? OVERLAY_BAND_PX : 0),
+    right: paddingPx,
+    bottom: paddingPx + (distanceCounter ? OVERLAY_BAND_PX : 0),
+    left: paddingPx,
+  };
 }
 
 /** A camera between two others; zoom is already logarithmic, so plain blending looks even. */
@@ -80,9 +115,9 @@ function viewAngles(timeline: Timeline) {
 }
 
 export function overviewCamera(timeline: Timeline): CameraState {
-  const { overview, viewport, view } = timeline;
+  const { overview, viewport } = timeline;
   const fit = overview
-    ? fitBounds(overview, viewport, view.camera.paddingPx)
+    ? fitBounds(overview, viewport, framePadding(timeline))
     : { center: [0, 0] as LngLat, zoom: 1 };
   return { ...fit, ...viewAngles(timeline) };
 }
@@ -91,7 +126,7 @@ export function overviewCamera(timeline: Timeline): CameraState {
 function followZoom(timeline: Timeline, plan: TrackPlan): number {
   const bounds = boundsOf(plan.line.points);
   if (!bounds) return 10;
-  const { zoom } = fitBounds(bounds, timeline.viewport, timeline.view.camera.paddingPx);
+  const { zoom } = fitBounds(bounds, timeline.viewport, framePadding(timeline));
   return Math.max(3, Math.min(14, zoom + 1.5));
 }
 
@@ -134,7 +169,7 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
       // in further than a couple of levels above the overview.
       const maxZoom = camera.zoom ?? Math.min(14, overviewCamera(timeline).zoom + 2);
       return {
-        ...fitBounds(bounds, timeline.viewport, camera.paddingPx, maxZoom),
+        ...fitBounds(bounds, timeline.viewport, framePadding(timeline), maxZoom),
         ...viewAngles(timeline),
       };
     }

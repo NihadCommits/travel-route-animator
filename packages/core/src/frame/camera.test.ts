@@ -7,6 +7,7 @@ import {
   cameraAt,
   fitBounds,
   metersPerPixel,
+  OVERLAY_BAND_PX,
   overviewCamera,
   type CameraState,
   type Viewport,
@@ -46,6 +47,16 @@ describe('fitBounds', () => {
     expect(x0).toBeGreaterThan(80);
     expect(x1).toBeLessThan(1840);
     expect((x0 + x1) / 2).toBeCloseTo(960, 6);
+  });
+
+  it('centres the box in the free area when one side needs more room', () => {
+    const bounds = { west: -9.2, south: 37.0, east: -7.9, north: 38.8 };
+    const padding = { top: 210, right: 80, bottom: 80, left: 80 };
+    const camera = { ...fitBounds(bounds, viewport, padding), pitchDeg: 0, bearingDeg: 0 };
+    const [, top] = screenPoint([bounds.west, bounds.north], camera);
+    const [, bottom] = screenPoint([bounds.east, bounds.south], camera);
+    expect(top).toBeCloseTo(210, 6);
+    expect(bottom).toBeCloseTo(1000, 6);
   });
 
   it('zooms in as far as allowed on a single point', () => {
@@ -137,6 +148,31 @@ describe('camera modes', () => {
         expect(y).toBeLessThanOrEqual(1000 + 1e-6);
       }
     }
+    // With a title on top, the vehicles stay below its band.
+    const titled = timelineOf({
+      durationSec: 10,
+      tracks: timeline.tracks.map((plan) => ({
+        points: [
+          ['Start', plan.line.points[0]!],
+          ['Ziel', plan.line.points.at(-1)!],
+        ],
+      })),
+      camera: { mode: 'follow-all', lagSec: 0, paddingPx: 80, startWithOverview: false },
+      etappe: {
+        overlays: {
+          labels: true,
+          distanceCounter: false,
+          timeCounter: false,
+          attribution: true,
+          title: 'Wohin morgen?',
+        },
+      },
+    });
+    for (const plan of titled.tracks) {
+      const [, y] = screenPoint(positionAt(plan, 10), cameraAt(titled, 10));
+      expect(y).toBeGreaterThanOrEqual(80 + OVERLAY_BAND_PX - 1e-6);
+    }
+
     // All three wait together in Porto: close, but not endlessly close.
     expect(cameraAt(timeline, 0).zoom).toBeCloseTo(overviewCamera(timeline).zoom + 2, 6);
   });
