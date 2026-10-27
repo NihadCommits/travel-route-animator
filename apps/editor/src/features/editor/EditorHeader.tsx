@@ -1,9 +1,46 @@
-import { ArrowLeft, Check, CircleAlert, LoaderCircle, Redo2, Undo2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  Check,
+  CircleAlert,
+  LoaderCircle,
+  Pencil,
+  Play,
+  Redo2,
+  Undo2,
+} from 'lucide-react';
+import { SegmentedControl, type SegmentOption } from '@/components/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { de } from '@/i18n/de';
 import { cn } from '@/lib/utils';
-import { selectCanRedo, selectCanUndo, selectProject, useEditor } from '@/state/editorStore';
+import {
+  selectCanRedo,
+  selectCanUndo,
+  selectProject,
+  useEditor,
+  type Workspace,
+} from '@/state/editorStore';
+
+const WORKSPACES: SegmentOption<Workspace>[] = [
+  {
+    value: 'edit',
+    label: (
+      <>
+        <Pencil /> {de.editor.workspace.edit}
+      </>
+    ),
+    hint: de.editor.workspace.editHint,
+  },
+  {
+    value: 'preview',
+    label: (
+      <>
+        <Play /> {de.editor.workspace.preview}
+      </>
+    ),
+    hint: de.editor.workspace.previewHint,
+  },
+];
 
 export function EditorHeader() {
   const project = useEditor(selectProject);
@@ -12,6 +49,8 @@ export function EditorHeader() {
   const undo = useEditor((state) => state.undo);
   const redo = useEditor((state) => state.redo);
   const select = useEditor((state) => state.select);
+  const workspace = useEditor((state) => state.workspace);
+  const setWorkspace = useEditor((state) => state.setWorkspace);
 
   return (
     <header className="bg-card flex h-10 shrink-0 items-center gap-2 border-b px-2">
@@ -30,6 +69,13 @@ export function EditorHeader() {
           {project.name}
         </button>
       </h1>
+      <SegmentedControl
+        label={de.editor.workspace.label}
+        value={workspace}
+        options={WORKSPACES}
+        onChange={setWorkspace}
+        className="ml-4 shrink-0 text-sm"
+      />
       <div className="ml-auto flex items-center gap-1">
         <IconButton label={de.editor.undo} disabled={!canUndo} onClick={undo}>
           <Undo2 />

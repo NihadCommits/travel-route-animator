@@ -15,6 +15,19 @@ globalThis.ResizeObserver ??= ResizeObserverStub;
 // Nor does it scroll; the tree scrolls the selected row into view.
 Element.prototype.scrollIntoView = function scrollIntoView() {};
 
+// Nor capture pointers, which the timeline does while dragging. Tests send the moves to the
+// dragged element itself, so remembering the capture is enough.
+const captured = new WeakMap<Element, Set<number>>();
+Element.prototype.setPointerCapture = function setPointerCapture(pointerId: number) {
+  captured.set(this, (captured.get(this) ?? new Set()).add(pointerId));
+};
+Element.prototype.releasePointerCapture = function releasePointerCapture(pointerId: number) {
+  captured.get(this)?.delete(pointerId);
+};
+Element.prototype.hasPointerCapture = function hasPointerCapture(pointerId: number) {
+  return captured.get(this)?.has(pointerId) ?? false;
+};
+
 afterEach(() => {
   cleanup();
   localStorage.clear();
@@ -26,4 +39,10 @@ vi.mock('@/features/map/maplibre', () => ({
   createEditMap: () => {
     throw new Error('No WebGL in jsdom');
   },
+}));
+
+// The preview's player needs WebGL as well. The stand-in keeps the rest of the preview pane
+// (stage choice, loading) testable and says which stage it would play.
+vi.mock('@/features/preview/PreviewPlayer', () => ({
+  PreviewPlayer: ({ etappeId }: { etappeId: string }) => `Vorschau-Player für ${etappeId}`,
 }));
