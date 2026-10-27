@@ -5,12 +5,13 @@ import {
   defaultFactoryContext,
   describeIssues,
   parseProjectFile,
+  slugify,
+  uniqueSlug,
   validateProject,
   type Project,
   type ValidationIssue,
 } from '@travel-route-animator/core';
 import { writeFileAtomic } from '../fs/writeFileAtomic';
-import { slugify, uniqueSlug } from './slug';
 
 export interface ProjectSummary {
   id: string;

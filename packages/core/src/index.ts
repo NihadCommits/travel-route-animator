@@ -45,3 +45,4 @@ export * from './frame/position';
 export * from './frame/heading';
 export * from './frame/camera';
 export * from './frame/computeFrameState';
+export * from './files/slug';

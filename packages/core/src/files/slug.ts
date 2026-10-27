@@ -3,7 +3,7 @@ const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/;
 
 const MAX_LENGTH = 60;
 
-/** Folder name for a project: "Portugal 2026" → "portugal-2026", "Wien – Süd" → "wien-sud". */
+/** File or folder name: "Portugal 2026" → "portugal-2026", "Wien – Süd" → "wien-sud". */
 export function slugify(name: string): string {
   const slug = name
     .normalize('NFKD')
