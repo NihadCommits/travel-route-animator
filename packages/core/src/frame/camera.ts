@@ -1,8 +1,9 @@
+import { smoothedPointAt } from '../geo/along';
 import { boundsOf, type Bounds } from '../geo/bounds';
 import type { LngLat } from '../geo/lngLat';
-import type { Timeline, TrackPlan } from '../timeline/compileTimeline';
+import { overviewBlendSec, type Timeline, type TrackPlan } from '../timeline/compileTimeline';
 import { ease } from '../timeline/easing';
-import { positionAt } from './position';
+import { distanceAt, positionAt } from './position';
 
 export interface CameraState {
   center: LngLat;
@@ -107,8 +108,36 @@ export function blendCamera(a: CameraState, b: CameraState, f: number): CameraSt
   };
 }
 
-/** Overview transitions at the start and end of the main part: 15 % of it, at most 2 s. */
-const overviewBlendSec = (mainSec: number) => Math.min(2, mainSec * 0.15);
+/**
+ * A camera between two others that keeps one point steady on screen: the anchor (usually the
+ * vehicle) glides in a straight line from where `a` shows it to where `b` shows it, while the
+ * zoom changes. Blending centre and zoom independently would let the vehicle swerve across
+ * the picture during an overview zoom.
+ */
+export function anchoredBlend(
+  a: CameraState,
+  b: CameraState,
+  f: number,
+  anchor: LngLat,
+): CameraState {
+  const blended = blendCamera(a, b, f);
+  const ax = mercatorX(anchor[0]);
+  const ay = mercatorY(anchor[1]);
+  // Where the anchor appears, in pixels from the picture's centre, in either camera.
+  const offset = (camera: CameraState) => {
+    const world = TILE_SIZE * 2 ** camera.zoom;
+    return [
+      (ax - mercatorX(camera.center[0])) * world,
+      (ay - mercatorY(camera.center[1])) * world,
+    ] as const;
+  };
+  const [oax, oay] = offset(a);
+  const [obx, oby] = offset(b);
+  const world = TILE_SIZE * 2 ** blended.zoom;
+  const ox = oax + (obx - oax) * f;
+  const oy = oay + (oby - oay) * f;
+  return { ...blended, center: [lngOf(ax - ox / world), latOf(ay - oy / world)] };
+}
 
 function viewAngles(timeline: Timeline) {
   return { pitchDeg: timeline.view.pitchDeg, bearingDeg: timeline.view.bearingDeg };
@@ -135,12 +164,64 @@ function followedTrack(timeline: Timeline): TrackPlan | undefined {
   return timeline.tracks.find((t) => t.trackId === followTrackId) ?? timeline.tracks[0];
 }
 
+/** The camera smooths the route over this share of the picture's short side (ADR 0006). */
+const PATH_SMOOTHING_SHARE = 0.3;
+/** Samples of the time window; a triangle of ten is smooth and cheap per frame. */
+const TIME_SAMPLES = 10;
+
+/**
+ * Where a stabilised camera looks for a vehicle, like a drone shot rather than a camera
+ * bolted to the car (ADR 0006). Two smoothings, both without state between frames:
+ *
+ * - along the route, over about a third of the picture: the camera cuts through bends and
+ *   junctions instead of tracing every one, the vehicle swings a little around the centre;
+ * - over time, a triangle of ±lagSec around now: starting and braking become soft, but on
+ *   average the camera is neither behind nor ahead of the vehicle.
+ *
+ * `spatialZoom` sizes the stretch along the route; undefined skips that part (follow-all,
+ * whose zoom depends on the very positions it frames).
+ */
+function stabilisedPosition(
+  timeline: Timeline,
+  plan: TrackPlan,
+  sec: number,
+  spatialZoom: number | undefined,
+): LngLat {
+  const { lagSec } = timeline.view.camera;
+  const { width, height } = timeline.viewport;
+  const halfWindowM =
+    spatialZoom === undefined
+      ? 0
+      : ((PATH_SMOOTHING_SHARE * Math.min(width, height)) / 2) *
+        metersPerPixel(spatialZoom, positionAt(plan, sec)[1]);
+  const pointAtTime = (time: number) =>
+    smoothedPointAt(plan.line, distanceAt(plan, time), halfWindowM);
+  // The window shrinks towards the start and the end of the journey, so the camera does not
+  // run ahead of a vehicle that is still waiting, and arrives with it.
+  const halfWindowSec = Math.min(
+    lagSec,
+    Math.max(0, Math.min(sec - plan.startSec, plan.endSec - sec)),
+  );
+  if (halfWindowSec <= 0) return pointAtTime(sec);
+
+  let lng = 0;
+  let lat = 0;
+  let weights = 0;
+  for (let k = 0; k < TIME_SAMPLES; k++) {
+    // Midpoints of TIME_SAMPLES equal slices of -1..1, weighted as a triangle.
+    const u = (2 * k + 1) / TIME_SAMPLES - 1;
+    const weight = 1 - Math.abs(u);
+    const [x, y] = pointAtTime(sec + u * halfWindowSec);
+    lng += x * weight;
+    lat += y * weight;
+    weights += weight;
+  }
+  return [lng / weights, lat / weights];
+}
+
 /** The camera of the chosen mode at `sec`, without the overview transitions. */
 function modeCamera(timeline: Timeline, sec: number): CameraState {
   const { camera } = timeline.view;
-  // The camera trails the vehicle: it looks where the vehicle was lagSec ago, which smooths
-  // its movement without remembering anything between frames.
-  const lagged = sec - camera.lagSec;
   switch (camera.mode) {
     case 'static':
       return camera.staticCamera
@@ -156,14 +237,17 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
     case 'follow': {
       const plan = followedTrack(timeline);
       if (!plan) return overviewCamera(timeline);
+      const zoom = camera.zoom ?? followZoom(timeline, plan);
       return {
-        center: positionAt(plan, lagged),
-        zoom: camera.zoom ?? followZoom(timeline, plan),
+        center: stabilisedPosition(timeline, plan, sec, zoom),
+        zoom,
         ...viewAngles(timeline),
       };
     }
     case 'follow-all': {
-      const bounds = boundsOf(timeline.tracks.map((plan) => positionAt(plan, lagged)));
+      const bounds = boundsOf(
+        timeline.tracks.map((plan) => stabilisedPosition(timeline, plan, sec, undefined)),
+      );
       if (!bounds) return overviewCamera(timeline);
       // When all vehicles stand together (often at the start) the box is a point; do not dive
       // in further than a couple of levels above the overview.
@@ -183,40 +267,36 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
 export function cameraAt(timeline: Timeline, sec: number): CameraState {
   const { camera } = timeline.view;
   const { mainSec, introSec, outroSec, intro, outro } = timeline;
+  // What the eye follows through an overview zoom: the followed vehicle, otherwise the
+  // centre of the mode's own picture.
+  const followed = camera.mode === 'follow' ? followedTrack(timeline) : undefined;
+  const anchorAt = (time: number, base: CameraState) =>
+    followed ? positionAt(followed, time) : base.center;
 
   if (sec < 0) {
     const start = modeCamera(timeline, 0);
     // dive-out comes with M11; until then the intro holds the first camera.
     if (intro.type !== 'overview-to-start' || introSec <= 0) return start;
-    return blendCamera(
-      overviewCamera(timeline),
-      start,
-      ease('ease-in-out', (sec + introSec) / introSec),
-    );
+    const f = ease('ease-in-out', (sec + introSec) / introSec);
+    return anchoredBlend(overviewCamera(timeline), start, f, anchorAt(0, start));
   }
   if (sec > mainSec) {
     const end = modeCamera(timeline, mainSec);
     // dive-in and arrival-3d come with M11; until then the outro holds the last camera.
     if (outro.type !== 'overview' || outroSec <= 0) return end;
-    const blendSec = Math.min(2, outroSec * 0.6);
-    return blendCamera(
-      end,
-      overviewCamera(timeline),
-      ease('ease-in-out', (sec - mainSec) / blendSec),
-    );
+    const f = ease('ease-in-out', (sec - mainSec) / Math.min(2, outroSec * 0.6));
+    return anchoredBlend(end, overviewCamera(timeline), f, anchorAt(mainSec, end));
   }
 
   const base = modeCamera(timeline, sec);
   const blendSec = overviewBlendSec(mainSec);
   if (camera.startWithOverview && sec < blendSec) {
-    return blendCamera(overviewCamera(timeline), base, ease('ease-in-out', sec / blendSec));
+    const f = ease('ease-in-out', sec / blendSec);
+    return anchoredBlend(overviewCamera(timeline), base, f, anchorAt(sec, base));
   }
   if (camera.endWithOverview && sec > mainSec - blendSec) {
-    return blendCamera(
-      base,
-      overviewCamera(timeline),
-      ease('ease-in-out', (sec - (mainSec - blendSec)) / blendSec),
-    );
+    const f = ease('ease-in-out', (sec - (mainSec - blendSec)) / blendSec);
+    return anchoredBlend(base, overviewCamera(timeline), f, anchorAt(sec, base));
   }
   return base;
 }

@@ -97,6 +97,9 @@ export interface CompileOptions {
   output?: Partial<OutputSettings>;
 }
 
+/** Overview transitions at the start and end of the main part: 15 % of it, at most 2 s. */
+export const overviewBlendSec = (mainSec: number) => Math.min(2, mainSec * 0.15);
+
 /** The size the look is designed at; see Timeline.viewport. */
 export const REFERENCE_SHORT_SIDE = 1080;
 
@@ -172,7 +175,7 @@ function arrivalSec(phases: Phase[], easing: Easing, atM: number, fallback: numb
   return move.startSec + (move.endSec - move.startSec) * invertEase(easing, share);
 }
 
-function planTrack(track: Track, mainSec: number): TrackPlan | undefined {
+function planTrack(track: Track, arriveBySec: number): TrackPlan | undefined {
   if (track.waypoints.length === 0) return undefined;
   const routed = track.computed !== undefined && !isRouteStale(track);
   const line = measureLine(
@@ -181,7 +184,7 @@ function planTrack(track: Track, mainSec: number): TrackPlan | undefined {
   const indices = waypointIndices(track, line, routed);
   const atM = indices.map((index) => line.cumulative[index]!);
   const startSec = track.timing.startOffsetSec;
-  const totalSec = Math.max(0, track.timing.durationSec ?? mainSec - startSec);
+  const totalSec = Math.max(0, track.timing.durationSec ?? arriveBySec - startSec);
   const phases = planPhases(track, atM, line.lengthM, startSec, totalSec);
   const { easing } = track.timing;
 
@@ -237,7 +240,12 @@ export function compileTimeline(
   const introSec = sectionSec(etappe.intro);
   const outroSec = sectionSec(etappe.outro);
   const mainSec = etappe.durationSec;
-  const tracks = etappe.tracks.flatMap((track) => planTrack(track, mainSec) ?? []);
+  // A stage that ends on the overview zooms out over an arrived vehicle: tracks that drive
+  // "until the end" arrive before that zoom starts. An own duration is kept as it is.
+  const arriveBySec = etappe.view.camera.endWithOverview
+    ? mainSec - overviewBlendSec(mainSec)
+    : mainSec;
+  const tracks = etappe.tracks.flatMap((track) => planTrack(track, arriveBySec) ?? []);
   const mapStyle = resolveMapStyle(fresh, etappeId).value;
 
   return {

@@ -3,6 +3,7 @@ import type { LngLat } from '../geo/lngLat';
 import { trip, type TripOptions } from '../testing/trip';
 import { compileTimeline } from '../timeline/compileTimeline';
 import {
+  anchoredBlend,
   blendCamera,
   cameraAt,
   fitBounds,
@@ -73,6 +74,22 @@ describe('fitBounds', () => {
   });
 });
 
+describe('anchoredBlend', () => {
+  it('lets the anchor glide straight across the screen while the zoom changes', () => {
+    const anchor: LngLat = [-8.25, 37.09];
+    const close = { center: anchor, zoom: 10, pitchDeg: 0, bearingDeg: 0 };
+    const wide = { center: [-8.6, 38.3] as LngLat, zoom: 7, pitchDeg: 0, bearingDeg: 0 };
+    const [x0, y0] = screenPoint(anchor, anchoredBlend(close, wide, 0, anchor));
+    const [x1, y1] = screenPoint(anchor, anchoredBlend(close, wide, 1, anchor));
+    const [xm, ym] = screenPoint(anchor, anchoredBlend(close, wide, 0.5, anchor));
+    expect([x0, y0]).toEqual([960, 540]);
+    expect(xm).toBeCloseTo((x0 + x1) / 2, 6);
+    expect(ym).toBeCloseTo((y0 + y1) / 2, 6);
+    expect(anchoredBlend(close, wide, 1, anchor).center[0]).toBeCloseTo(-8.6, 9);
+    expect(anchoredBlend(close, wide, 0.5, anchor).zoom).toBe(8.5);
+  });
+});
+
 describe('blendCamera', () => {
   it('turns the short way round', () => {
     const a = { center: [0, 0] as LngLat, zoom: 4, pitchDeg: 0, bearingDeg: 350 };
@@ -92,17 +109,60 @@ describe('camera modes', () => {
     ['Faro', [-7.93, 37.02]],
   ];
 
-  it('follows a vehicle, trailing it by lagSec', () => {
+  it('follows a vehicle on a straight road, neither behind nor ahead of it', () => {
     const timeline = timelineOf({
       durationSec: 10,
-      tracks: [{ points: route }],
+      tracks: [{ points: route, timing: { easing: 'linear' } }],
       camera: { mode: 'follow', lagSec: 0.5, zoom: 11, startWithOverview: false },
     });
+    const plan = timeline.tracks[0]!;
     const camera = cameraAt(timeline, 5);
     expect(camera.zoom).toBe(11);
-    expect(camera.center).toEqual(positionAt(timeline.tracks[0]!, 4.5));
-    // Before the start the trailing camera waits at the start, never behind it.
-    expect(cameraAt(timeline, 0).center).toEqual(route[0]![1]);
+    // Smoothing a straight line at even speed changes nothing: the vehicle stays centred.
+    const [x, y] = screenPoint(positionAt(plan, 5), { ...camera, zoom: 11 });
+    expect(Math.hypot(x - 960, y - 540)).toBeLessThan(0.5);
+    // The start and the end are exact, and before the start the camera waits there.
+    expect(cameraAt(timeline, -1).center).toEqual(route[0]![1]);
+    const end = screenPoint(route[1]![1], cameraAt(timeline, 11));
+    expect(Math.hypot(end[0] - 960, end[1] - 540)).toBeLessThan(0.5);
+  });
+
+  it('keeps the camera steady on a winding road while the vehicle may swing a little', () => {
+    // A country road that swings 600 m left and right every 3 km, heading north.
+    const road: [string, LngLat][] = Array.from({ length: 41 }, (_, i) => [
+      i === 0 || i === 40 ? `P${i}` : '~',
+      [-8.0 + (i % 2 === 0 ? 0.0034 : -0.0034), 38.0 + i * 0.0135],
+    ]);
+    const timeline = timelineOf({
+      durationSec: 10,
+      tracks: [{ points: road, timing: { easing: 'linear' } }],
+      camera: { mode: 'follow', lagSec: 0.4, zoom: 11, startWithOverview: false },
+    });
+    const plan = timeline.tracks[0]!;
+    const frames = Array.from({ length: 200 }, (_, i) => 1 + i / 25);
+    // Where the map moves on screen from frame to frame, and how abruptly that changes.
+    const world = (lngLat: LngLat): [number, number] =>
+      screenPoint(lngLat, { center: [0, 0], zoom: 11, pitchDeg: 0, bearingDeg: 0 });
+    const jerk = (points: [number, number][]) =>
+      Math.max(
+        ...points
+          .slice(2)
+          .map((p, i) =>
+            Math.hypot(
+              p[0] - 2 * points[i + 1]![0] + points[i]![0],
+              p[1] - 2 * points[i + 1]![1] + points[i]![1],
+            ),
+          ),
+      );
+    const cameraPath = frames.map((sec) => world(cameraAt(timeline, sec).center));
+    const vehiclePath = frames.map((sec) => world(positionAt(plan, sec)));
+    expect(jerk(cameraPath)).toBeLessThan(jerk(vehiclePath) / 10);
+    // The vehicle swings around the centre, but stays well inside the picture.
+    for (const sec of frames) {
+      const [x, y] = screenPoint(positionAt(plan, sec), cameraAt(timeline, sec));
+      expect(Math.abs(x - 960)).toBeLessThan(200);
+      expect(Math.abs(y - 540)).toBeLessThan(200);
+    }
   });
 
   it('picks a follow zoom a bit closer than the overview when none is set', () => {
@@ -211,6 +271,28 @@ describe('camera modes', () => {
     const halfway = cameraAt(timeline, 0.75).zoom;
     expect(halfway).toBeGreaterThan(overviewCamera(timeline).zoom);
     expect(halfway).toBeLessThan(11);
+  });
+
+  it('zooms out over the arrived vehicle, which glides straight to its place in the overview', () => {
+    const timeline = timelineOf({
+      durationSec: 10,
+      tracks: [{ points: route }],
+      camera: {
+        mode: 'follow',
+        zoom: 11,
+        lagSec: 0.4,
+        startWithOverview: false,
+        endWithOverview: true,
+      },
+    });
+    const goal = route[1]![1];
+    const path = [8.6, 9, 9.4, 9.8].map((sec) => screenPoint(goal, cameraAt(timeline, sec)));
+    // All points on one straight line: no swerving while the zoom changes.
+    const [p0, , , p3] = path;
+    for (const p of path) {
+      const cross = (p3![0] - p0![0]) * (p[1] - p0![1]) - (p3![1] - p0![1]) * (p[0] - p0![0]);
+      expect(Math.abs(cross) / Math.hypot(p3![0] - p0![0], p3![1] - p0![1])).toBeLessThan(0.5);
+    }
   });
 
   it('moves from the overview to the start during an "overview-to-start" intro', () => {

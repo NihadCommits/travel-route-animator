@@ -108,6 +108,32 @@ describe('compileTimeline', () => {
     expect(plan!.phases[0]).toMatchObject({ startSec: 2, endSec: 7 });
   });
 
+  it('arrives before a closing overview, unless the track has its own duration', () => {
+    const { project, etappeId } = trip({
+      durationSec: 10,
+      tracks: [
+        {
+          points: [
+            ['A', A],
+            ['C', C],
+          ],
+        },
+        {
+          points: [
+            ['A', A],
+            ['C', C],
+          ],
+          timing: { durationSec: 10 },
+        },
+      ],
+      camera: { endWithOverview: true },
+    });
+    const [untilEnd, ownDuration] = compileTimeline(project, etappeId).tracks;
+    // The closing overview takes 15 % of 10 s; the vehicle stands at its goal meanwhile.
+    expect(untilEnd!.endSec).toBeCloseTo(8.5, 9);
+    expect(ownDuration!.endSec).toBe(10);
+  });
+
   it('shortens holds that leave no time to drive, so the stage still plays', () => {
     const { project, etappeId } = trip({
       durationSec: 10,

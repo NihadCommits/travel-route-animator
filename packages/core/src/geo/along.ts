@@ -1,5 +1,7 @@
+import type { Point2 } from './closestSegment';
 import { distanceM } from './distance';
 import type { LngLat } from './lngLat';
+import { fromMercator, toMercator } from './mercator';
 import { unwrapLongitudes } from './unwrap';
 
 /**
@@ -51,6 +53,44 @@ export function pointAt(line: MeasuredLine, s: number): LngLat {
   // difference to the true curve is far below a pixel.
   const f = span > 0 ? (s - cumulative[i]!) / span : 0;
   return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f];
+}
+
+/**
+ * The mean position of the line between distances a and b, in Web Mercator: the integral of
+ * the position along the line divided by the length. Exact for a polyline, because the
+ * position is linear on every segment (trapezoids). Used to smooth without any state: the
+ * heading compares the mean behind with the mean ahead, the camera sits on the mean around.
+ */
+export function meanMercatorBetween(line: MeasuredLine, a: number, b: number): Point2 {
+  const { points, cumulative } = line;
+  let x = 0;
+  let y = 0;
+  let total = 0;
+  for (let i = segmentAt(line, Math.max(0, a)); i < points.length - 1; i++) {
+    if (cumulative[i]! >= b) break;
+    const from = Math.max(a, cumulative[i]!);
+    const to = Math.min(b, cumulative[i + 1]!);
+    if (to <= from) continue;
+    const [px, py] = toMercator(pointAt(line, from));
+    const [qx, qy] = toMercator(pointAt(line, to));
+    const length = to - from;
+    x += ((px + qx) / 2) * length;
+    y += ((py + qy) / 2) * length;
+    total += length;
+  }
+  return total > 0 ? [x / total, y / total] : toMercator(pointAt(line, a));
+}
+
+/**
+ * The line's point at s, smoothed over `halfWindowM` on either side: on a straight road the
+ * point itself, in a bend a little inside it, and a zigzag much smaller than the window
+ * averages out. The window shrinks towards the ends, so the start and the end stay exact.
+ */
+export function smoothedPointAt(line: MeasuredLine, s: number, halfWindowM: number): LngLat {
+  const clamped = Math.min(Math.max(s, 0), line.lengthM);
+  const half = Math.min(halfWindowM, clamped, line.lengthM - clamped);
+  if (half <= 0) return pointAt(line, clamped);
+  return fromMercator(meanMercatorBetween(line, clamped - half, clamped + half));
 }
 
 /**
