@@ -18,9 +18,9 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "spike:render": "pnpm --filter @travel-route-animator/scene spike:render",
-    "spike:studio": "pnpm --filter @travel-route-animator/scene studio",
-    "data:airports": "pnpm --filter @travel-route-animator/server data:airports"
+    "data:airports": "pnpm --filter @travel-route-animator/server data:airports",
+    "studio": "pnpm --filter @travel-route-animator/scene studio",
+    "render:etappe": "pnpm --filter @travel-route-animator/scene render:etappe"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

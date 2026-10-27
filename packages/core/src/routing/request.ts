@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { WaypointKindSchema } from '../model/enums';
 import { IdSchema, LngLatSchema } from '../model/primitives';
-import { RoutingSettingsSchema } from '../model/track';
+import { RoutingSettingsSchema, type Track } from '../model/track';
 
 // The contract of POST /api/route between editor and server. Not part of the project file:
 // the answer is a ComputedRoute, which the editor stores in the track.
@@ -52,3 +52,15 @@ export const RouteFailureSchema = z.object({
   waypointIndex: z.number().int().min(0).optional(),
 });
 export type RouteFailure = z.infer<typeof RouteFailureSchema>;
+
+/** Only what the route depends on goes to the server, not names, holds or styles. */
+export function toRouteRequest(
+  track: Pick<Track, 'waypoints' | 'routing'>,
+  router: RouterId,
+): RouteRequest {
+  return {
+    waypoints: track.waypoints.map(({ id, lngLat, kind }) => ({ id, lngLat, kind })),
+    routing: track.routing,
+    ...(router !== 'ors' && { router }),
+  };
+}

@@ -3,11 +3,11 @@ import {
   isLocalRoutingMode,
   MAX_ROUTE_WAYPOINTS,
   RouteFailureSchema,
+  toRouteRequest,
   type ComputedRoute,
   type Id,
   type Project,
   type RouteRequest,
-  type RouterId,
   type Track,
 } from '@travel-route-animator/core';
 import type { StoreApi } from 'zustand';
@@ -33,15 +33,6 @@ function routedTracks(project: Project): Map<Id, Track> {
     }
   }
   return tracks;
-}
-
-/** Only what the route depends on goes to the server, not names, holds or styles. */
-export function toRouteRequest(track: Track, router: RouterId): RouteRequest {
-  return {
-    waypoints: track.waypoints.map(({ id, lngLat, kind }) => ({ id, lngLat, kind })),
-    routing: track.routing,
-    ...(router !== 'ors' && { router }),
-  };
 }
 
 function failureOf(error: unknown): RouteJobFailure {

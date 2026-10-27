@@ -22,6 +22,7 @@ export type IssueCode =
   | 'track.tooFewWaypoints'
   | 'track.endpointNotStop'
   | 'track.timingOutsideEtappe'
+  | 'track.holdsTooLong'
   | 'camera.followTrackMissing'
   | 'camera.followTrackForeign'
   | 'camera.staticMissing';
