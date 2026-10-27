@@ -6,7 +6,10 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 // asset instead, so rendering never has to fetch MapLibre code from a CDN.
 setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).href);
 
-export type RenderMapOptions = Pick<MapOptions, 'container' | 'style' | 'center' | 'zoom'>;
+export type RenderMapOptions = Pick<
+  MapOptions,
+  'container' | 'style' | 'center' | 'zoom' | 'pitch' | 'bearing' | 'pixelRatio'
+>;
 
 /**
  * Creates a map that never moves or fades on its own. Remotion may render frames in any order,
@@ -18,6 +21,8 @@ export function createRenderMap(options: RenderMapOptions): MapLibreMap {
     interactive: false,
     fadeDuration: 0,
     attributionControl: false,
+    // Tilted 3D views need room to look towards the horizon.
+    maxPitch: 85,
     // Keeps the drawn frame in the canvas until Remotion has taken its screenshot.
     canvasContextAttributes: { preserveDrawingBuffer: true },
   });

@@ -1,5 +1,4 @@
 export type { LngLat } from './geo/lngLat';
-export { sliceLineByProgress } from './geo/sliceLineByProgress';
 export * from './geo/closestSegment';
 export * from './geo/distance';
 export * from './geo/greatCircle';
@@ -46,3 +45,4 @@ export * from './frame/heading';
 export * from './frame/camera';
 export * from './frame/computeFrameState';
 export * from './files/slug';
+export * from './routing/credits';

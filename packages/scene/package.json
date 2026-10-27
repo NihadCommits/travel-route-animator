@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "studio": "remotion studio src/index.ts",
-    "spike:render": "tsx scripts/render-spike.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "render:etappe": "tsx scripts/render-etappe.ts"
   },
   "dependencies": {
     "@travel-route-animator/core": "workspace:*",
