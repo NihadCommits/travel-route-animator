@@ -27,7 +27,7 @@ export type Throttle = <T>(task: () => Promise<T>, signal?: AbortSignal) => Prom
 
 /**
  * Runs tasks one after another, starting each at least `intervalMs` after the previous one.
- * Free services like Photon ask for at most about one request per second.
+ * Free services like Photon and OSRM ask for at most about one request per second.
  *
  * A task whose signal fires while it waits in the queue is dropped before it runs. That
  * matters for search-as-you-type: the browser cancels the request for "Sil" once "Silv" is

@@ -1,6 +1,7 @@
 import { LngLatSchema, toValidationIssues, type LngLat } from '@travel-route-animator/core';
-import type { FastifyInstance, FastifyReply } from 'fastify';
+import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { abortOnDisconnect } from '../lib/abortOnDisconnect';
 import type { Geocoder } from './geocoder';
 import { GeocodingUnavailableError } from './provider';
 
@@ -53,18 +54,6 @@ function parse<T>(schema: z.ZodType<T>, input: unknown): T {
   const result = schema.safeParse(input);
   if (!result.success) throw new InvalidQueryError(toValidationIssues(result.error));
   return result.data;
-}
-
-/**
- * Fires when the browser gives up on the request (typing on cancels the previous search).
- * reply.raw, not request.raw: the request side closes as soon as its (empty) body is read.
- */
-function abortOnDisconnect(reply: FastifyReply): AbortSignal {
-  const controller = new AbortController();
-  reply.raw.on('close', () => {
-    if (!reply.raw.writableFinished) controller.abort();
-  });
-  return controller.signal;
 }
 
 export function registerGeocodingRoutes(app: FastifyInstance, geocoder: Geocoder): void {

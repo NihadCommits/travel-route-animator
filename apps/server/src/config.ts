@@ -2,21 +2,37 @@ import { resolve } from 'node:path';
 
 export interface ServiceConfig {
   photonUrl: string;
+  orsUrl: string;
+  /** Missing: road routes go to OSRM only on request, the editor explains why. */
+  orsApiKey: string | undefined;
+  osrmUrl: string;
   /** Sent to free services, which ask callers to identify themselves. */
   userAgent: string;
 }
 
-const DEFAULT_PHOTON_URL = 'https://photon.komoot.io';
+const DEFAULTS = {
+  PHOTON_URL: 'https://photon.komoot.io',
+  ORS_URL: 'https://api.openrouteservice.org',
+  OSRM_URL: 'https://routing.openstreetmap.de',
+};
 
-/** PHOTON_URL and SERVICE_CONTACT from .env; a self-hosted Photon only needs another URL. */
-export function resolveServiceConfig(env: NodeJS.ProcessEnv): ServiceConfig {
-  const photonUrl = env.PHOTON_URL?.trim() || DEFAULT_PHOTON_URL;
-  if (!/^https?:\/\//.test(photonUrl) || !URL.canParse(photonUrl)) {
-    throw new Error(`PHOTON_URL must be an http(s) URL, got "${photonUrl}"`);
+/** A service URL from .env, or its public default; a self-hosted service only needs another URL. */
+function serviceUrl(env: NodeJS.ProcessEnv, name: keyof typeof DEFAULTS): string {
+  const url = env[name]?.trim() || DEFAULTS[name];
+  if (!/^https?:\/\//.test(url) || !URL.canParse(url)) {
+    throw new Error(`${name} must be an http(s) URL, got "${url}"`);
   }
+  return url;
+}
+
+/** Service URLs, ORS_API_KEY and SERVICE_CONTACT from .env. */
+export function resolveServiceConfig(env: NodeJS.ProcessEnv): ServiceConfig {
   const contact = env.SERVICE_CONTACT?.trim();
   return {
-    photonUrl,
+    photonUrl: serviceUrl(env, 'PHOTON_URL'),
+    orsUrl: serviceUrl(env, 'ORS_URL'),
+    orsApiKey: env.ORS_API_KEY?.trim() || undefined,
+    osrmUrl: serviceUrl(env, 'OSRM_URL'),
     userAgent: `travel-route-animator (local tool${contact ? `; ${contact}` : ''})`,
   };
 }

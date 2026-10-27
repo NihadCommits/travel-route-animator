@@ -1,15 +1,18 @@
 import { join } from 'node:path';
-import type { Place } from '@travel-route-animator/core';
+import type { Place, RouterId, RouteShape } from '@travel-route-animator/core';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { createAirportStore } from './airports/airportStore';
 import { registerAirportRoutes } from './airports/routes';
-import { createFileCache } from './geocoding/fileCache';
+import { createFileCache } from './lib/fileCache';
 import { createGeocoder } from './geocoding/geocoder';
 import { GeocodingUnavailableError, type GeocodingProvider } from './geocoding/provider';
 import { registerGeocodingRoutes } from './geocoding/routes';
-import { createThrottle } from './geocoding/throttle';
+import { createThrottle } from './lib/throttle';
 import { createProjectStore } from './projects/projectStore';
 import { registerProjectRoutes } from './projects/routes';
+import type { RoutingProvider } from './routing/provider';
+import { createRouter } from './routing/router';
+import { registerRoutingRoutes } from './routing/routes';
 
 export interface AppOptions {
   dataDir: string;
@@ -19,9 +22,16 @@ export interface AppOptions {
   geocodingProvider?: GeocodingProvider;
   /** Minimum time between two requests to the place search (fair use: one per second). */
   geocodingIntervalMs?: number;
+  /** The routers behind /api/route; index.ts passes openrouteservice and OSRM, tests fakes. */
+  routingProviders?: Partial<Record<RouterId, RoutingProvider>>;
+  /** Minimum time between two requests per router (ORS: 40 per minute, OSRM: one per second). */
+  routingIntervalsMs?: Record<RouterId, number>;
 }
 
 const GEOCODE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+// Roads change slowly, and the route is stored in the project anyway; the cache mostly saves
+// requests on undo, redo and for the same trip in another project.
+const ROUTE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // Without a configured provider nothing may leave the machine, e.g. in tests.
 const noGeocoding: GeocodingProvider = {
@@ -36,6 +46,8 @@ export function buildApp({
   now,
   geocodingProvider = noGeocoding,
   geocodingIntervalMs = 1000,
+  routingProviders = {},
+  routingIntervalsMs = { ors: 1500, osrm: 1000 },
 }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger,
@@ -67,6 +79,21 @@ export function buildApp({
     airports: () => airports.index(),
   });
   registerGeocodingRoutes(app, geocoder);
+
+  const router = createRouter({
+    providers: routingProviders,
+    cache: createFileCache<RouteShape>({
+      dir: join(dataDir, 'cache', 'routes'),
+      ttlMs: ROUTE_CACHE_TTL_MS,
+      ...(now && { now }),
+    }),
+    throttles: {
+      ors: createThrottle(routingIntervalsMs.ors),
+      osrm: createThrottle(routingIntervalsMs.osrm),
+    },
+    log: (message) => app.log.info(message),
+  });
+  registerRoutingRoutes(app, router, now ?? (() => new Date()));
 
   return app;
 }

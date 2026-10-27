@@ -1,4 +1,12 @@
-import type { LngLat, Place, Project, ValidationIssue } from '@travel-route-animator/core';
+import {
+  ComputedRouteSchema,
+  type ComputedRoute,
+  type LngLat,
+  type Place,
+  type Project,
+  type RouteRequest,
+  type ValidationIssue,
+} from '@travel-route-animator/core';
 
 export interface ProjectSummary {
   id: string;
@@ -73,5 +81,15 @@ export const api = {
   reversePlace: ([lng, lat]: LngLat) =>
     request<{ place: Place | null }>(
       `/reverse?${new URLSearchParams({ lng: String(lng), lat: String(lat), lang: PLACE_LANGUAGE })}`,
+    ),
+  // Road routes need the ORS key, which only the server has. The answer goes into the project,
+  // so it is checked like any other part of it.
+  computeRoute: async (route: RouteRequest, signal?: AbortSignal): Promise<ComputedRoute> =>
+    ComputedRouteSchema.parse(
+      await request<unknown>('/route', {
+        method: 'POST',
+        body: JSON.stringify(route),
+        ...(signal && { signal }),
+      }),
     ),
 };

@@ -1,4 +1,4 @@
-import type { VehicleType } from '@travel-route-animator/core';
+import type { RoadAvoid, VehicleType } from '@travel-route-animator/core';
 
 // All UI strings live here so that an English translation can be added later without touching components.
 export const de = {
@@ -130,15 +130,35 @@ export const de = {
       lineDash: 'Linienart',
       ghostRoute: 'Ganze Route vorab blass zeigen',
       vehicleScale: 'Fahrzeuggröße',
-      later:
-        '„Vermeiden“ beim Straßen-Routing (M4) sowie Flug-Optionen und Badges (M8) kommen mit ihren Modulen dazu.',
+      later: 'Flug-Optionen und Badges (M8) kommen mit ihrem Modul dazu.',
+      avoid: 'Vermeiden',
+      avoids: {
+        highways: 'Autobahnen meiden',
+        tolls: 'Mautstraßen meiden',
+        ferries: 'Fähren meiden',
+      } satisfies Record<RoadAvoid, string>,
       route: {
         label: 'Route',
         fresh: (distance: string, via: string) => `${distance} · ${via}`,
         tooFewPoints: 'Die Route erscheint ab zwei Wegpunkten.',
         computing: 'Route wird berechnet …',
-        roadLater:
-          'Straßenrouten berechnet der Editor noch nicht, sie folgen mit openrouteservice. Bis dahin zeigt die Karte gerade Linien.',
+        osrmIgnoresAvoid: 'OSRM berücksichtigt „Vermeiden“ nicht.',
+        retry: 'Erneut versuchen',
+        useRouter: (router: string) => `Mit ${router} berechnen`,
+        failures: {
+          no_route: 'Kein Weg gefunden. Liegt ein Punkt auf einer Insel oder in einem Sperrgebiet?',
+          point_not_found: (name: string) =>
+            `„${name}“ liegt zu weit von einer Straße oder einem Weg entfernt. Verschieb den Punkt näher heran.`,
+          point_not_found_unknown:
+            'Ein Wegpunkt liegt zu weit von einer Straße oder einem Weg entfernt.',
+          too_long: 'Zu lang für den Routing-Dienst: höchstens 6.000 km und 50 Wegpunkte.',
+          quota: (router: string) => `Das Kontingent von ${router} ist gerade aufgebraucht.`,
+          unavailable: (router: string) => `${router} ist gerade nicht erreichbar.`,
+          no_key:
+            'Kein openrouteservice-Key: ORS_API_KEY in .env eintragen und den Server neu starten.',
+          key_rejected: 'openrouteservice lehnt den Key ab. Prüf ORS_API_KEY in .env.',
+          server_down: 'Der lokale Server antwortet nicht. Läuft pnpm dev?',
+        },
         providers: {
           'local-great-circle': 'Großkreis',
           'local-smooth': 'geglättete Kurve',

@@ -7,6 +7,7 @@ import { api, ApiError } from '@/lib/api';
 import { createEditorStore, EditorStoreContext, type EditorStore } from '@/state/editorStore';
 import { loadUiState, rememberUiState } from '@/state/uiState';
 import { PROJECTS_QUERY_KEY } from '@/features/overview/ProjectOverview';
+import { useRouteSync } from '@/features/routing/useRouteSync';
 import { EditorLayout } from './EditorLayout';
 
 export function EditorScreen({ projectId }: { projectId: string }) {
@@ -37,6 +38,7 @@ function LoadedEditor({ project }: { project: Project }) {
   );
 
   useEffect(() => rememberUiState(editor.store, project.id), [editor, project.id]);
+  useRouteSync(editor.store);
 
   useEffect(() => {
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
