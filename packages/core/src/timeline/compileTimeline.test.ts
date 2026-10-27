@@ -41,7 +41,16 @@ describe('compileTimeline', () => {
   });
 
   it('draws a lighter preview with fewer pixels but the same framing', () => {
-    const { project, etappeId } = trip({ tracks: [{ points: [['A', A], ['C', C]] }] });
+    const { project, etappeId } = trip({
+      tracks: [
+        {
+          points: [
+            ['A', A],
+            ['C', C],
+          ],
+        },
+      ],
+    });
     const full = compileTimeline(project, etappeId);
     const half = compileTimeline(project, etappeId, { previewScale: 0.5 });
     expect([half.width, half.height, half.scale]).toEqual([960, 540, 0.5]);
