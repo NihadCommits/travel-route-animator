@@ -4,6 +4,9 @@
   "private": true,
   "description": "Remotion compositions shared by the editor preview and the video export.",
   "type": "module",
+  "exports": {
+    ".": "./src/public.ts"
+  },
   "scripts": {
     "studio": "remotion studio src/index.ts",
     "typecheck": "tsc --noEmit",
