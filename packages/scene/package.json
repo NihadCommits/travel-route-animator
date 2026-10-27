@@ -12,15 +12,15 @@
   "dependencies": {
     "@travel-route-animator/core": "workspace:*",
     "@travel-route-animator/styles": "workspace:*",
-    "maplibre-gl": "^6.15.0",
+    "maplibre-gl": "^6.16.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
-    "remotion": "^4.0.537"
+    "remotion": "4.0.539"
   },
   "devDependencies": {
-    "@remotion/bundler": "^4.0.537",
-    "@remotion/cli": "^4.0.537",
-    "@remotion/renderer": "^4.0.537",
+    "@remotion/bundler": "4.0.539",
+    "@remotion/cli": "4.0.539",
+    "@remotion/renderer": "4.0.539",
     "@types/react": "^19.3.0",
     "tsx": "^4.23.15"
   }
