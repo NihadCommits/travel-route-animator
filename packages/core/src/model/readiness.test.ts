@@ -98,6 +98,20 @@ describe('checkRenderReadiness (before preview and export, ADR 0002)', () => {
     expect(checkRenderReadiness(project)).toEqual([]);
   });
 
+  it('reports holds that leave almost no time to drive', () => {
+    const project = sampleProject();
+    const track = trainTrack(project);
+    track.waypoints[0]!.holdSec = 4;
+    track.waypoints.at(-1)!.holdSec = 3.5;
+    expect(onlyIssue(project)).toMatchObject({
+      path: 'groups[0].etappen[0].tracks[0].waypoints',
+      code: 'track.holdsTooLong',
+      values: { holdSec: 7.5, trackSec: 8 },
+    });
+    track.waypoints.at(-1)!.holdSec = 3;
+    expect(checkRenderReadiness(project)).toEqual([]);
+  });
+
   it('needs a target for the follow camera', () => {
     const project = sampleProject();
     trainEtappe(project).view.camera.mode = 'follow';

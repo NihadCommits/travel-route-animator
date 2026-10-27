@@ -44,6 +44,8 @@ const ISSUE_TEXTS: Record<IssueCode, Translate> = {
     Number(v.startSec) >= Number(v.etappeSec)
       ? `Die Fahrt beginnt erst bei ${num(v.startSec)} s, die Etappe dauert nur ${num(v.etappeSec)} s.`
       : `Die Fahrt dauert bis ${num(v.endSec)} s, die Etappe nur ${num(v.etappeSec)} s.`,
+  'track.holdsTooLong': (v) =>
+    `Die Halte dauern zusammen ${num(v.holdSec)} s, bei ${num(v.trackSec)} s Fahrt bleibt kaum Zeit zum Fahren.`,
   'camera.followTrackMissing': () =>
     'Die Kamera soll einem Fahrzeug folgen, es ist aber noch keines gewählt.',
   'camera.followTrackForeign': () =>

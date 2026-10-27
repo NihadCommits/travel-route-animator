@@ -16,6 +16,12 @@ export interface ReadinessIssue extends ValidationIssue {
 // Small tolerance so that 2.3 + 5.7 <= 8 does not fail on floating point noise.
 const EPSILON_SEC = 1e-6;
 
+/**
+ * Holds at stops may take at most this share of a track's time; the rest is for driving.
+ * The timeline shortens longer holds to it, so the stage still plays until this is fixed.
+ */
+export const MAX_HOLD_SHARE = 0.9;
+
 /** All problems that keep stages from being rendered; pass IDs to check only some stages. */
 export function checkRenderReadiness(
   project: Project,
@@ -94,6 +100,17 @@ export function checkEtappeReadiness(
           ? `Track starts at ${startOffsetSec} s, but the stage is only ${etappe.durationSec} s long`
           : `Track runs until ${endSec} s, but the stage is only ${etappe.durationSec} s long`,
         { startSec: startOffsetSec, endSec, etappeSec: etappe.durationSec },
+      );
+    }
+
+    const trackSec = durationSec ?? etappe.durationSec - startOffsetSec;
+    const holdSec = waypoints.reduce((sum, w) => sum + (w.kind === 'stop' ? w.holdSec : 0), 0);
+    if (holdSec > 0 && holdSec > trackSec * MAX_HOLD_SHARE + EPSILON_SEC) {
+      report(
+        ['tracks', t, 'waypoints'],
+        'track.holdsTooLong',
+        `The holds add up to ${holdSec} s, which leaves almost no time to drive in ${trackSec} s`,
+        { holdSec, trackSec },
       );
     }
   });

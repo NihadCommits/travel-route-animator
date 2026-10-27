@@ -35,3 +35,13 @@ export * from './edit/locate';
 export * from './edit/operations';
 export * from './edit/waypoints';
 export * from './places/place';
+
+export * from './geo/along';
+export * from './geo/bounds';
+export * from './timeline/easing';
+export * from './timeline/outputSize';
+export * from './timeline/compileTimeline';
+export * from './frame/position';
+export * from './frame/heading';
+export * from './frame/camera';
+export * from './frame/computeFrameState';
