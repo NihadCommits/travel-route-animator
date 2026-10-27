@@ -61,7 +61,7 @@ To render a stage, point the script at a project file and name the stage:
 pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin morgen?"
 ```
 
-The video lands in `output/<project>/`. `--aspect 9:16`, `--resolution 2160p` and `--fps 30` override the project's output settings, `--gl vulkan` tries another OpenGL backend (default `angle`, the GPU). Road routes the project does not hold yet come from the local server, so keep `pnpm dev` running. The first render downloads Chrome Headless Shell (about 100 MB) once. Remotion Studio listens on your whole network, not only on localhost (Remotion has no option for that), so only start it on networks you trust.
+The video lands in `output/<project>/`. `--aspect 9:16`, `--resolution 2160p` and `--fps 30` override the project's output settings, `--gl vulkan` tries another OpenGL backend (default `angle`, the GPU). Road routes the project does not hold yet come from the local server; if it is not running, the script starts it for the routes and stops it again. The first render downloads Chrome Headless Shell (about 100 MB) once. Remotion Studio listens on your whole network, not only on localhost (Remotion has no option for that), so only start it on networks you trust.
 
 ### Keyboard shortcuts in the editor
 
@@ -175,7 +175,7 @@ Zum Rendern einer Etappe bekommt das Skript eine Projektdatei und den Namen der 
 pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin morgen?"
 ```
 
-Das Video landet in `output/<projekt>/`. `--aspect 9:16`, `--resolution 2160p` und `--fps 30` überschreiben die Ausgabe-Einstellungen des Projekts, `--gl vulkan` probiert ein anderes OpenGL-Backend (Standard `angle`, die GPU). Straßenrouten, die im Projekt noch fehlen, holt das Skript vom lokalen Server, `pnpm dev` muss also laufen. Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). Remotion Studio ist im ganzen Netzwerk erreichbar, nicht nur lokal (Remotion bietet dafür keine Einstellung), also nur in vertrauenswürdigen Netzen starten.
+Das Video landet in `output/<projekt>/`. `--aspect 9:16`, `--resolution 2160p` und `--fps 30` überschreiben die Ausgabe-Einstellungen des Projekts, `--gl vulkan` probiert ein anderes OpenGL-Backend (Standard `angle`, die GPU). Straßenrouten, die im Projekt noch fehlen, holt das Skript vom lokalen Server; läuft er nicht, startet das Skript ihn dafür und beendet ihn danach wieder. Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). Remotion Studio ist im ganzen Netzwerk erreichbar, nicht nur lokal (Remotion bietet dafür keine Einstellung), also nur in vertrauenswürdigen Netzen starten.
 
 ### Tastenkürzel im Editor
 

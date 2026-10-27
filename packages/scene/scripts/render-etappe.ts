@@ -5,10 +5,12 @@
  *   pnpm render:etappe --file data/projects/portugal-2026/project.json --etappe e_lissabon_algarve
  *       --aspect 9:16 --resolution 1080p --fps 30 --gl angle
  *
- * Road routes the project does not hold yet come from the local server (pnpm dev), which has
- * the openrouteservice key and its cache; nothing else leaves this machine but map tiles.
+ * Road routes the project does not hold yet come from the local server, which has the
+ * openrouteservice key and its cache; if it is not running, the script starts it for the
+ * render. Nothing else leaves this machine but map tiles.
  * The server in M7 will render the same way; this script is the stand-in until then.
  */
+import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdir, readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -47,12 +49,13 @@ const GL_RENDERERS: readonly OpenGlRenderer[] = [
 ];
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
+const DEFAULT_SERVER = 'http://127.0.0.1:5174';
 
 const { values } = parseArgs({
   options: {
     file: { type: 'string' },
     etappe: { type: 'string' },
-    server: { type: 'string', default: 'http://127.0.0.1:5174' },
+    server: { type: 'string', default: DEFAULT_SERVER },
     gl: { type: 'string', default: 'angle' },
     aspect: { type: 'string' },
     resolution: { type: 'string' },
@@ -96,6 +99,59 @@ async function loadProject(file: string): Promise<Project> {
   return parsed.data;
 }
 
+async function serverAnswers(): Promise<boolean> {
+  try {
+    const response = await fetch(`${values.server}/api/health`, {
+      signal: AbortSignal.timeout(1500),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Makes sure the local server is there to ask for road routes. If nothing answers at the
+ * default address, the script starts the server itself and stops it again when it ends, so a
+ * render needs no second terminal with pnpm dev. A plain node process with the tsx loader
+ * (not a shell or the tsx CLI) so that killing it stops the server on Windows too.
+ */
+let startedServer: ChildProcess | undefined;
+
+async function ensureServer(): Promise<void> {
+  if (startedServer || (await serverAnswers())) return;
+  if (values.server !== DEFAULT_SERVER) {
+    fail(`The server at ${values.server} does not answer.`);
+  }
+  console.log('The local server is not running; starting it for the road routes …');
+  const serverDir = join(repoRoot, 'apps/server');
+  const child = spawn(process.execPath, ['--import', 'tsx', 'src/index.ts'], {
+    cwd: serverDir,
+    stdio: ['ignore', 'ignore', 'pipe'],
+  });
+  startedServer = child;
+  let errors = '';
+  child.stderr.on('data', (chunk: Buffer) => (errors += chunk.toString()));
+  // Also on fail() and Ctrl+C, which end the process without reaching the normal stop.
+  process.on('exit', () => child.kill());
+
+  for (let waited = 0; waited < 30_000; waited += 300) {
+    if (child.exitCode !== null) break;
+    if (await serverAnswers()) return;
+    await new Promise((done) => setTimeout(done, 300));
+  }
+  fail(`The local server did not start.${errors ? `\n${errors.trim()}` : ''}`);
+}
+
+/**
+ * Stops a server this script started, as soon as the routes are in. Its open output pipe
+ * would otherwise keep Node waiting after the render, and the script would never end.
+ */
+function stopStartedServer(): void {
+  startedServer?.kill();
+  startedServer = undefined;
+}
+
 /** Asks the local server for every road route of the stage that is missing or stale. */
 async function withRoadRoutes(project: Project, etappeId: string): Promise<Project> {
   for (const group of project.groups) {
@@ -105,6 +161,7 @@ async function withRoadRoutes(project: Project, etappeId: string): Promise<Proje
         const { mode } = track.routing;
         if (isLocalRoutingMode(mode) || mode === 'gpx' || track.waypoints.length < 2) continue;
         if (!isRouteStale(track)) continue;
+        await ensureServer();
         console.log(
           `Asking ${values.server} for the ${mode} route of "${track.label ?? track.id}" …`,
         );
@@ -116,7 +173,7 @@ async function withRoadRoutes(project: Project, etappeId: string): Promise<Proje
             body: JSON.stringify(toRouteRequest(track, 'ors')),
           });
         } catch {
-          fail(`The local server at ${values.server} does not answer. Start it with pnpm dev.`);
+          fail(`The local server at ${values.server} stopped answering.`);
         }
         const body: unknown = await response.json();
         if (!response.ok)
@@ -135,6 +192,8 @@ const etappe = loaded.groups
 if (!etappe) fail(`No stage "${values.etappe}" in ${values.file}`);
 
 const project = refreshLocalRoutes(await withRoadRoutes(loaded, etappe.id), loaded.updatedAt);
+// The render needs no server; only the routes did.
+stopStartedServer();
 const issues = checkRenderReadiness(project, [etappe.id]);
 if (issues.length > 0) fail(`"${etappe.name}" cannot be rendered yet:\n${describeIssues(issues)}`);
 
