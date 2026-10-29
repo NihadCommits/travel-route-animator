@@ -1,10 +1,35 @@
 import {
   createProject,
+  defaultOutput,
   type Place,
   type Project,
+  type RenderJob,
+  type RenderRequest,
   type RouteRequest,
 } from '@travel-route-animator/core';
 import { vi } from 'vitest';
+
+/** The job the fake server answers a render request with, as the real one would queue it. */
+export function fakeRenderJob(request: RenderRequest, patch: Partial<RenderJob> = {}): RenderJob {
+  return {
+    id: `job_${request.etappeId}`,
+    projectId: request.projectId,
+    projectName: 'Portugal 2026',
+    etappeId: request.etappeId,
+    etappeName: 'Wien – Porto',
+    output: { ...defaultOutput(), ...request.output },
+    outputPath: `C:\\videos\\portugal-2026\\${request.fileName ?? 'video'}.mp4`,
+    state: 'queued',
+    progress: 0,
+    remainingMs: null,
+    createdAt: '2026-10-29T15:30:00.000Z',
+    startedAt: null,
+    finishedAt: null,
+    video: null,
+    error: null,
+    ...patch,
+  };
+}
 
 export interface FakeSearch {
   /** Answers /api/airports; undefined stands for missing airport data (503). */
@@ -13,6 +38,10 @@ export interface FakeSearch {
   places?: (query: string, bias: string | null) => Place[];
   /** Answers POST /api/route; undefined stands for a server without ORS key (503 no_key). */
   route?: (request: RouteRequest) => { status: number; body: unknown };
+  /** Answers POST /api/render; undefined queues the job (fakeRenderJob). */
+  render?: (request: RenderRequest) => { status: number; body: unknown };
+  /** Answers POST /api/render/:id/reveal; undefined stands for Windows (204). */
+  revealStatus?: number;
 }
 
 /**
@@ -21,6 +50,7 @@ export interface FakeSearch {
  */
 export function installFakeServer(initial: Project[] = [], search: FakeSearch = {}) {
   const projects = new Map(initial.map((project) => [project.id, project]));
+  const renders: RenderJob[] = [];
   const calls: { method: string; path: string; body?: unknown }[] = [];
   let failAll = false;
 
@@ -54,6 +84,30 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
           ? json(200, { places: search.places(q, searchUrl.searchParams.get('bias')) })
           : json(502, { error: 'geocoding_unavailable', message: 'down' }),
       );
+    }
+
+    if (searchUrl.pathname === '/render') {
+      if (method === 'GET') return Promise.resolve(json(200, renders));
+      const request = body as RenderRequest;
+      const answer = search.render
+        ? search.render(request)
+        : { status: 202, body: fakeRenderJob(request) };
+      if (answer.status === 202) renders.push(answer.body as RenderJob);
+      return Promise.resolve(json(answer.status, answer.body));
+    }
+    const renderId = /^\/render\/([^/]+)(\/reveal)?$/.exec(searchUrl.pathname);
+    if (renderId) {
+      if (renderId[2]) {
+        const status = search.revealStatus ?? 204;
+        return Promise.resolve(
+          status === 204
+            ? new Response(null, { status })
+            : json(status, { error: 'not_supported', message: 'Windows only' }),
+        );
+      }
+      const index = renders.findIndex(({ id }) => id === renderId[1]);
+      if (index >= 0) renders.splice(index, 1);
+      return Promise.resolve(new Response(null, { status: 204 }));
     }
 
     if (searchUrl.pathname === '/route') {
@@ -96,6 +150,7 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
   vi.stubGlobal('fetch', fetchMock);
   return {
     projects,
+    renders,
     calls,
     fetchMock,
     /** Simulates a stopped server. */

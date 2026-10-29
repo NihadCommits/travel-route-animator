@@ -110,7 +110,8 @@ export interface EditorState {
   showOnMap: (lngLat: LngLat) => void;
   setWorkspace: (workspace: Workspace) => void;
   setPreview: (settings: Partial<PreviewSettings>) => void;
-  retrySave: () => Promise<void>;
+  /** Saves pending changes now: for "retry", and before the server renders the saved file. */
+  saveNow: () => Promise<void>;
   /** Sets or (null) removes the route jobs of several tracks at once. */
   setRouteJobs: (jobs: Record<Id, RouteJob | null>) => void;
   /**
@@ -218,7 +219,7 @@ export function createEditorStore(
       showOnMap: (lngLat) => set({ mapFocus: { lngLat, seq: (get().mapFocus?.seq ?? 0) + 1 } }),
       setWorkspace: (workspace) => set({ workspace }),
       setPreview: (settings) => set({ preview: { ...get().preview, ...settings } }),
-      retrySave: () => autosave.flush(),
+      saveNow: () => autosave.flush(),
       setRouteJobs(changes) {
         const routeJobs = { ...get().routeJobs };
         for (const [trackId, job] of Object.entries(changes)) {
