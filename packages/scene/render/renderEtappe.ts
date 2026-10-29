@@ -20,15 +20,7 @@ import { webpackOverride } from '../webpack-override';
 export type { EtappeProps };
 export type { CancelSignal, OpenGlRenderer };
 export { makeCancelSignal } from '@remotion/renderer';
-
-export const GL_RENDERERS: readonly OpenGlRenderer[] = [
-  'angle',
-  'angle-egl',
-  'egl',
-  'swangle',
-  'swiftshader',
-  'vulkan',
-];
+export { GL_RENDERERS } from './gl';
 
 const sceneRoot = join(import.meta.dirname, '..');
 const repoRoot = join(sceneRoot, '../..');

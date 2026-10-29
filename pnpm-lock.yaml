@@ -296,6 +296,9 @@ importers:
       '@travel-route-animator/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@travel-route-animator/scene':
+        specifier: workspace:*
+        version: link:../../packages/scene
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
