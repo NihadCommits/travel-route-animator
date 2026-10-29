@@ -40,6 +40,16 @@ export interface ApplyOptions {
 /** What a click on the map does: pick and drag points, or set a new point. */
 export type MapTool = 'select' | 'add-point';
 
+/** The middle of the editor: the map to edit on, or the preview of the stage (M6). */
+export type Workspace = 'edit' | 'preview';
+
+/** How the preview plays. UI state like the map's, not part of the project. */
+export interface PreviewSettings {
+  /** Half draws a quarter of the pixels: enough to judge timing and framing, and smoother. */
+  quality: 'half' | 'full';
+  loop: boolean;
+}
+
 /** The visible part of the map, so the place search can prefer it. */
 export interface MapView {
   center: LngLat;
@@ -74,6 +84,8 @@ export interface EditorState {
   collapsed: ReadonlySet<Id>;
   /** Road routes being computed or failed, by track. Not saved, not in the undo history. */
   routeJobs: Readonly<Record<Id, RouteJob>>;
+  workspace: Workspace;
+  preview: PreviewSettings;
   saveStatus: SaveStatus;
 
   /** Applies an edit (a pure function from core/edit) as one undoable step. */
@@ -96,6 +108,8 @@ export interface EditorState {
   setMapTool: (tool: MapTool) => void;
   setMapView: (view: MapView) => void;
   showOnMap: (lngLat: LngLat) => void;
+  setWorkspace: (workspace: Workspace) => void;
+  setPreview: (settings: Partial<PreviewSettings>) => void;
   retrySave: () => Promise<void>;
   /** Sets or (null) removes the route jobs of several tracks at once. */
   setRouteJobs: (jobs: Record<Id, RouteJob | null>) => void;
@@ -155,6 +169,8 @@ export function createEditorStore(
       mapView: null,
       mapFocus: null,
       routeJobs: {},
+      workspace: 'edit',
+      preview: { quality: 'half', loop: true },
       saveStatus: { state: 'saved' },
 
       apply(change, { coalesceKey, coalesceWindowMs, select } = {}) {
@@ -200,6 +216,8 @@ export function createEditorStore(
       setMapTool: (mapTool) => set({ mapTool }),
       setMapView: (mapView) => set({ mapView }),
       showOnMap: (lngLat) => set({ mapFocus: { lngLat, seq: (get().mapFocus?.seq ?? 0) + 1 } }),
+      setWorkspace: (workspace) => set({ workspace }),
+      setPreview: (settings) => set({ preview: { ...get().preview, ...settings } }),
       retrySave: () => autosave.flush(),
       setRouteJobs(changes) {
         const routeJobs = { ...get().routeJobs };
@@ -270,3 +288,11 @@ export function useEditorStore(): StoreApi<EditorState> {
 export const selectProject = (state: EditorState) => state.history.present;
 export const selectCanUndo = (state: EditorState) => canUndo(state.history);
 export const selectCanRedo = (state: EditorState) => canRedo(state.history);
+
+/** The stage the selection belongs to (the stage itself or a track's), for preview and timeline. */
+export function selectEtappeId(state: EditorState): Id | null {
+  const project = state.history.present;
+  const location = state.selectedId === null ? undefined : locateItem(project, state.selectedId);
+  if (location?.kind !== 'etappe' && location?.kind !== 'track') return null;
+  return project.groups[location.groupIndex]!.etappen[location.etappeIndex]!.id;
+}

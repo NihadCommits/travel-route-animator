@@ -1,23 +1,11 @@
 // Everything that touches MapLibre directly. The editor loads this module lazily, so the map
 // library (about 1 MB) does not slow down the project overview, and tests can replace it.
 import 'maplibre-gl/dist/maplibre-gl.css';
-import {
-  Map as MapLibreMap,
-  Marker,
-  NavigationControl,
-  setWorkerUrl,
-  type GeoJSONSource,
-} from 'maplibre-gl';
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
+import './maplibreWorker';
+import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource } from 'maplibre-gl';
 import { OPENFREEMAP_LIBERTY_STYLE_URL } from '@travel-route-animator/styles';
 import type { LngLat } from '@travel-route-animator/core';
 import type { EditablePoint, MapScene } from './mapData';
-
-// MapLibre 6 finds its worker next to its own module via import.meta.url. Vite pre-bundles
-// dependencies into another folder, so that lookup would miss. "?worker&url" makes Vite build
-// the file as a worker and hand us its address; a plain "?url" would serve it as app code,
-// with Vite's hot-reload client injected, which cannot run inside a worker.
-setWorkerUrl(workerUrl);
 
 export type { MapLibreMap };
 

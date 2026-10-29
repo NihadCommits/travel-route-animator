@@ -95,6 +95,11 @@ export interface Timeline {
 export interface CompileOptions {
   /** Overrides from the render dialog, e.g. a 9:16 version. */
   output?: Partial<OutputSettings>;
+  /**
+   * Draws the picture at this share of its pixels, for a lighter preview (0.5 = half width
+   * and height). Framing, line widths and text stay the same: only the scale changes.
+   */
+  previewScale?: number;
 }
 
 /** Overview transitions at the start and end of the main part: 15 % of it, at most 2 s. */
@@ -235,8 +240,12 @@ export function compileTimeline(
   const { etappe } = found;
 
   const output = resolveOutput(fresh, options.output);
-  const { width, height } = outputSize(output);
-  const scale = Math.min(width, height) / REFERENCE_SHORT_SIDE;
+  const full = outputSize(output);
+  const previewScale = options.previewScale ?? 1;
+  const even = (value: number) => Math.max(2, Math.round(value / 2) * 2);
+  const width = even(full.width * previewScale);
+  const height = even(full.height * previewScale);
+  const scale = (Math.min(full.width, full.height) / REFERENCE_SHORT_SIDE) * previewScale;
   const introSec = sectionSec(etappe.intro);
   const outroSec = sectionSec(etappe.outro);
   const mainSec = etappe.durationSec;
@@ -253,7 +262,11 @@ export function compileTimeline(
     fps: output.fps,
     width,
     height,
-    viewport: { width: width / scale, height: height / scale },
+    // The reference size of the full picture, not of the scaled pixels: same framing at any scale.
+    viewport: {
+      width: (full.width * REFERENCE_SHORT_SIDE) / Math.min(full.width, full.height),
+      height: (full.height * REFERENCE_SHORT_SIDE) / Math.min(full.width, full.height),
+    },
     scale,
     // One frame more than the length: the last frame shows the very end (the vehicle arrived).
     durationInFrames: Math.round((introSec + mainSec + outroSec) * output.fps) + 1,

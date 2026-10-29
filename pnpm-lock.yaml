@@ -208,12 +208,18 @@ importers:
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
+      '@remotion/player':
+        specifier: 4.0.539
+        version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@tanstack/react-query':
         specifier: ^5.104.5
         version: 5.104.5(@types/react@19.3.0)(react@19.3.1)
       '@travel-route-animator/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@travel-route-animator/scene':
+        specifier: workspace:*
+        version: link:../../packages/scene
       '@travel-route-animator/styles':
         specifier: workspace:*
         version: link:../../packages/styles
@@ -241,6 +247,9 @@ importers:
       react-resizable-panels:
         specifier: ^4.14.7
         version: 4.14.7(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      remotion:
+        specifier: 4.0.539
+        version: 4.0.539(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       shadcn:
         specifier: ^4.22.1
         version: 4.22.1(supports-color@8.1.1)
