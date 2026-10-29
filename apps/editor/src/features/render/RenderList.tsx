@@ -129,7 +129,9 @@ function Progress({ job }: { job: RenderJob }) {
     job.state === 'rendering' && job.remainingMs !== null && job.remainingMs > 0
       ? de.render.list.remaining(formatDuration(job.remainingMs))
       : null;
-  const indeterminate = job.state !== 'rendering' || starting;
+  // A waiting job has an empty bar; while it prepares or starts, a faint pulsing one says
+  // that something is happening, without pretending to know how far.
+  const busy = job.state === 'preparing' || starting;
 
   return (
     <div className="space-y-1">
@@ -138,12 +140,13 @@ function Progress({ job }: { job: RenderJob }) {
         aria-label={job.etappeName}
         aria-valuemin={0}
         aria-valuemax={100}
-        {...(!indeterminate && { 'aria-valuenow': Math.round(job.progress * 100) })}
+        {...(job.state === 'rendering' &&
+          !starting && { 'aria-valuenow': Math.round(job.progress * 100) })}
         className="bg-muted h-1.5 overflow-hidden rounded-full"
       >
         <div
-          className={cn('bg-primary h-full rounded-full', indeterminate && 'animate-pulse')}
-          style={{ width: indeterminate ? '100%' : `${job.progress * 100}%` }}
+          className={cn('h-full rounded-full', busy ? 'bg-primary/40 animate-pulse' : 'bg-primary')}
+          style={{ width: busy ? '100%' : `${job.progress * 100}%` }}
         />
       </div>
       <p className="text-muted-foreground flex justify-between text-xs">
