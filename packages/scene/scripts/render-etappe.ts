@@ -18,14 +18,13 @@ import {
   checkRenderReadiness,
   ComputedRouteSchema,
   describeIssues,
-  isLocalRoutingMode,
-  isRouteStale,
   parseProjectFile,
   refreshLocalRoutes,
   resolveOutput,
   slugify,
   suggestVideoName,
   toRouteRequest,
+  tracksAwaitingRoute,
   type OutputSettings,
   type Project,
 } from '@travel-route-animator/core';
@@ -143,10 +142,9 @@ async function withRoadRoutes(project: Project, etappeId: string): Promise<Proje
   for (const group of project.groups) {
     for (const etappe of group.etappen) {
       if (etappe.id !== etappeId) continue;
-      for (const track of etappe.tracks) {
+      // The same tracks themselves, so the routes land in the project that gets rendered.
+      for (const track of tracksAwaitingRoute(etappe)) {
         const { mode } = track.routing;
-        if (isLocalRoutingMode(mode) || mode === 'gpx' || track.waypoints.length < 2) continue;
-        if (!isRouteStale(track)) continue;
         await ensureServer();
         console.log(
           `Asking ${values.server} for the ${mode} route of "${track.label ?? track.id}" …`,

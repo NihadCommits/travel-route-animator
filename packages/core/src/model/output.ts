@@ -2,11 +2,15 @@ import { z } from 'zod';
 import { reportIssue } from './issues';
 import { IdSchema } from './primitives';
 
+export const AspectSchema = z.enum(['16:9', '9:16', '1:1', '4:5']);
+export const ResolutionSchema = z.enum(['720p', '1080p', '1440p', '2160p']);
+export const FpsSchema = z.literal([24, 25, 30, 50, 60]);
+
 export const OutputSettingsSchema = z
   .strictObject({
-    aspect: z.enum(['16:9', '9:16', '1:1', '4:5']),
-    resolution: z.enum(['720p', '1080p', '1440p', '2160p']),
-    fps: z.literal([24, 25, 30, 50, 60]),
+    aspect: AspectSchema,
+    resolution: ResolutionSchema,
+    fps: FpsSchema,
     codec: z.enum(['h264', 'prores-422hq', 'prores-4444']),
     /** Hides the map and keeps only routes, vehicles and labels. Needs an alpha channel. */
     transparentOverlay: z.boolean(),
