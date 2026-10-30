@@ -5,7 +5,6 @@
  */
 import { readdir, rename, rm, stat, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { bundle } from '@remotion/bundler';
 import {
   ensureBrowser,
   renderMedia,
@@ -25,12 +24,27 @@ export { GL_RENDERERS } from './gl';
 const sceneRoot = join(import.meta.dirname, '..');
 const repoRoot = join(sceneRoot, '../..');
 
-/** Bundles the scene with webpack; the result is what Remotion's browser opens. */
-export function bundleScene(onProgress?: (percent: number) => void): Promise<string> {
+export interface BundleSceneOptions {
+  onProgress?: (percent: number) => void;
+  /** Where the bundle goes; Remotion picks a temporary folder otherwise. */
+  outDir?: string;
+}
+
+/**
+ * Bundles the scene with webpack; the result is what Remotion's browser opens. The bundler
+ * is loaded only here: the Windows app renders from a bundle made while packaging (M7b) and
+ * does not ship webpack at all.
+ */
+export async function bundleScene({
+  onProgress,
+  outDir,
+}: BundleSceneOptions = {}): Promise<string> {
+  const { bundle } = await import('@remotion/bundler');
   return bundle({
     entryPoint: join(sceneRoot, 'src/index.ts'),
     webpackOverride,
     ...(onProgress && { onProgress }),
+    ...(outDir && { outDir }),
   });
 }
 
@@ -119,6 +133,13 @@ export interface RenderEtappeOptions {
   /** Called once the format is known, before the first frame is drawn. */
   onFormat?: (format: VideoFormat) => void;
   onProgress?: (progress: RenderProgress) => void;
+  /**
+   * A Chrome Headless Shell shipped with the Windows app. Missing: Remotion downloads its own
+   * on the first render.
+   */
+  browserExecutable?: string;
+  /** Remotion's compositor (with ffmpeg) outside the app's archive, where it can be run. */
+  binariesDirectory?: string;
 }
 
 export interface RenderedVideo extends VideoInfo {
@@ -137,16 +158,23 @@ export async function renderEtappe({
   cancelSignal,
   onFormat,
   onProgress,
+  browserExecutable,
+  binariesDirectory,
 }: RenderEtappeOptions): Promise<RenderedVideo> {
   // Maps are WebGL-heavy: Remotion recommends the GPU (angle) and one browser tab at a time.
   const chromiumOptions = { gl };
-  // Downloads Chrome Headless Shell on the first run only.
-  await ensureBrowser();
+  const binaries = {
+    ...(browserExecutable && { browserExecutable }),
+    ...(binariesDirectory && { binariesDirectory }),
+  };
+  // Downloads Chrome Headless Shell on the first run only, unless one is given.
+  await ensureBrowser(browserExecutable ? { browserExecutable } : {});
   const composition = await selectComposition({
     serveUrl,
     id: ETAPPE_COMPOSITION_ID,
     inputProps: props,
     chromiumOptions,
+    ...binaries,
   });
   const { width, height, fps, durationInFrames } = composition;
   onFormat?.({ width, height, fps, durationInFrames });
@@ -164,6 +192,7 @@ export async function renderEtappe({
       colorSpace: 'bt709',
       outputLocation: partial,
       chromiumOptions,
+      ...binaries,
       concurrency: 1,
       // Generous because a cold tile cache can make the first frames slow.
       timeoutInMilliseconds: 60_000,

@@ -137,6 +137,33 @@ export const de = {
       revealUnsupported: 'Ordner öffnen geht nur unter Windows. Der Pfad ist kopiert.',
     },
   },
+  settings: {
+    open: 'Einstellungen',
+    title: 'Einstellungen',
+    description: 'Gelten für die ganze App. Nach dem Speichern startet der lokale Server neu.',
+    orsKey: 'openrouteservice-Key',
+    orsKeyHint:
+      'Für Straßen-, Rad- und Fußrouten; kostenlos auf openrouteservice.org. Er wird verschlüsselt gespeichert und nie angezeigt.',
+    orsKeySet: 'Ein Key ist gespeichert. Leer lassen, um ihn zu behalten.',
+    orsKeyMissing: 'Noch kein Key gespeichert.',
+    orsKeyRemove: 'Key entfernen',
+    orsKeyRemoved: 'Der Key wird beim Speichern entfernt.',
+    contact: 'Kontakt für freie Dienste',
+    contactHint:
+      'Geht an Photon und OSRM, wie es deren Fair-Use-Regeln erbitten. Eine Profil-URL genügt.',
+    outputDir: 'Videoordner',
+    outputDirChange: 'Ändern …',
+    outputDirDefault: 'Standard',
+    outputDirPick: 'Ordner für fertige Videos wählen',
+    dataDir: 'Projekte liegen in',
+    importProjects: 'Projekte importieren …',
+    renderGl: 'Grafik beim Rendern',
+    renderGlHint:
+      '„angle“ nutzt die Grafikkarte. Falls Renders scheitern oder schwarz bleiben, ein anderes probieren.',
+    save: 'Speichern',
+    saving: 'Wird übernommen …',
+    failed: (reason: string) => `Nicht gespeichert: ${reason}`,
+  },
   tree: {
     label: 'Projektbaum',
     addGroup: 'Gruppe',

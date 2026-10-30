@@ -54,6 +54,7 @@ pnpm dev
 | `pnpm data:airports` | Download and filter the airport list into `data/airports/` |
 | `pnpm render:etappe` | Render one stage of a project to MP4 (see below)           |
 | `pnpm studio`        | Open the stage composition in Remotion Studio              |
+| `pnpm app`           | Build the Windows app and start it (see below)             |
 
 To render a stage, select it (or one of its vehicles) in the editor and click **Rendern**. Format, resolution and frame rate start from the project's defaults and apply to this render only. The video lands in `output/<project>/`, named after the stage, its format and the time, e.g. `lissabon-algarve_16x9_1080p_20261029-1530.mp4`. While a video is rendered it is called `….partial.mp4`; a cancelled or failed render leaves nothing behind. The server bundles the scene once when it starts and renders with the GPU; `RENDER_GL` in `.env` picks another OpenGL backend if renders fail.
 
@@ -64,6 +65,10 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 ```
 
 `--aspect 9:16`, `--resolution 2160p` and `--fps 30` override the project's output settings, `--gl vulkan` tries another OpenGL backend (default `angle`, the GPU). Road routes the project does not hold yet come from the local server; if it is not running, the script starts it for the routes and stops it again. The first render downloads Chrome Headless Shell (about 100 MB) once. Remotion Studio listens on your whole network, not only on localhost (Remotion has no option for that), so only start it on networks you trust.
+
+### Windows app
+
+`pnpm app` builds the editor, the scene bundle and an Electron shell into `apps/desktop/dist` and starts the app: one window, no terminal and no browser. The local server runs inside the app on <http://127.0.0.1:5175>, so it can run next to `pnpm dev`. The app keeps its projects in `%APPDATA%\Routen-Animator` and its videos in `Videos\Routen-Animator`. On the first start it offers to copy the projects from the repo's `data` folder; the originals stay where they are. Instead of `.env`, the app has its own settings (Datei → Einstellungen): the openrouteservice key, which Windows keeps encrypted for your user account, the contact for free services, the video folder and the OpenGL backend for rendering. The first `pnpm app` downloads Electron (about 100 MB) once. An installer with a start menu entry follows.
 
 ### Keyboard shortcuts in the editor
 
@@ -86,6 +91,7 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 | Path              | Purpose                                                                             |
 | ----------------- | ----------------------------------------------------------------------------------- |
+| `apps/desktop`    | Windows app: Electron shell that runs the server and shows the editor               |
 | `apps/editor`     | Browser GUI (React + Vite)                                                          |
 | `apps/server`     | Local Fastify server for projects, geocoding, routing, render jobs                  |
 | `packages/core`   | Data model (Zod schemas), inheritance, migrations and geo math; no UI, fully tested |
@@ -175,6 +181,7 @@ pnpm dev
 | `pnpm data:airports` | Flughafenliste laden und nach `data/airports/` filtern   |
 | `pnpm render:etappe` | Eine Etappe eines Projekts als MP4 rendern (siehe unten) |
 | `pnpm studio`        | Die Etappen-Komposition in Remotion Studio öffnen        |
+| `pnpm app`           | Die Windows-App bauen und starten (siehe unten)          |
 
 Zum Rendern einer Etappe wählt man sie (oder eines ihrer Fahrzeuge) im Editor und klickt auf **Rendern**. Seitenverhältnis, Auflösung und Bildrate starten mit den Projekt-Standards und gelten nur für diesen Render. Das Video landet in `output/<projekt>/` und heißt nach Etappe, Format und Zeit, z. B. `lissabon-algarve_16x9_1080p_20261029-1530.mp4`. Während des Renderns heißt es `….partial.mp4`; ein abgebrochener oder fehlgeschlagener Render hinterlässt nichts. Der Server bündelt die Szene einmal beim Start und rendert mit der GPU; `RENDER_GL` in der `.env` wählt ein anderes OpenGL-Backend, falls Renders scheitern.
 
@@ -185,6 +192,10 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 ```
 
 `--aspect 9:16`, `--resolution 2160p` und `--fps 30` überschreiben die Ausgabe-Einstellungen des Projekts, `--gl vulkan` probiert ein anderes OpenGL-Backend (Standard `angle`, die GPU). Straßenrouten, die im Projekt noch fehlen, holt das Skript vom lokalen Server; läuft er nicht, startet das Skript ihn dafür und beendet ihn danach wieder. Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). Remotion Studio ist im ganzen Netzwerk erreichbar, nicht nur lokal (Remotion bietet dafür keine Einstellung), also nur in vertrauenswürdigen Netzen starten.
+
+### Windows-App
+
+`pnpm app` baut den Editor, das Szenen-Bundle und eine Electron-Hülle nach `apps/desktop/dist` und startet die App: ein Fenster, kein Terminal, kein Browser. Der lokale Server läuft in der App unter <http://127.0.0.1:5175>, also auch parallel zu `pnpm dev`. Die App hält ihre Projekte in `%APPDATA%\Routen-Animator` und ihre Videos in `Videos\Routen-Animator`. Beim ersten Start bietet sie an, die Projekte aus dem `data`-Ordner des Repos zu kopieren; die Originale bleiben, wo sie sind. Statt der `.env` hat die App eigene Einstellungen (Datei → Einstellungen): den openrouteservice-Key, den Windows für dein Benutzerkonto verschlüsselt aufbewahrt, den Kontakt für freie Dienste, den Videoordner und das OpenGL-Backend fürs Rendern. Beim ersten `pnpm app` lädt Electron einmalig sein Programm herunter (etwa 100 MB). Ein Installer mit Startmenü-Eintrag folgt.
 
 ### Tastenkürzel im Editor
 
@@ -207,6 +218,7 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 | Pfad              | Zweck                                                                                               |
 | ----------------- | --------------------------------------------------------------------------------------------------- |
+| `apps/desktop`    | Windows-App: Electron-Hülle, die den Server startet und den Editor zeigt                            |
 | `apps/editor`     | Oberfläche im Browser (React + Vite)                                                                |
 | `apps/server`     | Lokaler Fastify-Server für Projekte, Ortssuche, Routing und Render-Jobs                             |
 | `packages/core`   | Datenmodell (Zod-Schemas), Vererbung, Migrationen und Geo-Mathematik; ohne UI, vollständig getestet |

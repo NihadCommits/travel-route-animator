@@ -358,7 +358,36 @@ describe('move', () => {
   });
 
   it('reorders the vehicles of a stage', () => {
-    const project = moveTrack(sampleProject(), 't_b', 0);
+    const project = moveTrack(sampleProject(), 't_b', 'e_options', 0);
     expect(project.groups[1]!.etappen[0]!.tracks.map((track) => track.id)).toEqual(['t_b', 't_a']);
+  });
+
+  it('moves a vehicle into another stage, keeping it as it is', () => {
+    const before = sampleProject();
+    const moving = before.groups[1]!.etappen[0]!.tracks[1]!;
+    const project = moveTrack(before, 't_b', 'e_train', 0);
+    expect(project.groups[1]!.etappen[0]!.tracks.map((track) => track.id)).toEqual(['t_a']);
+    const train = project.groups[0]!.etappen[0]!;
+    expect(train.tracks[0]).toBe(moving);
+    expect(train.tracks).toHaveLength(2);
+    expectStorable(project);
+  });
+
+  it('lets go of the camera in the old stage and takes it in an empty new one', () => {
+    const project = sampleProject();
+    Object.assign(project.groups[1]!.etappen[0]!.view.camera, {
+      mode: 'follow',
+      followTrackId: 't_a',
+    });
+    const empty = addEtappe(project, 'g_day4', 'Nur das Auto');
+    const moved = moveTrack(empty.project, 't_a', empty.id, 0);
+
+    const left = moved.groups[1]!.etappen[0]!.view.camera;
+    expect(left.mode).toBe('follow-all');
+    expect(left).not.toHaveProperty('followTrackId');
+    const arrived = moved.groups[1]!.etappen[1]!;
+    expect(arrived.view.camera).toMatchObject({ mode: 'follow', followTrackId: 't_a' });
+    expect(arrived.view.mode).toBe('3d-tilted');
+    expectStorable(moved);
   });
 });

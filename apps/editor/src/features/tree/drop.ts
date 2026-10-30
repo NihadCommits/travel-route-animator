@@ -18,17 +18,17 @@ export interface DropTarget {
   position: DropPosition;
 }
 
-/** Which kinds a row of each kind accepts. Tracks only move within their own stage. */
+/** Which kinds a row of each kind accepts. Vehicles move within and between stages. */
 export const ACCEPTS: Record<TreeItemKind, readonly TreeItemKind[]> = {
   group: ['group', 'etappe'],
-  etappe: ['etappe'],
+  etappe: ['etappe', 'track'],
   track: ['track'],
 };
 
 /**
  * Turns the pointer position over a row into a drop position. `relativeY` is 0 at the top of
- * the row and 1 at the bottom. A stage dropped on a group goes into it; everything else is
- * placed before or after a sibling.
+ * the row and 1 at the bottom. A stage dropped on a group, or a vehicle on a stage, goes into
+ * it; everything else is placed before or after a sibling.
  */
 export function dropPositionFor(
   dragged: TreeItemKind,
@@ -37,6 +37,7 @@ export function dropPositionFor(
 ): DropPosition | null {
   if (!ACCEPTS[target].includes(dragged)) return null;
   if (dragged === 'etappe' && target === 'group') return 'inside';
+  if (dragged === 'track' && target === 'etappe') return 'inside';
   return relativeY < 0.5 ? 'before' : 'after';
 }
 
@@ -76,16 +77,21 @@ export function resolveDrop(
     return (p) => moveEtappe(p, draggedId, groupId, index);
   }
 
-  if (
-    from.kind === 'track' &&
-    to.kind === 'track' &&
-    target.position !== 'inside' &&
-    from.groupIndex === to.groupIndex &&
-    from.etappeIndex === to.etappeIndex
-  ) {
-    const index = insertIndex(to.trackIndex, target.position, from.trackIndex);
-    if (index === from.trackIndex) return undefined;
-    return (p) => moveTrack(p, draggedId, index);
+  if (from.kind === 'track' && to.kind === 'track' && target.position !== 'inside') {
+    const etappe = project.groups[to.groupIndex]!.etappen[to.etappeIndex]!;
+    const sameEtappe = from.groupIndex === to.groupIndex && from.etappeIndex === to.etappeIndex;
+    const index = insertIndex(to.trackIndex, target.position, sameEtappe ? from.trackIndex : null);
+    if (sameEtappe && index === from.trackIndex) return undefined;
+    return (p) => moveTrack(p, draggedId, etappe.id, index);
+  }
+
+  // A vehicle dropped on a stage goes to its end, e.g. from a stage that held a whole day.
+  if (from.kind === 'track' && to.kind === 'etappe' && target.position === 'inside') {
+    const etappe = project.groups[to.groupIndex]!.etappen[to.etappeIndex]!;
+    const sameEtappe = from.groupIndex === to.groupIndex && from.etappeIndex === to.etappeIndex;
+    const index = sameEtappe ? etappe.tracks.length - 1 : etappe.tracks.length;
+    if (sameEtappe && index === from.trackIndex) return undefined;
+    return (p) => moveTrack(p, draggedId, etappe.id, index);
   }
 
   return undefined;
