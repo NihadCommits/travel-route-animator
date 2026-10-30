@@ -92,13 +92,21 @@ export function addTrack(
     ctx,
   );
 
-  const updated = updateEtappe(project, groupIndex, etappeIndex, (current) => {
-    const tracks = [...current.tracks, track];
-    if (current.tracks.length > 0) return { ...current, tracks };
-    const camera = { ...current.view.camera, mode: 'follow' as const, followTrackId: track.id };
-    return { ...current, tracks, view: defaultView(recommendViewMode([vehicleType]), camera) };
-  });
+  const updated = updateEtappe(project, groupIndex, etappeIndex, (current) =>
+    withTrack(current, track, current.tracks.length),
+  );
   return { project: updated, id: track.id };
+}
+
+/**
+ * Puts a vehicle into a stage at a position. The first vehicle of a stage sets its view to
+ * the one recommended for it and becomes the camera target (addTrack, moveTrack).
+ */
+function withTrack(etappe: Etappe, track: Track, index: number): Etappe {
+  const tracks = insertAt(etappe.tracks, index, track);
+  if (etappe.tracks.length > 0) return { ...etappe, tracks };
+  const camera = { ...etappe.view.camera, mode: 'follow' as const, followTrackId: track.id };
+  return { ...etappe, tracks, view: defaultView(recommendViewMode([track.vehicle.type]), camera) };
 }
 
 // ---------- rename ----------
@@ -358,13 +366,27 @@ export function moveEtappe(
   }));
 }
 
-/** Reorders a vehicle within its stage. */
-export function moveTrack(project: Project, trackId: Id, toIndex: number): Project {
-  const { groupIndex, etappeIndex, trackIndex } = requireLocation(project, trackId, 'track');
-  return updateEtappe(project, groupIndex, etappeIndex, (etappe) => {
-    const track = etappe.tracks[trackIndex]!;
-    return { ...etappe, tracks: insertAt(removeAt(etappe.tracks, trackIndex), toIndex, track) };
-  });
+/**
+ * Moves a vehicle to a position in the same or another stage. Leaving a stage works like
+ * removing it there (a camera that followed it keeps all vehicles in the picture instead);
+ * arriving in an empty stage like adding it (the camera follows it). Its timing stays as it
+ * is: the timeline and the render check show where it no longer fits the new stage.
+ */
+export function moveTrack(project: Project, trackId: Id, toEtappeId: Id, toIndex: number): Project {
+  const from = requireLocation(project, trackId, 'track');
+  const to = requireLocation(project, toEtappeId, 'etappe');
+  const track =
+    project.groups[from.groupIndex]!.etappen[from.etappeIndex]!.tracks[from.trackIndex]!;
+  if (from.groupIndex === to.groupIndex && from.etappeIndex === to.etappeIndex) {
+    return updateEtappe(project, from.groupIndex, from.etappeIndex, (etappe) => ({
+      ...etappe,
+      tracks: insertAt(removeAt(etappe.tracks, from.trackIndex), toIndex, track),
+    }));
+  }
+  // Removing a vehicle changes no stage's position, so `to` still points at the target.
+  return updateEtappe(removeTrack(project, trackId), to.groupIndex, to.etappeIndex, (etappe) =>
+    withTrack(etappe, track, toIndex),
+  );
 }
 
 function locateOrThrow(project: Project, id: Id): ItemLocation {
