@@ -2,7 +2,7 @@ import { createProject, type Project } from '@travel-route-animator/core';
 import { describe, expect, it } from 'vitest';
 import { dropPositionFor, resolveDrop, type DropTarget } from './drop';
 
-// Two groups: A with stages a1, a2, a3 (a1 has tracks t1, t2), B with b1, and an empty group C.
+// Groups: A with stages a1, a2, a3 (a1 has tracks t1, t2), B with b1 (track t3), and an empty C.
 function project(): Project {
   const base = createProject('Trip');
   const etappe = (id: string, trackIds: string[] = []) => ({
@@ -46,7 +46,7 @@ function project(): Project {
     ...base,
     groups: [
       { id: 'A', name: 'A', etappen: [etappe('a1', ['t1', 't2']), etappe('a2'), etappe('a3')] },
-      { id: 'B', name: 'B', etappen: [etappe('b1')] },
+      { id: 'B', name: 'B', etappen: [etappe('b1', ['t3'])] },
       { id: 'C', name: 'C', etappen: [] },
     ],
   };
@@ -68,13 +68,14 @@ describe('dropPositionFor', () => {
     expect(dropPositionFor('group', 'group', 0.4)).toBe('before');
   });
 
-  it('puts a stage dropped on a group into that group', () => {
+  it('puts a stage dropped on a group, and a vehicle dropped on a stage, into it', () => {
     expect(dropPositionFor('etappe', 'group', 0.1)).toBe('inside');
+    expect(dropPositionFor('track', 'etappe', 0.9)).toBe('inside');
   });
 
   it('refuses drops that make no sense', () => {
     expect(dropPositionFor('group', 'etappe', 0.5)).toBeNull();
-    expect(dropPositionFor('track', 'etappe', 0.5)).toBeNull();
+    expect(dropPositionFor('track', 'group', 0.5)).toBeNull();
     expect(dropPositionFor('etappe', 'track', 0.5)).toBeNull();
   });
 });
@@ -111,6 +112,21 @@ describe('resolveDrop', () => {
     expect(result?.groups[0]!.etappen[0]!.tracks.map((t) => t.id)).toEqual(['t2', 't1']);
   });
 
+  const tracksOf = (p: Project | undefined, group: number, etappe: number) =>
+    p?.groups[group]!.etappen[etappe]!.tracks.map((t) => t.id);
+
+  it('moves a vehicle next to a vehicle of another stage', () => {
+    const result = drop('t1', { id: 't3', position: 'before' });
+    expect(tracksOf(result, 0, 0)).toEqual(['t2']);
+    expect(tracksOf(result, 1, 0)).toEqual(['t1', 't3']);
+  });
+
+  it('moves a vehicle dropped on a stage to its end, also into an empty one', () => {
+    expect(tracksOf(drop('t1', { id: 'b1', position: 'inside' }), 1, 0)).toEqual(['t3', 't1']);
+    expect(tracksOf(drop('t2', { id: 'a2', position: 'inside' }), 0, 1)).toEqual(['t2']);
+    expect(tracksOf(drop('t1', { id: 'a1', position: 'inside' }), 0, 0)).toEqual(['t2', 't1']);
+  });
+
   it('returns nothing for drops that change nothing', () => {
     const p = project();
     expect(resolveDrop(p, 'a1', { id: 'a1', position: 'after' })).toBeUndefined();
@@ -118,6 +134,7 @@ describe('resolveDrop', () => {
     expect(resolveDrop(p, 'a3', { id: 'A', position: 'inside' })).toBeUndefined();
     expect(resolveDrop(p, 'A', { id: 'B', position: 'before' })).toBeUndefined();
     expect(resolveDrop(p, 't2', { id: 't1', position: 'after' })).toBeUndefined();
+    expect(resolveDrop(p, 't2', { id: 'a1', position: 'inside' })).toBeUndefined();
   });
 
   it('refuses drops the tree does not support', () => {
