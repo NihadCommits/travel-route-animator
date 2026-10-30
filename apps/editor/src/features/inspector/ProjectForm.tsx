@@ -5,9 +5,9 @@ import { TextField } from './fields/TextField';
 import { FormHeading, LaterNote, optionsOf, Row, Section } from './parts';
 import { useEdit } from './useEdit';
 
-const ASPECTS = ['16:9', '9:16', '1:1', '4:5'] as const;
-const RESOLUTIONS = ['720p', '1080p', '1440p', '2160p'] as const;
-const FRAME_RATES = ['24', '25', '30', '50', '60'] as const;
+export const ASPECTS = ['16:9', '9:16', '1:1', '4:5'] as const;
+export const RESOLUTIONS = ['720p', '1080p', '1440p', '2160p'] as const;
+export const FRAME_RATES = ['24', '25', '30', '50', '60'] as const;
 
 export function ProjectForm({ project }: { project: Project }) {
   const edit = useEdit({ kind: 'project' });

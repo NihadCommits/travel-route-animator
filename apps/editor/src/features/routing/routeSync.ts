@@ -1,6 +1,6 @@
 import {
   computeRouteInputHash,
-  isLocalRoutingMode,
+  needsRouter,
   MAX_ROUTE_WAYPOINTS,
   RouteFailureSchema,
   toRouteRequest,
@@ -26,8 +26,7 @@ function routedTracks(project: Project): Map<Id, Track> {
   for (const group of project.groups) {
     for (const etappe of group.etappen) {
       for (const track of etappe.tracks) {
-        const { mode } = track.routing;
-        if (isLocalRoutingMode(mode) || mode === 'gpx' || track.waypoints.length < 2) continue;
+        if (!needsRouter(track)) continue;
         tracks.set(track.id, track);
       }
     }

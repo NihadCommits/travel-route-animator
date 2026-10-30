@@ -11,6 +11,7 @@ import {
 import { SegmentedControl, type SegmentOption } from '@/components/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { RenderControls } from '@/features/render/RenderControls';
 import { de } from '@/i18n/de';
 import { cn } from '@/lib/utils';
 import {
@@ -84,6 +85,9 @@ export function EditorHeader() {
           <Redo2 />
         </IconButton>
         <SaveIndicator />
+        <div className="ml-2 flex items-center gap-1 border-l pl-2">
+          <RenderControls />
+        </div>
       </div>
     </header>
   );
@@ -123,7 +127,7 @@ function IconButton({
 
 function SaveIndicator() {
   const status = useEditor((state) => state.saveStatus);
-  const retry = useEditor((state) => state.retrySave);
+  const retry = useEditor((state) => state.saveNow);
 
   if (status.state === 'error') {
     return (

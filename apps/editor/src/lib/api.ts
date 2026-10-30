@@ -4,6 +4,8 @@ import {
   type LngLat,
   type Place,
   type Project,
+  type RenderJob,
+  type RenderRequest,
   type RouteRequest,
   type ValidationIssue,
 } from '@travel-route-animator/core';
@@ -45,6 +47,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`;
+const renderPath = (id: string) => `/render/${encodeURIComponent(id)}`;
+
+/** Server-sent events of one render job; opened with EventSource, not fetch. */
+export const renderEventsUrl = (id: string) => `/api${renderPath(id)}/events`;
 
 /** Where the place search should look first: a point and roughly the map zoom around it. */
 export interface SearchBias {
@@ -92,4 +98,12 @@ export const api = {
         ...(signal && { signal }),
       }),
     ),
+  // Rendering happens on the server, which loads the project as saved (M7).
+  listRenders: () => request<RenderJob[]>('/render'),
+  startRender: (render: RenderRequest) =>
+    request<RenderJob>('/render', { method: 'POST', body: JSON.stringify(render) }),
+  /** Cancels a waiting or running job; takes a finished one off the list. */
+  cancelRender: (id: string) =>
+    request<RenderJob | undefined>(renderPath(id), { method: 'DELETE' }),
+  revealRender: (id: string) => request<undefined>(`${renderPath(id)}/reveal`, { method: 'POST' }),
 };

@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { GL_RENDERERS, type OpenGlRenderer } from '@travel-route-animator/scene/render/gl';
 
 export interface ServiceConfig {
   photonUrl: string;
@@ -66,4 +67,27 @@ export function resolveListenOptions(env: NodeJS.ProcessEnv): ListenOptions {
   }
 
   return { host, port };
+}
+
+/** OUTPUT_DIR from .env, like DATA_DIR: where rendered videos go. */
+export function resolveOutputDir(env: NodeJS.ProcessEnv, repoRoot: string): string {
+  return resolve(repoRoot, env.OUTPUT_DIR?.trim() || './output');
+}
+
+export interface RenderConfig {
+  /** Chromium's OpenGL backend for the maps; 'angle' is the GPU (see ADR 0001). */
+  gl: OpenGlRenderer;
+  /** Bundle the scene right after start-up, so the first render need not wait for it. */
+  prepareOnStart: boolean;
+}
+
+/** RENDER_GL and RENDER_PREPARE_ON_START from .env. */
+export function resolveRenderConfig(env: NodeJS.ProcessEnv): RenderConfig {
+  const wanted = env.RENDER_GL?.trim() || 'angle';
+  const gl = GL_RENDERERS.find((renderer) => renderer === wanted);
+  if (!gl) {
+    throw new Error(`RENDER_GL must be one of ${GL_RENDERERS.join(', ')}, got "${wanted}"`);
+  }
+  const prepare = env.RENDER_PREPARE_ON_START?.trim().toLowerCase();
+  return { gl, prepareOnStart: prepare !== 'false' && prepare !== '0' };
 }

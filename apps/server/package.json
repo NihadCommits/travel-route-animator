@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@travel-route-animator/core": "workspace:*",
+    "@travel-route-animator/scene": "workspace:*",
     "fastify": "^5.12.7",
     "zod": "^4.6.7"
   },

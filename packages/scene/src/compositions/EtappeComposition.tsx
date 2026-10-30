@@ -1,29 +1,12 @@
-import {
-  compileTimeline,
-  computeFrameState,
-  type OutputSettings,
-  type Project,
-} from '@travel-route-animator/core';
+import { compileTimeline, computeFrameState } from '@travel-route-animator/core';
 import { useMemo, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'remotion';
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
 import { MapStage } from '../stage/MapStage';
+import type { EtappeProps } from './etappeProps';
 
-/**
- * The props of a stage video: the whole project (inheritance needs it) and which stage. The
- * same props drive the editor's preview (M6) and the export, so both show the same thing.
- */
-export type EtappeProps = {
-  project: Project;
-  etappeId: string;
-  /** Overrides from the render dialog, e.g. a 9:16 version of the same stage. */
-  output?: Partial<OutputSettings>;
-  /** Preview only: draw with fewer pixels (0.5 = half resolution), same picture otherwise. */
-  previewScale?: number;
-  /** Preview only: safe-area guides on top. Never set for an export. */
-  guides?: boolean;
-};
+export type { EtappeProps } from './etappeProps';
 
 /** The timeline of these props; the editor uses it to size the player the same way. */
 export function timelineOf({ project, etappeId, output, previewScale }: EtappeProps) {

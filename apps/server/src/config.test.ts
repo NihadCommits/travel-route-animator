@@ -1,6 +1,12 @@
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { resolveDataDir, resolveListenOptions, resolveServiceConfig } from './config';
+import {
+  resolveDataDir,
+  resolveListenOptions,
+  resolveOutputDir,
+  resolveRenderConfig,
+  resolveServiceConfig,
+} from './config';
 
 describe('resolveDataDir', () => {
   const repoRoot = resolve('/repo');
@@ -64,5 +70,27 @@ describe('resolveServiceConfig', () => {
       'http://127.0.0.1:2322',
     );
     expect(() => resolveServiceConfig({ PHOTON_URL: 'ftp://photon' })).toThrow(/PHOTON_URL/);
+  });
+});
+
+describe('resolveOutputDir', () => {
+  it('defaults to output/ in the repo root and resolves OUTPUT_DIR like DATA_DIR', () => {
+    const repoRoot = resolve('/repo');
+    expect(resolveOutputDir({}, repoRoot)).toBe(resolve('/repo/output'));
+    expect(resolveOutputDir({ OUTPUT_DIR: './videos' }, repoRoot)).toBe(resolve('/repo/videos'));
+  });
+});
+
+describe('resolveRenderConfig', () => {
+  it('renders on the GPU and bundles at start-up unless told otherwise', () => {
+    expect(resolveRenderConfig({})).toEqual({ gl: 'angle', prepareOnStart: true });
+    expect(resolveRenderConfig({ RENDER_GL: 'vulkan', RENDER_PREPARE_ON_START: 'false' })).toEqual({
+      gl: 'vulkan',
+      prepareOnStart: false,
+    });
+  });
+
+  it('refuses an OpenGL backend Chromium does not know', () => {
+    expect(() => resolveRenderConfig({ RENDER_GL: 'opengl' })).toThrow(/RENDER_GL/);
   });
 });

@@ -8,45 +8,27 @@
  * Road routes the project does not hold yet come from the local server, which has the
  * openrouteservice key and its cache; if it is not running, the script starts it for the
  * render. Nothing else leaves this machine but map tiles.
- * The server in M7 will render the same way; this script is the stand-in until then.
+ * The render itself is the same function the server's render jobs use (render/renderEtappe).
  */
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { bundle } from '@remotion/bundler';
-import {
-  ensureBrowser,
-  renderMedia,
-  selectComposition,
-  type ChromiumOptions,
-  type OpenGlRenderer,
-} from '@remotion/renderer';
 import {
   checkRenderReadiness,
   ComputedRouteSchema,
   describeIssues,
-  isLocalRoutingMode,
-  isRouteStale,
   parseProjectFile,
   refreshLocalRoutes,
   resolveOutput,
   slugify,
+  suggestVideoName,
   toRouteRequest,
+  tracksAwaitingRoute,
   type OutputSettings,
   type Project,
 } from '@travel-route-animator/core';
-import type { EtappeProps } from '../src/compositions/EtappeComposition';
-import { webpackOverride } from '../webpack-override';
-
-const GL_RENDERERS: readonly OpenGlRenderer[] = [
-  'angle',
-  'angle-egl',
-  'egl',
-  'swangle',
-  'swiftshader',
-  'vulkan',
-];
+import { bundleScene, GL_RENDERERS, renderEtappe } from '../render/renderEtappe';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
 const DEFAULT_SERVER = 'http://127.0.0.1:5174';
@@ -128,6 +110,9 @@ async function ensureServer(): Promise<void> {
   const child = spawn(process.execPath, ['--import', 'tsx', 'src/index.ts'], {
     cwd: serverDir,
     stdio: ['ignore', 'ignore', 'pipe'],
+    // The server would otherwise bundle the scene for its own render jobs, which it does
+    // not need for answering a few route requests.
+    env: { ...process.env, RENDER_PREPARE_ON_START: 'false' },
   });
   startedServer = child;
   let errors = '';
@@ -157,10 +142,9 @@ async function withRoadRoutes(project: Project, etappeId: string): Promise<Proje
   for (const group of project.groups) {
     for (const etappe of group.etappen) {
       if (etappe.id !== etappeId) continue;
-      for (const track of etappe.tracks) {
+      // The same tracks themselves, so the routes land in the project that gets rendered.
+      for (const track of tracksAwaitingRoute(etappe)) {
         const { mode } = track.routing;
-        if (isLocalRoutingMode(mode) || mode === 'gpx' || track.waypoints.length < 2) continue;
-        if (!isRouteStale(track)) continue;
         await ensureServer();
         console.log(
           `Asking ${values.server} for the ${mode} route of "${track.label ?? track.id}" …`,
@@ -198,44 +182,23 @@ const issues = checkRenderReadiness(project, [etappe.id]);
 if (issues.length > 0) fail(`"${etappe.name}" cannot be rendered yet:\n${describeIssues(issues)}`);
 
 const output = outputOverrides(project);
-const inputProps: EtappeProps = { project, etappeId: etappe.id, output };
-// Maps are WebGL-heavy: Remotion recommends the GPU (angle) and one browser tab at a time.
-const chromiumOptions: ChromiumOptions = { gl };
-const outputDir = join(repoRoot, 'output', slugify(project.name));
-const stamp = new Date().toISOString().slice(0, 19).replace(/[-:]/g, '').replace('T', '-');
-const outputLocation = join(outputDir, `${slugify(etappe.name)}_${stamp}.mp4`);
+const name = suggestVideoName(etappe.name, resolveOutput(project, output), new Date());
+const outputLocation = join(repoRoot, 'output', slugify(project.name), `${name}.mp4`);
 
-await mkdir(outputDir, { recursive: true });
-// Downloads Chrome Headless Shell on the first run only.
-await ensureBrowser();
 console.log('Bundling the scene …');
-const serveUrl = await bundle({
-  entryPoint: join(import.meta.dirname, '../src/index.ts'),
-  webpackOverride,
-});
-const composition = await selectComposition({
-  serveUrl,
-  id: 'Etappe',
-  inputProps,
-  chromiumOptions,
-});
-console.log(
-  `Rendering "${etappe.name}": ${composition.width}×${composition.height}, ` +
-    `${(composition.durationInFrames / composition.fps).toFixed(1)} s at ${composition.fps} fps, gl=${gl}`,
-);
-
+const serveUrl = await bundleScene();
 const startedAt = performance.now();
 let lastReported = -1;
-await renderMedia({
+const video = await renderEtappe({
   serveUrl,
-  composition,
-  inputProps,
-  codec: 'h264',
+  props: { project, etappeId: etappe.id, output },
   outputLocation,
-  chromiumOptions,
-  concurrency: 1,
-  // Generous because a cold tile cache can make the first frames slow.
-  timeoutInMilliseconds: 60_000,
+  gl,
+  onFormat: ({ width, height, fps, durationInFrames }) =>
+    console.log(
+      `Rendering "${etappe.name}": ${width}×${height}, ` +
+        `${(durationInFrames / fps).toFixed(1)} s at ${fps} fps, gl=${gl}`,
+    ),
   onProgress: ({ progress }) => {
     const percent = Math.floor(progress * 10) * 10;
     if (percent > lastReported) {
@@ -245,4 +208,7 @@ await renderMedia({
   },
 });
 const seconds = (performance.now() - startedAt) / 1000;
-console.log(`\nDone in ${seconds.toFixed(1)} s: ${outputLocation}`);
+console.log(
+  `\nDone in ${seconds.toFixed(1)} s: ${video.outputLocation}\n` +
+    `Checked: ${video.width}×${video.height}, ${video.fps} fps, ${video.durationSec.toFixed(2)} s`,
+);

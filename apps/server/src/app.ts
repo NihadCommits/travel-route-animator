@@ -10,6 +10,10 @@ import { registerGeocodingRoutes } from './geocoding/routes';
 import { createThrottle } from './lib/throttle';
 import { createProjectStore } from './projects/projectStore';
 import { registerProjectRoutes } from './projects/routes';
+import { createRenderQueue } from './render/queue';
+import { noRenderer, type StageRenderer } from './render/renderer';
+import type { RevealFile } from './render/reveal';
+import { registerRenderRoutes } from './render/routes';
 import type { RoutingProvider } from './routing/provider';
 import { createRouter } from './routing/router';
 import { registerRoutingRoutes } from './routing/routes';
@@ -26,6 +30,12 @@ export interface AppOptions {
   routingProviders?: Partial<Record<RouterId, RoutingProvider>>;
   /** Minimum time between two requests per router (ORS: 40 per minute, OSRM: one per second). */
   routingIntervalsMs?: Record<RouterId, number>;
+  /** Where rendered videos go; index.ts reads OUTPUT_DIR. */
+  outputDir?: string;
+  /** Renders the jobs; index.ts passes Remotion, tests a fake. Without one, jobs fail. */
+  renderer?: StageRenderer;
+  /** "Ordner öffnen"; index.ts passes Explorer. Without one the editor offers the path. */
+  revealFile?: RevealFile;
 }
 
 const GEOCODE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -48,6 +58,9 @@ export function buildApp({
   geocodingIntervalMs = 1000,
   routingProviders = {},
   routingIntervalsMs = { ors: 1500, osrm: 1000 },
+  outputDir = join(dataDir, 'output'),
+  renderer = noRenderer,
+  revealFile = () => false,
 }: AppOptions): FastifyInstance {
   const app = Fastify({
     logger,
@@ -94,6 +107,15 @@ export function buildApp({
     log: (message) => app.log.info(message),
   });
   registerRoutingRoutes(app, router, now ?? (() => new Date()));
+
+  const renderQueue = createRenderQueue({ renderer, ...(now && { now }) });
+  registerRenderRoutes(app, {
+    queue: renderQueue,
+    store,
+    outputDir,
+    now: now ?? (() => new Date()),
+    revealFile,
+  });
 
   return app;
 }

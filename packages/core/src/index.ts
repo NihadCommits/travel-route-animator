@@ -45,4 +45,6 @@ export * from './frame/heading';
 export * from './frame/camera';
 export * from './frame/computeFrameState';
 export * from './files/slug';
+export * from './files/videoName';
 export * from './routing/credits';
+export * from './render/job';
