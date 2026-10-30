@@ -1,6 +1,6 @@
 import { renameItem } from '@travel-route-animator/core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FolderOpen, MoreHorizontal, Plus } from 'lucide-react';
+import { FolderOpen, MoreHorizontal, Plus, Settings } from 'lucide-react';
 import { useState } from 'react';
 import {
   AlertDialog,
@@ -19,8 +19,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { openDesktopSettings } from '@/features/settings/DesktopSettings';
 import { de, formatDateTime } from '@/i18n/de';
 import { api, type ProjectSummary } from '@/lib/api';
+import { desktopBridge } from '@/lib/desktop';
 import { navigate } from '@/lib/router';
 import { NameDialog } from './NameDialog';
 
@@ -63,9 +65,17 @@ export function ProjectOverview() {
           <p className="text-muted-foreground text-xs tracking-wide uppercase">{de.app.title}</p>
           <h1 className="text-2xl font-semibold">{de.overview.title}</h1>
         </div>
-        <Button onClick={() => setDialog({ kind: 'create' })}>
-          <Plus /> {de.overview.newProject}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* The Windows app keeps what .env holds in the web version in its settings. */}
+          {desktopBridge() && (
+            <Button variant="outline" onClick={openDesktopSettings}>
+              <Settings /> {de.settings.open}
+            </Button>
+          )}
+          <Button onClick={() => setDialog({ kind: 'create' })}>
+            <Plus /> {de.overview.newProject}
+          </Button>
+        </div>
       </header>
 
       {projects.isPending && <p className="text-muted-foreground">{de.overview.loading}</p>}
