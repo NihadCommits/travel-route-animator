@@ -1,12 +1,15 @@
 {
   "name": "@travel-route-animator/desktop",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "The Windows app: Electron shell around the editor and the local server (M7b).",
+  "author": "NihadCommits",
+  "license": "MIT",
   "type": "module",
   "main": "dist/main.mjs",
   "scripts": {
     "build": "tsx scripts/build.ts",
+    "package": "tsx scripts/package.ts",
     "start": "electron .",
     "typecheck": "tsc --noEmit"
   },
@@ -18,8 +21,12 @@
     "@travel-route-animator/scene": "workspace:*",
     "@travel-route-animator/server": "workspace:*",
     "electron": "45.1.0",
+    "electron-builder": "26.17.0",
     "esbuild": "^0.28.2",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
+  },
+  "optionalDependencies": {
+    "@remotion/compositor-win32-x64-msvc": "4.0.539"
   }
 }

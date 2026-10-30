@@ -8,3 +8,5 @@ allowBuilds:
   esbuild: true
   # Not electron: since Electron 45 it has no install script and downloads its runtime on the
   # first start (`pnpm app`).
+  # Squirrel installers, which electron-builder can make; the app is packed with NSIS instead.
+  electron-winstaller: false
