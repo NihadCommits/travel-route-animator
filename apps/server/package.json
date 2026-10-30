@@ -4,6 +4,10 @@
   "private": true,
   "description": "Local Node server: projects, geocoding and routing proxies, render jobs.",
   "type": "module",
+  "exports": {
+    "./start": "./src/start.ts",
+    "./config": "./src/config.ts"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
@@ -11,6 +15,7 @@
     "data:airports": "tsx src/airports/cli.ts"
   },
   "dependencies": {
+    "@fastify/static": "^10.1.8",
     "@travel-route-animator/core": "workspace:*",
     "@travel-route-animator/scene": "workspace:*",
     "fastify": "^5.12.7",
