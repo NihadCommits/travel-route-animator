@@ -6,5 +6,5 @@ packages:
 allowBuilds:
   # Verifies the platform-specific binary after install (used by tsx).
   esbuild: true
-  # Downloads the Electron runtime for the Windows app (apps/desktop, M7b).
-  electron: true
+  # Not electron: since Electron 45 it has no install script and downloads its runtime on the
+  # first start (`pnpm app`).
