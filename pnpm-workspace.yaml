@@ -6,3 +6,5 @@ packages:
 allowBuilds:
   # Verifies the platform-specific binary after install (used by tsx).
   esbuild: true
+  # Downloads the Electron runtime for the Windows app (apps/desktop, M7b).
+  electron: true

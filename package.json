@@ -20,7 +20,8 @@
     "test:watch": "vitest",
     "data:airports": "pnpm --filter @travel-route-animator/server data:airports",
     "studio": "pnpm --filter @travel-route-animator/scene studio",
-    "render:etappe": "pnpm --filter @travel-route-animator/scene render:etappe"
+    "render:etappe": "pnpm --filter @travel-route-animator/scene render:etappe",
+    "app": "pnpm --filter @travel-route-animator/desktop build && pnpm --filter @travel-route-animator/desktop start"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
