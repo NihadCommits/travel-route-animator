@@ -11,6 +11,7 @@ export default defineConfig(
     '**/dist/',
     '**/build/',
     '**/coverage/',
+    'apps/desktop/release/',
     'data/',
     'output/',
     'routen-animator-kontext/',

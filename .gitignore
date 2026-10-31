@@ -12,6 +12,8 @@ node_modules/
 dist/
 build/
 out/
+# The Windows app installer (apps/desktop/scripts/package.ts)
+/apps/desktop/release/
 .vite/
 *.tsbuildinfo
 

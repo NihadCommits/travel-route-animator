@@ -55,6 +55,7 @@ pnpm dev
 | `pnpm render:etappe` | Render one stage of a project to MP4 (see below)           |
 | `pnpm studio`        | Open the stage composition in Remotion Studio              |
 | `pnpm app`           | Build the Windows app and start it (see below)             |
+| `pnpm app:installer` | Build the Windows installer (see below)                    |
 
 To render a stage, select it (or one of its vehicles) in the editor and click **Rendern**. Format, resolution and frame rate start from the project's defaults and apply to this render only. The video lands in `output/<project>/`, named after the stage, its format and the time, e.g. `lissabon-algarve_16x9_1080p_20261029-1530.mp4`. While a video is rendered it is called `….partial.mp4`; a cancelled or failed render leaves nothing behind. The server bundles the scene once when it starts and renders with the GPU; `RENDER_GL` in `.env` picks another OpenGL backend if renders fail.
 
@@ -68,7 +69,9 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 ### Windows app
 
-`pnpm app` builds the editor, the scene bundle and an Electron shell into `apps/desktop/dist` and starts the app: one window, no terminal and no browser. The local server runs inside the app on <http://127.0.0.1:5175>, so it can run next to `pnpm dev`. The app keeps its projects in `%APPDATA%\Routen-Animator` and its videos in `Videos\Routen-Animator`. On the first start it offers to copy the projects from the repo's `data` folder; the originals stay where they are. Instead of `.env`, the app has its own settings (Datei → Einstellungen): the openrouteservice key, which Windows keeps encrypted for your user account, the contact for free services, the video folder and the OpenGL backend for rendering. The first `pnpm app` downloads Electron (about 100 MB) once. An installer with a start menu entry follows.
+`pnpm app` builds the editor, the scene bundle and an Electron shell into `apps/desktop/dist` and starts the app: one window, no terminal and no browser. The local server runs inside the app on <http://127.0.0.1:5175>, so it can run next to `pnpm dev`. The app keeps its projects in `%APPDATA%\Routen-Animator` and its videos in `Videos\Routen-Animator`. On the first start it offers to copy the projects from the repo's `data` folder; the originals stay where they are. Instead of `.env`, the app has its own settings (Datei → Einstellungen): the openrouteservice key, which Windows keeps encrypted for your user account, the contact for free services, the video folder and the OpenGL backend for rendering. The first `pnpm app` downloads Electron (about 100 MB) once.
+
+`pnpm app:installer` builds the installer: `apps/desktop/release/Routen-Animator Setup <version>.exe`. It installs the app for your Windows user only (no admin rights needed), with a start menu entry and a desktop shortcut. The installed app brings its own Chrome Headless Shell and ffmpeg, so it renders offline right away. The installer is not code-signed, so Windows SmartScreen says "Windows protected your PC" on the first start: click "More info", then "Run anyway". With Smart App Control turned on, Windows blocks an unsigned build outright and offers no "Run anyway"; start the app with `pnpm app` instead. Uninstalling the app keeps your projects and videos. `apps/desktop/release/win-unpacked/Routen-Animator.exe` is the same app without installing it.
 
 ### Keyboard shortcuts in the editor
 
@@ -182,6 +185,7 @@ pnpm dev
 | `pnpm render:etappe` | Eine Etappe eines Projekts als MP4 rendern (siehe unten) |
 | `pnpm studio`        | Die Etappen-Komposition in Remotion Studio öffnen        |
 | `pnpm app`           | Die Windows-App bauen und starten (siehe unten)          |
+| `pnpm app:installer` | Den Windows-Installer bauen (siehe unten)                |
 
 Zum Rendern einer Etappe wählt man sie (oder eines ihrer Fahrzeuge) im Editor und klickt auf **Rendern**. Seitenverhältnis, Auflösung und Bildrate starten mit den Projekt-Standards und gelten nur für diesen Render. Das Video landet in `output/<projekt>/` und heißt nach Etappe, Format und Zeit, z. B. `lissabon-algarve_16x9_1080p_20261029-1530.mp4`. Während des Renderns heißt es `….partial.mp4`; ein abgebrochener oder fehlgeschlagener Render hinterlässt nichts. Der Server bündelt die Szene einmal beim Start und rendert mit der GPU; `RENDER_GL` in der `.env` wählt ein anderes OpenGL-Backend, falls Renders scheitern.
 
@@ -195,7 +199,9 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 ### Windows-App
 
-`pnpm app` baut den Editor, das Szenen-Bundle und eine Electron-Hülle nach `apps/desktop/dist` und startet die App: ein Fenster, kein Terminal, kein Browser. Der lokale Server läuft in der App unter <http://127.0.0.1:5175>, also auch parallel zu `pnpm dev`. Die App hält ihre Projekte in `%APPDATA%\Routen-Animator` und ihre Videos in `Videos\Routen-Animator`. Beim ersten Start bietet sie an, die Projekte aus dem `data`-Ordner des Repos zu kopieren; die Originale bleiben, wo sie sind. Statt der `.env` hat die App eigene Einstellungen (Datei → Einstellungen): den openrouteservice-Key, den Windows für dein Benutzerkonto verschlüsselt aufbewahrt, den Kontakt für freie Dienste, den Videoordner und das OpenGL-Backend fürs Rendern. Beim ersten `pnpm app` lädt Electron einmalig sein Programm herunter (etwa 100 MB). Ein Installer mit Startmenü-Eintrag folgt.
+`pnpm app` baut den Editor, das Szenen-Bundle und eine Electron-Hülle nach `apps/desktop/dist` und startet die App: ein Fenster, kein Terminal, kein Browser. Der lokale Server läuft in der App unter <http://127.0.0.1:5175>, also auch parallel zu `pnpm dev`. Die App hält ihre Projekte in `%APPDATA%\Routen-Animator` und ihre Videos in `Videos\Routen-Animator`. Beim ersten Start bietet sie an, die Projekte aus dem `data`-Ordner des Repos zu kopieren; die Originale bleiben, wo sie sind. Statt der `.env` hat die App eigene Einstellungen (Datei → Einstellungen): den openrouteservice-Key, den Windows für dein Benutzerkonto verschlüsselt aufbewahrt, den Kontakt für freie Dienste, den Videoordner und das OpenGL-Backend fürs Rendern. Beim ersten `pnpm app` lädt Electron einmalig sein Programm herunter (etwa 100 MB).
+
+`pnpm app:installer` baut den Installer: `apps/desktop/release/Routen-Animator Setup <version>.exe`. Er installiert die App nur für deinen Windows-Benutzer (ohne Admin-Rechte), mit Startmenü-Eintrag und Desktop-Verknüpfung. Die installierte App bringt ihren eigenen Chrome Headless Shell und ffmpeg mit und rendert damit sofort auch offline. Der Installer ist nicht signiert, deshalb meldet Windows SmartScreen beim ersten Start „Der Computer wurde durch Windows geschützt“: auf „Weitere Informationen“ und dann „Trotzdem ausführen“ klicken. Ist Smart App Control eingeschaltet, blockiert Windows einen unsignierten Build ganz und bietet kein „Trotzdem ausführen“ an; dann startet `pnpm app` die App. Beim Deinstallieren bleiben Projekte und Videos erhalten. `apps/desktop/release/win-unpacked/Routen-Animator.exe` ist dieselbe App ohne Installation.
 
 ### Tastenkürzel im Editor
 

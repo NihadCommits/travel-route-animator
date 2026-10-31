@@ -60,6 +60,7 @@ export function appPaths({
     browserExecutable: isPackaged
       ? join(
           unpacked,
+          'dist',
           'remotion-browser',
           'win64',
           'chrome-headless-shell-win64',

@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- Routen-Animator: a route that is being driven. Drawn for this project, no third-party art. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6" />
+      <stop offset="1" stop-color="#1e3a8a" />
+    </linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bg)" />
+  <!-- Still ahead: faint dots, as the route ahead of a vehicle looks in the videos. -->
+  <path d="M300 276 C 326 262 356 252 388 246" fill="none" stroke="#ffffff" stroke-opacity="0.55"
+    stroke-width="26" stroke-linecap="round" stroke-dasharray="0 46" />
+  <!-- Already driven: solid. -->
+  <path d="M122 386 C 170 300 262 366 300 276" fill="none" stroke="#ffffff" stroke-width="30"
+    stroke-linecap="round" />
+  <circle cx="122" cy="386" r="30" fill="#ffffff" />
+  <!-- The vehicle. -->
+  <circle cx="300" cy="276" r="40" fill="#f97316" stroke="#ffffff" stroke-width="14" />
+  <!-- The destination. -->
+  <path d="M392 62 c -38 0 -68 30 -68 68 c 0 50 68 112 68 112 s 68 -62 68 -112 c 0 -38 -30 -68 -68 -68 z"
+    fill="#ffffff" />
+  <circle cx="392" cy="130" r="24" fill="#1e3a8a" />
+</svg>
