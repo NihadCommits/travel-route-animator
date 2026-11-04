@@ -18,7 +18,9 @@ export function createRenderMap(options: RenderMapOptions): MapLibreMap {
     attributionControl: false,
     // Tilted 3D views need room to look towards the horizon.
     maxPitch: 85,
-    // Keeps the drawn frame in the canvas until Remotion has taken its screenshot.
-    canvasContextAttributes: { preserveDrawingBuffer: true },
+    // preserveDrawingBuffer keeps the drawn frame in the canvas until Remotion has taken its
+    // screenshot. antialias smooths the edges of the 3D plane; in the M8 spike it cost no
+    // measurable render time.
+    canvasContextAttributes: { preserveDrawingBuffer: true, antialias: true },
   });
 }

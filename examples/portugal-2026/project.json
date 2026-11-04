@@ -93,7 +93,7 @@
           "durationSec": 10,
           "view": {
             "mode": "globe",
-            "pitchDeg": 0,
+            "pitchDeg": 40,
             "bearingDeg": 0,
             "camera": {
               "mode": "follow",
