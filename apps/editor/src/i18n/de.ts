@@ -243,7 +243,18 @@ export const de = {
       lineDash: 'Linienart',
       ghostRoute: 'Ganze Route vorab blass zeigen',
       vehicleScale: 'Fahrzeuggröße',
-      later: 'Flug-Optionen und Badges (M8) kommen mit ihrem Modul dazu.',
+      later: 'Badges für Routen-Optionen kommen mit dem nächsten Teil von M8.',
+      flight: {
+        title: 'Flug',
+        arcHeight: 'Bogenhöhe',
+        arcHeightHint: 'Anteil der Strecke. Die echte Flughöhe wäre auf der Karte unsichtbar.',
+        arcHeightRange: 'Bitte einen Wert zwischen 0 und 50 % eingeben.',
+        shadow: 'Schatten am Boden',
+        takeoffLandingCamera: 'Kamera zoomt bei Start und Landung',
+        arc3d: 'Die geneigte Ansicht zeigt den Bogen in echtem 3D.',
+        fake3d:
+          'Von oben gesehen wird der Bogen zum Bildrand hin angehoben (Fake-3D). Ab 20° Neigung erscheint er in echtem 3D.',
+      },
       avoid: 'Vermeiden',
       avoids: {
         highways: 'Autobahnen meiden',
@@ -381,6 +392,7 @@ export const de = {
     degrees: '°',
     pixels: 'px',
     times: '×',
+    percent: '%',
   },
   vehicles: {
     plane: 'Flugzeug',

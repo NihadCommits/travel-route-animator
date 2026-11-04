@@ -145,6 +145,35 @@ describe('Inspector', () => {
     expect(screen.getByRole('treeitem', { name: 'Zug' })).toBeInTheDocument();
   });
 
+  it('edits the flight of a plane and says how it is drawn', async () => {
+    const { project, etappeId } = trip();
+    const withPlane = addTrack(project, etappeId, 'plane', { label: 'Flugzeug' }).project;
+    const { user } = await renderEditor(withPlane);
+    await selectRow('Flugzeug');
+    const arc = inspector().getByLabelText('Bogenhöhe');
+    expect(arc).toHaveValue('15');
+    // A plane as the first vehicle makes the stage a tilted globe: the arc is real 3D.
+    expect(inspector().getByText(/echtem 3D/)).toBeInTheDocument();
+
+    await typeInto(user, arc, '80');
+    await user.keyboard('{Enter}');
+    expect(arc).toBeInvalid();
+    await typeInto(user, arc, '25');
+    await user.keyboard('{Enter}');
+    expect(arc).toBeValid();
+    expect(arc).toHaveValue('25');
+
+    const shadow = inspector().getByRole('switch', { name: 'Schatten am Boden' });
+    await user.click(shadow);
+    expect(shadow).not.toBeChecked();
+  });
+
+  it('shows no flight options for a car', async () => {
+    await renderEditor(trip({ withCar: true }).project);
+    await selectRow('Auto');
+    expect(inspector().queryByLabelText('Bogenhöhe')).toBeNull();
+  });
+
   it('gives a track its own duration and warns when it runs past the stage', async () => {
     const { user } = await renderEditor(trip({ withCar: true }).project);
     await selectRow('Auto');
