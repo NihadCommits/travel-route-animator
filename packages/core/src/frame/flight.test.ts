@@ -161,7 +161,11 @@ describe('flight camera', () => {
   it('looks at the plane in the air on a tilted globe', () => {
     const timeline = flightTrip(route, { camera: FOLLOW });
     const state = computeFrameState(timeline, 125);
-    expect(state.camera.centerAltitudeM).toBeCloseTo(state.tracks[0]!.head.altitudeM, 6);
+    const { head } = state.tracks[0]!;
+    expect(state.camera.centerAltitudeM).toBeCloseTo(head.altitudeM, 6);
+    // The centre lies beyond the plane by h · tan(40°): there its ray meets the ground.
+    const target = liftedPoint(head.lngLat, head.altitudeM * Math.tan((40 * Math.PI) / 180), 0);
+    expect(distanceM(state.camera.center, target)).toBeLessThan(1000);
   });
 
   it('starts and ends close to the airports and zooms out to the whole flight at the top', () => {
@@ -197,7 +201,6 @@ describe('flight camera', () => {
     });
     const state = computeFrameState(timeline, 125);
     const { head } = state.tracks[0]!;
-    expect(state.camera.centerAltitudeM).toBe(0);
     const lifted = liftedPoint(head.lngLat, head.altitudeM * FAKE_LIFT, 0);
     // North of the plane's ground position, by the fake lift.
     expect(distanceM(state.camera.center, lifted)).toBeLessThan(1000);

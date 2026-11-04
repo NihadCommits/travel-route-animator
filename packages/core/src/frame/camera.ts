@@ -19,8 +19,9 @@ export interface CameraState {
   pitchDeg: number;
   bearingDeg: number;
   /**
-   * Height of the point the camera looks at, in metres: a followed plane in the air. The
-   * scene hands it to MapLibre (jumpTo elevation); fake-3D flights get a lifted centre instead.
+   * Height of the point the camera looks at, in metres: a followed plane in the air. `cameraAt`
+   * has already moved `center` so that this point is in the middle of the picture; the scene
+   * needs nothing else (MapLibre's own centre elevation does nothing on the globe).
    */
   centerAltitudeM: number;
 }
@@ -331,13 +332,18 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
  */
 export function cameraAt(timeline: Timeline, sec: number): CameraState {
   const camera = cameraOnPath(timeline, sec);
-  // Fake 3D draws a flight lifted on screen (ADR 0007), so the camera looks at the lifted
-  // point on the ground instead of up into the air.
-  if (camera.centerAltitudeM <= 0 || flightStyleFor(camera.pitchDeg) === 'arc-3d') return camera;
+  if (camera.centerAltitudeM <= 0) return camera;
+  // Something h metres up shows where the camera's ray through it meets the ground: h · tan
+  // (tilt) further along the view. Moving the centre there puts the plane in the middle of the
+  // picture, on the globe and the flat map alike. Fake 3D lifts the plane on screen by its own
+  // share of the height instead (ADR 0007).
+  const lift =
+    flightStyleFor(camera.pitchDeg) === 'arc-3d'
+      ? Math.tan((camera.pitchDeg * Math.PI) / 180)
+      : FAKE_LIFT;
   return {
     ...camera,
-    center: liftedPoint(camera.center, camera.centerAltitudeM * FAKE_LIFT, camera.bearingDeg),
-    centerAltitudeM: 0,
+    center: liftedPoint(camera.center, camera.centerAltitudeM * lift, camera.bearingDeg),
   };
 }
 
