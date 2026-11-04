@@ -3,6 +3,14 @@ import { boundsOf, type Bounds } from '../geo/bounds';
 import type { LngLat } from '../geo/lngLat';
 import { overviewBlendSec, type Timeline, type TrackPlan } from '../timeline/compileTimeline';
 import { ease } from '../timeline/easing';
+import {
+  altitudeAt,
+  FAKE_LIFT,
+  flightStyleFor,
+  legAt,
+  liftedPoint,
+  type FlightPlan,
+} from './flight';
 import { distanceAt, positionAt } from './position';
 
 export interface CameraState {
@@ -10,6 +18,11 @@ export interface CameraState {
   zoom: number;
   pitchDeg: number;
   bearingDeg: number;
+  /**
+   * Height of the point the camera looks at, in metres: a followed plane in the air. The
+   * scene hands it to MapLibre (jumpTo elevation); fake-3D flights get a lifted centre instead.
+   */
+  centerAltitudeM: number;
 }
 
 export interface Viewport {
@@ -105,6 +118,7 @@ export function blendCamera(a: CameraState, b: CameraState, f: number): CameraSt
     zoom: mix(a.zoom, b.zoom),
     pitchDeg: mix(a.pitchDeg, b.pitchDeg),
     bearingDeg: a.bearingDeg + turn * f,
+    centerAltitudeM: mix(a.centerAltitudeM, b.centerAltitudeM),
   };
 }
 
@@ -139,8 +153,13 @@ export function anchoredBlend(
   return { ...blended, center: [lngOf(ax - ox / world), latOf(ay - oy / world)] };
 }
 
+/** Tilt and turn of the stage's view, looking at the ground. */
 function viewAngles(timeline: Timeline) {
-  return { pitchDeg: timeline.view.pitchDeg, bearingDeg: timeline.view.bearingDeg };
+  return {
+    pitchDeg: timeline.view.pitchDeg,
+    bearingDeg: timeline.view.bearingDeg,
+    centerAltitudeM: 0,
+  };
 }
 
 export function overviewCamera(timeline: Timeline): CameraState {
@@ -219,6 +238,50 @@ function stabilisedPosition(
   return [lng / weights, lat / weights];
 }
 
+/** Flights: how much closer the take-off/landing camera starts and ends than at cruise. */
+const TAKEOFF_ZOOM_IN = 3;
+const MAX_GROUND_ZOOM = 11;
+/** At cruise the camera shows a little more than the whole flight. */
+const CRUISE_ZOOM_OUT = 0.3;
+
+/**
+ * Zoom change that keeps the globe the same size on screen when the centre moves from
+ * `fromLat` to `lat`. MapLibre grows the globe towards the poles so that the scale in the
+ * middle matches Mercator at the same zoom; without this a north–south flight would "pump".
+ */
+export function globeZoomShift(lat: number, fromLat: number): number {
+  const cos = (deg: number) => Math.max(0.01, Math.cos((deg * Math.PI) / 180));
+  return Math.log2(cos(lat) / cos(fromLat));
+}
+
+/**
+ * Following a plane: the camera looks at it in the air. With `takeoffLandingCamera` the zoom
+ * follows the height, close at the airports and out to the whole flight at the top.
+ */
+function flightCamera(
+  timeline: Timeline,
+  plan: TrackPlan,
+  flight: FlightPlan,
+  sec: number,
+): CameraState {
+  const bounds = boundsOf(plan.line.points);
+  const fit = bounds
+    ? fitBounds(bounds, timeline.viewport, framePadding(timeline))
+    : { center: plan.line.points[0] ?? ([0, 0] as LngLat), zoom: 5 };
+  const cruise = timeline.view.camera.zoom ?? Math.max(1, fit.zoom - CRUISE_ZOOM_OUT);
+  const s = distanceAt(plan, sec);
+  const altitudeM = altitudeAt(flight, s);
+  let zoom = cruise;
+  if (flight.options.takeoffLandingCamera) {
+    const peakM = legAt(flight, s)?.peakM ?? 0;
+    const ground = Math.max(cruise, Math.min(MAX_GROUND_ZOOM, cruise + TAKEOFF_ZOOM_IN));
+    zoom = ground + (cruise - ground) * (peakM > 0 ? altitudeM / peakM : 0);
+  }
+  const center = stabilisedPosition(timeline, plan, sec, zoom);
+  if (timeline.view.mode === 'globe') zoom += globeZoomShift(center[1], fit.center[1]);
+  return { center, zoom, ...viewAngles(timeline), centerAltitudeM: altitudeM };
+}
+
 /** The camera of the chosen mode at `sec`, without the overview transitions. */
 function modeCamera(timeline: Timeline, sec: number): CameraState {
   const { camera } = timeline.view;
@@ -230,6 +293,7 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
             zoom: camera.staticCamera.zoom,
             pitchDeg: camera.staticCamera.pitchDeg,
             bearingDeg: camera.staticCamera.bearingDeg,
+            centerAltitudeM: 0,
           }
         : overviewCamera(timeline);
     case 'overview':
@@ -237,6 +301,7 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
     case 'follow': {
       const plan = followedTrack(timeline);
       if (!plan) return overviewCamera(timeline);
+      if (plan.flight) return flightCamera(timeline, plan, plan.flight, sec);
       const zoom = camera.zoom ?? followZoom(timeline, plan);
       return {
         center: stabilisedPosition(timeline, plan, sec, zoom),
@@ -265,6 +330,18 @@ function modeCamera(timeline: Timeline, sec: number): CameraState {
  * intro, beyond mainSec during the outro). A pure function of the timeline and the time.
  */
 export function cameraAt(timeline: Timeline, sec: number): CameraState {
+  const camera = cameraOnPath(timeline, sec);
+  // Fake 3D draws a flight lifted on screen (ADR 0007), so the camera looks at the lifted
+  // point on the ground instead of up into the air.
+  if (camera.centerAltitudeM <= 0 || flightStyleFor(camera.pitchDeg) === 'arc-3d') return camera;
+  return {
+    ...camera,
+    center: liftedPoint(camera.center, camera.centerAltitudeM * FAKE_LIFT, camera.bearingDeg),
+    centerAltitudeM: 0,
+  };
+}
+
+function cameraOnPath(timeline: Timeline, sec: number): CameraState {
   const { camera } = timeline.view;
   const { mainSec, introSec, outroSec, intro, outro } = timeline;
   // What the eye follows through an overview zoom: the followed vehicle, otherwise the

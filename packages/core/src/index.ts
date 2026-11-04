@@ -43,6 +43,7 @@ export * from './timeline/compileTimeline';
 export * from './frame/position';
 export * from './frame/heading';
 export * from './frame/camera';
+export * from './frame/flight';
 export * from './frame/computeFrameState';
 export * from './files/slug';
 export * from './files/videoName';

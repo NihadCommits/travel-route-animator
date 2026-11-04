@@ -137,7 +137,7 @@ describe('createEtappe', () => {
     const tracks = [createTrack({ vehicleType: 'car' }), createTrack({ vehicleType: 'plane' })];
     expect(createEtappe({ name: 'Flight', tracks }).view).toMatchObject({
       mode: 'globe',
-      pitchDeg: 0,
+      pitchDeg: 40,
     });
   });
 

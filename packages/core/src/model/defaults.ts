@@ -58,12 +58,15 @@ export function defaultTrackStyle(colorIndex = 0): TrackStyle {
 }
 
 export function defaultFlightOptions(): FlightOptions {
-  // Starting point only; the right arc height is tuned in the M8 flight spike.
+  // 0.15 of the distance read well in the M8 spike (Wien → Porto: about 300 km at the top).
   return { arcHeightFactor: 0.15, showGroundShadow: true, takeoffLandingCamera: true };
 }
 
-/** Typical tilt per view; a 2d view must stay at 0. */
-const PITCH_BY_VIEW: Record<ViewMode, number> = { '2d': 0, '3d-tilted': 55, globe: 0 };
+/**
+ * Typical tilt per view; a 2d view must stay at 0. The globe is tilted so that a flight's arc
+ * shows its height (ADR 0007); looking straight down it would be a flat line.
+ */
+const PITCH_BY_VIEW: Record<ViewMode, number> = { '2d': 0, '3d-tilted': 55, globe: 40 };
 
 export function defaultPitch(mode: ViewMode): number {
   return PITCH_BY_VIEW[mode];

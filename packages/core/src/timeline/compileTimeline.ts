@@ -1,8 +1,10 @@
 import { measureLine, type MeasuredLine } from '../geo/along';
 import { boundsOf, type Bounds } from '../geo/bounds';
+import { planFlight, type FlightPlan } from '../frame/flight';
 import type { LngLat } from '../geo/lngLat';
 import type { Easing, VehicleType } from '../model/enums';
 import type { IntroSettings, OutroSettings, OverlaySettings, ViewSettings } from '../model/etappe';
+import { defaultFlightOptions } from '../model/defaults';
 import type { OutputSettings } from '../model/output';
 import type { Id } from '../model/primitives';
 import type { Project } from '../model/project';
@@ -56,6 +58,8 @@ export interface TrackPlan {
   endSec: number;
   phases: Phase[];
   stops: StopPlan[];
+  /** Planes only: the height profile; it lands at every stop (ADR 0007). */
+  flight: FlightPlan | undefined;
 }
 
 /**
@@ -208,6 +212,15 @@ function planTrack(track: Track, arriveBySec: number): TrackPlan | undefined {
     ];
   });
 
+  const flight =
+    track.vehicle.type === 'plane'
+      ? planFlight(
+          line,
+          stops.map((stop) => stop.atM),
+          track.flight ?? defaultFlightOptions(),
+        )
+      : undefined;
+
   return {
     trackId: track.id,
     vehicle: track.vehicle.type,
@@ -221,6 +234,7 @@ function planTrack(track: Track, arriveBySec: number): TrackPlan | undefined {
     endSec: startSec + totalSec,
     phases,
     stops,
+    flight,
   };
 }
 
