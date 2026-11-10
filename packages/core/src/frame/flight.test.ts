@@ -7,6 +7,7 @@ import { cameraAt, globeZoomShift } from './camera';
 import { computeFrameState } from './computeFrameState';
 import {
   altitudeAt,
+  arcAhead,
   arcUntil,
   climbDegAt,
   FAKE_LIFT,
@@ -107,6 +108,29 @@ describe('flight profile', () => {
     expect(arc.altitudesM).toHaveLength(arc.points.length);
     expect(arc.altitudesM.at(-1)).toBeCloseTo(altitudeAt(flight, s), 6);
     expect(arcUntil(flight, 0, VIE).points).toEqual([VIE, VIE]);
+  });
+
+  it('lists the arc ahead from the destination back to the plane', () => {
+    const timeline = flightTrip([
+      ['Wien', VIE],
+      ['Porto', OPO],
+    ]);
+    const flight = flightOf(timeline);
+    const length = timeline.tracks[0]!.line.lengthM;
+    const head: LngLat = [3, 46];
+    // Between two samples; a sample right at the plane would be left out of both parts.
+    const s = length * 0.411;
+    const ahead = arcAhead(flight, s, head);
+    const flown = arcUntil(flight, s, head);
+    expect(ahead.points[0]).toEqual(flight.arc.points.at(-1));
+    expect(ahead.points.at(-1)).toEqual(head);
+    expect(ahead.altitudesM).toHaveLength(ahead.points.length);
+    expect(ahead.altitudesM.at(-1)).toBeCloseTo(altitudeAt(flight, s), 6);
+    // Together they cover the arc once, meeting at the plane.
+    expect(flown.points.length + ahead.points.length).toBe(flight.arc.points.length + 2);
+
+    expect(arcAhead(flight, 0, VIE).points).toHaveLength(flight.arc.points.length);
+    expect(arcAhead(flight, length, OPO).points).toEqual([OPO, OPO]);
   });
 
   it('gives cars no flight plan', () => {

@@ -123,6 +123,18 @@ export function climbDegAt(flight: FlightPlan, s: number): number {
   return ((Math.atan(slope) * 180) / Math.PI) * level;
 }
 
+/** First index of the arc at or beyond `s` metres along the route. */
+function arcIndexAt(atM: readonly number[], s: number): number {
+  let low = 0;
+  let high = atM.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (atM[middle]! < s) low = middle + 1;
+    else high = middle;
+  }
+  return low;
+}
+
 /** The arc flown up to `s` with its heights, ending exactly at the plane (`head`). */
 export function arcUntil(
   flight: FlightPlan,
@@ -133,15 +145,34 @@ export function arcUntil(
   const headAltitude = altitudeAt(flight, s);
   // Same shape as lineUntil: a vehicle at the start still has a (zero-length) line.
   if (s <= 0) return { points: [[...head], [...head]], altitudesM: [headAltitude, headAltitude] };
-  let low = 0;
-  let high = atM.length;
-  while (low < high) {
-    const middle = (low + high) >> 1;
-    if (atM[middle]! < s) low = middle + 1;
-    else high = middle;
-  }
+  const low = arcIndexAt(atM, s);
   return {
     points: [...points.slice(0, low).map((p): LngLat => [p[0], p[1]]), [...head]],
     altitudesM: [...altitudesM.slice(0, low), headAltitude],
+  };
+}
+
+/**
+ * The arc still ahead of the plane with its heights, from the destination back to the plane,
+ * like lineAhead: the dash pattern then starts at the fixed end and does not travel along.
+ */
+export function arcAhead(
+  flight: FlightPlan,
+  s: number,
+  head: LngLat,
+): { points: LngLat[]; altitudesM: number[] } {
+  const { points, atM, altitudesM } = flight.arc;
+  const headAltitude = altitudeAt(flight, s);
+  // Only points beyond the plane: one right at it (or before the start) would repeat it.
+  let from = arcIndexAt(atM, s);
+  while (from < atM.length && atM[from]! <= Math.max(s, 0)) from++;
+  const rest = points.slice(from).map((p): LngLat => [p[0], p[1]]);
+  const heights = altitudesM.slice(from);
+  if (rest.length === 0) {
+    return { points: [[...head], [...head]], altitudesM: [headAltitude, headAltitude] };
+  }
+  return {
+    points: [...rest.reverse(), [...head]],
+    altitudesM: [...heights.reverse(), headAltitude],
   };
 }

@@ -2,10 +2,10 @@ import {
   metersPerPixel,
   planeTypeOf,
   type FrameState,
+  type LineDash,
   type LngLat,
   type PlaneType,
   type Timeline,
-  type TrackStyle,
 } from '@travel-route-animator/core';
 import { ICON_SIZE_PX } from '../vehicles/icons';
 import { planeSizeFactor } from '../vehicles/planeShapes';
@@ -18,16 +18,22 @@ export interface ArcLine {
   altitudesM: readonly number[];
 }
 
+/** The arc still ahead, from the destination back to the plane, in its own look (ADR 0008). */
+export interface AheadArc extends ArcLine {
+  opacity: number;
+  dash: LineDash;
+}
+
 export interface FlightDrawing {
   trackId: string;
   color: string;
   widthPx: number;
-  dash: TrackStyle['lineDash'];
+  dash: LineDash;
   glow: boolean;
   /** Flown so far, ending at the plane. */
   arc: ArcLine;
-  /** The whole flight, faint, when the track shows its route ahead. */
-  ghost: ArcLine | undefined;
+  /** Undefined when the track hides its route ahead. */
+  ahead: AheadArc | undefined;
   head: { lngLat: LngLat; altitudeM: number; bearingDeg: number; climbDeg: number };
   planeType: PlaneType;
   /**
@@ -59,9 +65,14 @@ export function flightDrawings(timeline: Timeline, state: FrameState): FlightDra
         dash: plan.style.lineDash,
         glow: plan.style.glow,
         arc: { points: track.revealed, altitudesM: flight.revealedAltitudesM },
-        ghost:
-          track.ghost && flight.ghostAltitudesM
-            ? { points: track.ghost, altitudesM: flight.ghostAltitudesM }
+        ahead:
+          track.ahead && flight.aheadAltitudesM
+            ? {
+                points: track.ahead,
+                altitudesM: flight.aheadAltitudesM,
+                opacity: plan.style.ahead.opacity,
+                dash: plan.style.ahead.dash,
+              }
             : undefined,
         head: { ...head, climbDeg: flight.climbDeg },
         planeType,

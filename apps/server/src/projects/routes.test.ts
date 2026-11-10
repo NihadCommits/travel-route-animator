@@ -85,7 +85,7 @@ describe('project API', () => {
 
     it('starts empty and skips folders without a valid project', async () => {
       await mkdir(join(dataDir, 'projects', 'broken'), { recursive: true });
-      await writeFile(projectFile('broken'), '{ "schemaVersion": 1, "name": ');
+      await writeFile(projectFile('broken'), '{ "schemaVersion": 2, "name": ');
       await mkdir(join(dataDir, 'projects', 'empty-folder'));
 
       const response = await app.inject({ method: 'GET', url: '/api/projects' });
@@ -231,7 +231,7 @@ describe('project API', () => {
     it('says why it cannot be opened instead of claiming it does not exist', async () => {
       const project = await createViaApi('Portugal 2026');
       await breakFile('portugal-2026', (text) =>
-        text.replace('"schemaVersion": 1', '"schemaVersion": 1, "colour": "red"'),
+        text.replace('"schemaVersion": 2', '"schemaVersion": 2, "colour": "red"'),
       );
 
       const response = await app.inject({ method: 'GET', url: `/api/projects/${project.id}` });

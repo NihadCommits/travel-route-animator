@@ -1,3 +1,4 @@
+import type { LineDash } from '@travel-route-animator/core';
 import {
   MercatorCoordinate,
   type CustomLayerInterface,
@@ -114,8 +115,6 @@ const UNIFORMS = [
 
 /** In multiples of the line width, as in the flat layers (layers.ts DASHES). */
 const DASHES = { solid: [0, 0], dashed: [2, 1.6], dotted: [1, 1] } as const;
-/** The route ahead is as faint as the flat layers' ghost. */
-const GHOST_OPACITY = 0.35;
 const GLOW_OPACITY = 0.55;
 
 /** sRGB channels as the canvas expects them (THREE.Color would turn them linear). */
@@ -217,18 +216,18 @@ export function createFlightLayer(): FlightLayer {
   function drawLine(
     line: ArcLine,
     drawing: FlightDrawing,
-    pass: { widthPx: number; color: string; alpha: number; soft?: boolean; dashed: boolean },
+    pass: { widthPx: number; color: string; alpha: number; soft?: boolean; dash: LineDash },
   ) {
     const g = gl!;
     const pixelRatio = map!.getPixelRatio();
     const width = pass.widthPx * pixelRatio;
-    const [on, off] = pass.dashed ? DASHES[drawing.dash] : DASHES.solid;
+    const [on, off] = DASHES[pass.dash];
     g.bufferData(g.ARRAY_BUFFER, ribbon(line), g.DYNAMIC_DRAW);
     g.uniform1f(uniforms.u_half_width, width / 2);
     g.uniform4f(uniforms.u_color, ...rgb(pass.color), pass.alpha);
     g.uniform1f(uniforms.u_soft, pass.soft ? 1 : 0);
     g.uniform2f(uniforms.u_dash, on * width, off * width);
-    g.uniform1f(uniforms.u_dot, pass.dashed && drawing.dash === 'dotted' ? 1 : 0);
+    g.uniform1f(uniforms.u_dot, pass.dash === 'dotted' ? 1 : 0);
     g.uniform1f(uniforms.u_px_per_m, pixelRatio / drawing.metersPerPx);
     g.drawArrays(g.TRIANGLE_STRIP, 0, line.points.length * 2);
   }
@@ -236,8 +235,9 @@ export function createFlightLayer(): FlightLayer {
   function drawArcs() {
     for (const drawing of drawings) {
       const { widthPx, color, dash } = drawing;
-      if (drawing.ghost) {
-        drawLine(drawing.ghost, drawing, { widthPx, color, alpha: GHOST_OPACITY, dashed: true });
+      const { ahead } = drawing;
+      if (ahead) {
+        drawLine(ahead, drawing, { widthPx, color, alpha: ahead.opacity, dash: ahead.dash });
       }
       if (drawing.glow) {
         drawLine(drawing.arc, drawing, {
@@ -245,7 +245,7 @@ export function createFlightLayer(): FlightLayer {
           color,
           alpha: GLOW_OPACITY,
           soft: true,
-          dashed: false,
+          dash: 'solid',
         });
       }
       // A white casing keeps a solid line readable, as on the flat layers.
@@ -254,10 +254,10 @@ export function createFlightLayer(): FlightLayer {
           widthPx: widthPx + 4,
           color: '#ffffff',
           alpha: 1,
-          dashed: false,
+          dash: 'solid',
         });
       }
-      drawLine(drawing.arc, drawing, { widthPx, color, alpha: 1, dashed: true });
+      drawLine(drawing.arc, drawing, { widthPx, color, alpha: 1, dash });
     }
   }
 

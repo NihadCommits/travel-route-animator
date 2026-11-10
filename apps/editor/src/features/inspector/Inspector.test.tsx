@@ -5,7 +5,7 @@ import {
   createProject,
   type Project,
 } from '@travel-route-animator/core';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders, createQueryClient } from '@/AppProviders';
@@ -177,6 +177,26 @@ describe('Inspector', () => {
     await renderEditor(trip({ withCar: true }).project);
     await selectRow('Auto');
     expect(inspector().queryByLabelText('Bogenhöhe')).toBeNull();
+  });
+
+  it('sets how the route ahead looks', async () => {
+    const { user } = await renderEditor(trip({ withCar: true }).project);
+    await selectRow('Auto');
+    const ahead = within(inspector().getByRole('region', { name: 'Route voraus' }));
+    const opacity = ahead.getByLabelText('Deckkraft');
+    const dash = ahead.getByLabelText('Linienart');
+    expect(opacity).toHaveValue('35');
+
+    // Range inputs take no typing; a change event is what dragging sends.
+    fireEvent.change(opacity, { target: { value: '0' } });
+    expect(ahead.getByText('0 %')).toBeInTheDocument();
+    expect(dash).toBeDisabled();
+    fireEvent.change(opacity, { target: { value: '80' } });
+    expect(dash).toBeEnabled();
+    await user.selectOptions(dash, 'Gepunktet');
+    expect(dash).toHaveDisplayValue('Gepunktet');
+    // The driven line keeps its own dash.
+    expect(inspector().getAllByLabelText('Linienart')[0]).toHaveDisplayValue('Durchgezogen');
   });
 
   it('gives a track its own duration and warns when it runs past the stage', async () => {

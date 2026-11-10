@@ -241,9 +241,15 @@ export const de = {
       lineColor: 'Linienfarbe',
       lineWidth: 'Linienbreite',
       lineDash: 'Linienart',
-      ghostRoute: 'Ganze Route vorab blass zeigen',
       vehicleScale: 'Fahrzeuggröße',
-      later: 'Badges für Routen-Optionen kommen mit dem nächsten Teil von M8.',
+      ahead: {
+        title: 'Route voraus',
+        opacity: 'Deckkraft',
+        opacityHint:
+          'Der Teil der Route, der noch vor dem Fahrzeug liegt. Bei 0 % ist er unsichtbar, sonst stehen auch die Ortsnamen voraus von Anfang an da.',
+        dash: 'Linienart',
+      },
+      later: 'Eigene Icons und das 3D-Auto kommen mit dem letzten Teil von M8.',
       flight: {
         title: 'Flug',
         planeType: 'Flugzeugtyp',

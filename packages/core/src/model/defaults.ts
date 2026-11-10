@@ -46,12 +46,16 @@ export function defaultOverlays(): OverlaySettings {
   return { labels: true, distanceCounter: false, timeCounter: false, attribution: true };
 }
 
+/** How faint the route ahead starts out; also what file format 1 called "ghost". */
+export const AHEAD_OPACITY = 0.35;
+
 export function defaultTrackStyle(colorIndex = 0): TrackStyle {
   return {
     lineColor: trackColor(colorIndex),
     lineWidthPx: 6,
     lineDash: 'solid',
-    futureRoute: 'ghost',
+    // Faint and in the same dash as the driven line: the look of version 1's "ghost".
+    ahead: { opacity: AHEAD_OPACITY, dash: 'solid' },
     glow: false,
     vehicleScale: 1,
   };

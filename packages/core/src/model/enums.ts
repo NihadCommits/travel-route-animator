@@ -45,6 +45,10 @@ export type WaypointKind = z.infer<typeof WaypointKindSchema>;
 export const WaypointSourceSchema = z.enum(['search', 'airport', 'map-click', 'gpx', 'manual']);
 export type WaypointSource = z.infer<typeof WaypointSourceSchema>;
 
+/** How a line is drawn: the driven route and, on its own, the route ahead (ADR 0008). */
+export const LineDashSchema = z.enum(['solid', 'dashed', 'dotted']);
+export type LineDash = z.infer<typeof LineDashSchema>;
+
 export const RoadAvoidSchema = z.enum(['highways', 'tolls', 'ferries']);
 export type RoadAvoid = z.infer<typeof RoadAvoidSchema>;
 

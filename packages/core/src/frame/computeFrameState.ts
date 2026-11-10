@@ -1,10 +1,11 @@
-import { lineUntil, pointAt } from '../geo/along';
+import { lineAhead, lineUntil, pointAt } from '../geo/along';
 import type { LngLat } from '../geo/lngLat';
 import type { Id } from '../model/primitives';
 import type { Timeline, TrackPlan } from '../timeline/compileTimeline';
 import { cameraAt, metersPerPixel, type CameraState } from './camera';
 import {
   altitudeAt,
+  arcAhead,
   arcUntil,
   climbDegAt,
   flightStyleFor,
@@ -18,8 +19,8 @@ import { distanceAt } from './position';
 export interface FlightFrame {
   /** Height of every point of `revealed`, in metres. */
   revealedAltitudesM: number[];
-  /** Height of every point of `ghost`, when the route ahead is shown. */
-  ghostAltitudesM: readonly number[] | undefined;
+  /** Height of every point of `ahead`, when the route ahead is shown. */
+  aheadAltitudesM: number[] | undefined;
   /** Nose up (positive) or down, in degrees. */
   climbDeg: number;
   /** Top of the current hop, for scaling the fake-3D icon. */
@@ -31,8 +32,11 @@ export interface TrackFrame {
   trackId: Id;
   /** The line driven so far, ending at the vehicle. Flights: densely sampled along the arc. */
   revealed: LngLat[];
-  /** The whole route, when the track shows it faintly ahead ("ghost"). */
-  ghost: readonly LngLat[] | undefined;
+  /**
+   * The route still to go, from its end back to the vehicle (ADR 0008); undefined when the
+   * track hides it. Flights: densely sampled along the arc.
+   */
+  ahead: LngLat[] | undefined;
   /** `altitudeM` is the height above the ground; only planes leave it. */
   head: { lngLat: LngLat; bearingDeg: number; altitudeM: number };
   /** Share of the distance driven, 0 to 1. */
@@ -81,7 +85,7 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
   const s = distanceAt(plan, sec);
   const lngLat = pointAt(line, s);
   const windowM = HEADING_WINDOW_PX * metersPerPixel(camera.zoom, lngLat[1]);
-  const ghostShown = plan.style.futureRoute === 'ghost';
+  const aheadShown = plan.style.ahead.opacity > 0;
   const head = { lngLat, bearingDeg: headingAt(line, s, windowM), altitudeM: 0 };
   const progress = line.lengthM > 0 ? s / line.lengthM : 1;
   const { flight } = plan;
@@ -89,7 +93,7 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
     return {
       trackId: plan.trackId,
       revealed: lineUntil(line, s),
-      ghost: ghostShown ? line.points : undefined,
+      ahead: aheadShown ? lineAhead(line, s) : undefined,
       head,
       progress,
       visible: true,
@@ -97,16 +101,17 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
     };
   }
   const arc = arcUntil(flight, s, lngLat);
+  const ahead = aheadShown ? arcAhead(flight, s, lngLat) : undefined;
   return {
     trackId: plan.trackId,
     revealed: arc.points,
-    ghost: ghostShown ? flight.arc.points : undefined,
+    ahead: ahead?.points,
     head: { ...head, altitudeM: altitudeAt(flight, s) },
     progress,
     visible: true,
     flight: {
       revealedAltitudesM: arc.altitudesM,
-      ghostAltitudesM: ghostShown ? flight.arc.altitudesM : undefined,
+      aheadAltitudesM: ahead?.altitudesM,
       climbDeg: climbDegAt(flight, s),
       peakM: legAt(flight, s)?.peakM ?? 0,
       showShadow: flight.options.showGroundShadow,
@@ -120,8 +125,8 @@ function labelsAt(timeline: Timeline, sec: number): LabelFrame[] {
     plan.stops
       .filter((stop) => stop.showLabel && stop.name.trim() !== '')
       .map((stop) => {
-        // A faint route ahead shows its stops ahead too; otherwise they appear on arrival.
-        const shownEarly = stop.isStart || plan.style.futureRoute === 'ghost';
+        // A visible route ahead shows its stops ahead too; otherwise they appear on arrival.
+        const shownEarly = stop.isStart || plan.style.ahead.opacity > 0;
         const opacity = shownEarly
           ? 1
           : Math.min(1, Math.max(0, (sec - stop.arrivalSec) / LABEL_FADE_SEC));

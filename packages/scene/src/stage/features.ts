@@ -2,6 +2,7 @@ import {
   FAKE_LIFT,
   liftedPoint,
   type FrameState,
+  type LineDash,
   type LngLat,
   type Timeline,
   type TrackFrame,
@@ -20,7 +21,8 @@ type Point = { type: 'Point'; coordinates: LngLat };
 export interface LineProps {
   color: string;
   width: number;
-  dash: 'solid' | 'dashed' | 'dotted';
+  dash: LineDash;
+  opacity: number;
   glow: boolean;
 }
 
@@ -45,7 +47,8 @@ export interface SceneFeatures {
   /** Flights: the flown line on the ground and the plane's shadow (ADR 0007). */
   shadows: Collection<Feature<Line, Record<string, never>>>;
   shadowIcons: Collection<Feature<Point, ShadowIconProps>>;
-  ghosts: Collection<Feature<Line, LineProps>>;
+  /** The route still ahead of each vehicle, in its own opacity and dash (ADR 0008). */
+  ahead: Collection<Feature<Line, LineProps>>;
   routes: Collection<Feature<Line, LineProps>>;
   vehicles: Collection<Feature<Point, VehicleProps>>;
   stops: Collection<Feature<Point, StopProps>>;
@@ -59,7 +62,20 @@ function lineProps(plan: TrackPlan): LineProps {
     color: style.lineColor,
     width: style.lineWidthPx,
     dash: style.lineDash,
+    opacity: 1,
     glow: style.glow,
+  };
+}
+
+/** Same colour and width as the driven line; glow and casing stay with the driven line. */
+function aheadProps(plan: TrackPlan): LineProps {
+  const { style } = plan;
+  return {
+    color: style.lineColor,
+    width: style.lineWidthPx,
+    dash: style.ahead.dash,
+    opacity: style.ahead.opacity,
+    glow: false,
   };
 }
 
@@ -120,19 +136,19 @@ export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatu
         };
       }),
     ),
-    ghosts: collection(
+    ahead: collection(
       flat.flatMap((track) =>
-        track.ghost
+        track.ahead
           ? [
               {
                 type: 'Feature' as const,
                 geometry: {
                   type: 'LineString' as const,
-                  coordinates: track.flight?.ghostAltitudesM
-                    ? lifted(track.ghost, track.flight.ghostAltitudesM, up)
-                    : [...track.ghost],
+                  coordinates: track.flight?.aheadAltitudesM
+                    ? lifted(track.ahead, track.flight.aheadAltitudesM, up)
+                    : track.ahead,
                 },
-                properties: lineProps(plans.get(track.trackId)!),
+                properties: aheadProps(plans.get(track.trackId)!),
               },
             ]
           : [],

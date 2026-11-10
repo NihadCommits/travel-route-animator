@@ -6,7 +6,7 @@ import type { SceneFeatures } from './features';
 const SOURCES = {
   shadows: 'tra-shadows',
   shadowIcons: 'tra-shadow-icons',
-  ghosts: 'tra-ghosts',
+  ahead: 'tra-ahead',
   routes: 'tra-routes',
   vehicles: 'tra-vehicles',
   stops: 'tra-stops',
@@ -73,11 +73,11 @@ export function addSceneLayers(map: MapLibreMap): void {
     paint: { 'icon-opacity': 0.3 },
   });
 
-  // The whole route ahead, faint ("ghost").
-  for (const layer of lineLayers('tra-ghost', SOURCES.ghosts, {
+  // The route still ahead, in its own dash and opacity (ADR 0008).
+  for (const layer of lineLayers('tra-ahead', SOURCES.ahead, {
     'line-color': ['get', 'color'],
     'line-width': ['get', 'width'],
-    'line-opacity': 0.35,
+    'line-opacity': ['get', 'opacity'],
   })) {
     map.addLayer(layer);
   }

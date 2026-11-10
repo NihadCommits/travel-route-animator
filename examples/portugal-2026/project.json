@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "p_portugal26",
   "name": "Portugal 2026",
   "createdAt": "2026-10-21T00:00:00.000Z",
@@ -80,7 +80,7 @@
                 "lineColor": "#E4572E",
                 "lineWidthPx": 6,
                 "lineDash": "solid",
-                "futureRoute": "ghost",
+                "ahead": { "opacity": 0.35, "dash": "solid" },
                 "glow": false,
                 "vehicleScale": 1
               }
@@ -147,7 +147,7 @@
                 "lineColor": "#F2A541",
                 "lineWidthPx": 5,
                 "lineDash": "solid",
-                "futureRoute": "hidden",
+                "ahead": { "opacity": 0, "dash": "solid" },
                 "glow": true,
                 "vehicleScale": 1.2
               },
@@ -225,7 +225,7 @@
                 "lineColor": "#76B041",
                 "lineWidthPx": 6,
                 "lineDash": "solid",
-                "futureRoute": "ghost",
+                "ahead": { "opacity": 0.35, "dash": "solid" },
                 "glow": false,
                 "vehicleScale": 1
               }
@@ -317,7 +317,7 @@
                 "lineColor": "#E4572E",
                 "lineWidthPx": 6,
                 "lineDash": "solid",
-                "futureRoute": "ghost",
+                "ahead": { "opacity": 0.35, "dash": "solid" },
                 "glow": false,
                 "vehicleScale": 1
               }
@@ -382,10 +382,9 @@
                 "lineColor": "#E4572E",
                 "lineWidthPx": 5,
                 "lineDash": "dashed",
-                "futureRoute": "hidden",
+                "ahead": { "opacity": 0, "dash": "dashed" },
                 "glow": false,
-                "vehicleScale": 1,
-                "variantBadge": "A"
+                "vehicleScale": 1
               }
             },
             {
@@ -418,10 +417,9 @@
                 "lineColor": "#2E86AB",
                 "lineWidthPx": 5,
                 "lineDash": "dashed",
-                "futureRoute": "hidden",
+                "ahead": { "opacity": 0, "dash": "dashed" },
                 "glow": false,
-                "vehicleScale": 1,
-                "variantBadge": "B"
+                "vehicleScale": 1
               }
             },
             {
@@ -454,10 +452,9 @@
                 "lineColor": "#76B041",
                 "lineWidthPx": 5,
                 "lineDash": "dashed",
-                "futureRoute": "hidden",
+                "ahead": { "opacity": 0, "dash": "dashed" },
                 "glow": false,
-                "vehicleScale": 1,
-                "variantBadge": "C"
+                "vehicleScale": 1
               }
             }
           ]
