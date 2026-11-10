@@ -166,6 +166,11 @@ describe('Inspector', () => {
     const shadow = inspector().getByRole('switch', { name: 'Schatten am Boden' });
     await user.click(shadow);
     expect(shadow).not.toBeChecked();
+
+    const planeType = inspector().getByLabelText('Flugzeugtyp');
+    expect(planeType).toHaveDisplayValue('Standard');
+    await user.selectOptions(planeType, 'Airbus A380');
+    expect(planeType).toHaveDisplayValue('Airbus A380');
   });
 
   it('shows no flight options for a car', async () => {

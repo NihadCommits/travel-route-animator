@@ -1,11 +1,14 @@
 import {
   metersPerPixel,
+  planeTypeOf,
   type FrameState,
   type LngLat,
+  type PlaneType,
   type Timeline,
   type TrackStyle,
 } from '@travel-route-animator/core';
 import { ICON_SIZE_PX } from '../vehicles/icons';
+import { planeSizeFactor } from '../vehicles/planeShapes';
 
 // What the 3D layer draws in one frame: a plain function of the timeline and the frame state,
 // like the flat features, so it can be tested without WebGL (ADR 0007).
@@ -26,7 +29,11 @@ export interface FlightDrawing {
   /** The whole flight, faint, when the track shows its route ahead. */
   ghost: ArcLine | undefined;
   head: { lngLat: LngLat; altitudeM: number; bearingDeg: number; climbDeg: number };
-  /** The model's length in metres: about as long on screen as the flat icon would be. */
+  planeType: PlaneType;
+  /**
+   * The model's length in metres: about as long on screen as the flat icon, a little more for
+   * large aircraft and less for small ones.
+   */
   modelLengthM: number;
   /** Ground metres per reference pixel at this zoom, for dash lengths along the arc. */
   metersPerPx: number;
@@ -43,6 +50,7 @@ export function flightDrawings(timeline: Timeline, state: FrameState): FlightDra
     const { flight, head } = track;
     if (!plan || !flight || !track.visible) return [];
     const metersPerPx = metersPerPixel(state.camera.zoom, head.lngLat[1]);
+    const planeType = planeTypeOf(plan.variant);
     return [
       {
         trackId: track.trackId,
@@ -56,7 +64,13 @@ export function flightDrawings(timeline: Timeline, state: FrameState): FlightDra
             ? { points: track.ghost, altitudesM: flight.ghostAltitudesM }
             : undefined,
         head: { ...head, climbDeg: flight.climbDeg },
-        modelLengthM: ICON_SIZE_PX * plan.style.vehicleScale * MODEL_SCALE * metersPerPx,
+        planeType,
+        modelLengthM:
+          ICON_SIZE_PX *
+          plan.style.vehicleScale *
+          MODEL_SCALE *
+          planeSizeFactor(planeType) *
+          metersPerPx,
         metersPerPx,
       },
     ];

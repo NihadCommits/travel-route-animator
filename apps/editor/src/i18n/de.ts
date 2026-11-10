@@ -1,4 +1,4 @@
-import type { RoadAvoid, VehicleType } from '@travel-route-animator/core';
+import type { PlaneType, RoadAvoid, VehicleType } from '@travel-route-animator/core';
 
 // All UI strings live here so that an English translation can be added later without touching components.
 export const de = {
@@ -246,6 +246,20 @@ export const de = {
       later: 'Badges für Routen-Optionen kommen mit dem nächsten Teil von M8.',
       flight: {
         title: 'Flug',
+        planeType: 'Flugzeugtyp',
+        planeTypeHint: 'Form des 3D-Flugzeugs; in der Ansicht von oben bleibt es beim Symbol.',
+        planeTypes: {
+          'plane-default': 'Standard',
+          'plane-a320': 'Airbus A320',
+          'plane-b737': 'Boeing 737',
+          'plane-e190': 'Embraer E190',
+          'plane-atr72': 'ATR 72 (Propeller)',
+          'plane-b787': 'Boeing 787',
+          'plane-a350': 'Airbus A350',
+          'plane-b777': 'Boeing 777',
+          'plane-b747': 'Boeing 747',
+          'plane-a380': 'Airbus A380',
+        } satisfies Record<PlaneType, string>,
         arcHeight: 'Bogenhöhe',
         arcHeightHint: 'Anteil der Strecke. Die echte Flughöhe wäre auf der Karte unsichtbar.',
         arcHeightRange: 'Bitte einen Wert zwischen 0 und 50 % eingeben.',

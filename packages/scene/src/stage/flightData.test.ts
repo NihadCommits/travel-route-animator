@@ -8,9 +8,14 @@ import {
   type Project,
 } from '@travel-route-animator/core';
 import { describe, expect, it } from 'vitest';
+import { planeSizeFactor } from '../vehicles/planeShapes';
 import { flightDrawings } from './flightData';
 
-function flightAt(pitchDeg: number, futureRoute: 'hidden' | 'ghost' = 'hidden') {
+function flightAt(
+  pitchDeg: number,
+  futureRoute: 'hidden' | 'ghost' = 'hidden',
+  variant = 'plane-default',
+) {
   const base = createTrack({
     vehicleType: 'plane',
     waypoints: [
@@ -18,7 +23,11 @@ function flightAt(pitchDeg: number, futureRoute: 'hidden' | 'ghost' = 'hidden') 
       createWaypoint({ name: 'Porto', lngLat: [-8.68, 41.25] }),
     ],
   });
-  const track = { ...base, style: { ...base.style, futureRoute } };
+  const track = {
+    ...base,
+    vehicle: { ...base.vehicle, variant },
+    style: { ...base.style, futureRoute },
+  };
   const etappe = createEtappe({ name: 'Flight', tracks: [track], durationSec: 10 });
   const project: Project = {
     ...createProject('Trip'),
@@ -40,7 +49,20 @@ describe('flightDrawings', () => {
     expect(drawing!.head.altitudeM).toBe(track.head.altitudeM);
     expect(drawing!.ghost?.points.length).toBeGreaterThan(track.revealed.length);
     // About as long on screen as the 64 px icon, a little more.
-    expect(drawing!.modelLengthM / drawing!.metersPerPx).toBeCloseTo(80, 6);
+    expect(drawing!.modelLengthM / drawing!.metersPerPx).toBeCloseTo(
+      80 * planeSizeFactor('plane-default'),
+      6,
+    );
+    expect(drawing!.planeType).toBe('plane-default');
+  });
+
+  it('draws large aircraft larger, but far less than their real size would say', () => {
+    const length = (variant: string) => flightAt(40, 'hidden', variant).drawings[0]!.modelLengthM;
+    const ratio = length('plane-a380') / length('plane-atr72');
+    expect(ratio).toBeGreaterThan(1.3);
+    expect(ratio).toBeLessThan(72.7 / 27.2);
+    // An unknown variant (an older file, a typo) is the default plane.
+    expect(flightAt(40, 'hidden', 'plane-unknown').drawings[0]!.planeType).toBe('plane-default');
   });
 
   it('draws nothing in 3D when the view looks straight down', () => {

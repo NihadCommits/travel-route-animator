@@ -10,6 +10,7 @@ export * from './geo/unwrap';
 export * from './model/enums';
 export * from './model/primitives';
 export * from './model/vehicles';
+export * from './model/planeTypes';
 export * from './model/style';
 export * from './model/output';
 export * from './model/track';

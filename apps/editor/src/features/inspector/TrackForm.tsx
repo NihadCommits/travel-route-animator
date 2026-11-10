@@ -4,6 +4,8 @@ import {
   EasingSchema,
   editTrack,
   flightStyleFor,
+  PLANE_TYPES,
+  planeTypeOf,
   RoadAvoidSchema,
   renameItem,
   VEHICLE_CATALOG,
@@ -219,6 +221,15 @@ export function TrackForm({
 
       {track.flight && (
         <Section title={de.inspector.track.flight.title}>
+          <SelectField
+            label={de.inspector.track.flight.planeType}
+            value={planeTypeOf(track.vehicle.variant)}
+            options={optionsOf(PLANE_TYPES, de.inspector.track.flight.planeTypes)}
+            hint={de.inspector.track.flight.planeTypeHint}
+            onCommit={(variant) =>
+              change('vehicle.variant', (t) => ({ ...t, vehicle: { ...t.vehicle, variant } }))
+            }
+          />
           <NumberField
             label={de.inspector.track.flight.arcHeight}
             // Stored as a share; shown in per cent, which reads more naturally.

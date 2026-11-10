@@ -45,6 +45,8 @@ export interface StopPlan {
 export interface TrackPlan {
   trackId: Id;
   vehicle: VehicleType;
+  /** Look within the vehicle type, e.g. the aircraft type of a plane (PLANE_TYPES). */
+  variant: string;
   style: TrackStyle;
   easing: Easing;
   line: MeasuredLine;
@@ -224,6 +226,7 @@ function planTrack(track: Track, arriveBySec: number): TrackPlan | undefined {
   return {
     trackId: track.id,
     vehicle: track.vehicle.type,
+    variant: track.vehicle.variant,
     style: track.style,
     easing,
     line,

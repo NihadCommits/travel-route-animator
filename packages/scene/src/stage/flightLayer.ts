@@ -264,10 +264,10 @@ export function createFlightLayer(): FlightLayer {
   function drawPlanes(main: THREE.Matrix4, fallback: THREE.Matrix4, t: number) {
     const g = gl!;
     for (const drawing of drawings) {
-      const key = `${drawing.trackId}:${drawing.color}`;
+      const key = `${drawing.trackId}:${drawing.planeType}:${drawing.color}`;
       let plane = planes.get(key);
       if (!plane) {
-        plane = buildPlane(drawing.color);
+        plane = buildPlane(drawing.planeType, drawing.color);
         planes.set(key, plane);
         scene.add(plane);
       }
