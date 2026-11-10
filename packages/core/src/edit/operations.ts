@@ -11,7 +11,7 @@ import type { Id } from '../model/primitives';
 import type { Group, Project } from '../model/project';
 import type { Track } from '../model/track';
 import { isRoutingAllowed, recommendViewMode, VEHICLE_CATALOG } from '../model/vehicles';
-import { defaultFlightOptions, defaultPitch, defaultView } from '../model/defaults';
+import { defaultFlightOptions, defaultPitch, defaultView, TRACK_COLORS } from '../model/defaults';
 import { insertAt, removeAt, replaceAt } from './arrays';
 import { locateItem, requireLocation, type ItemLocation } from './locate';
 
@@ -223,6 +223,51 @@ export function removeEtappe(project: Project, etappeId: Id): Project {
     ...group,
     etappen: removeAt(group.etappen, etappeIndex),
   }));
+}
+
+/**
+ * Makes the vehicles of a stage read as alternatives ("Wohin morgen?", ADR 0008): dashed lines,
+ * all starting together, each in a colour of its own. A vehicle without waypoints yet starts
+ * where the first one does, so new options only need their destination. One change, so it is
+ * one undo step.
+ */
+export function presentAsOptions(
+  project: Project,
+  etappeId: Id,
+  ctx: FactoryContext = defaultFactoryContext,
+): Project {
+  return editEtappe(project, etappeId, (etappe) => {
+    const { tracks } = etappe;
+    if (tracks.length === 0) return etappe;
+    const start = Math.min(...tracks.map((track) => track.timing.startOffsetSec));
+    const from = tracks.find((track) => track.waypoints.length > 0)?.waypoints[0];
+    // The first track with a colour keeps it; later ones with the same colour get a free one.
+    const seen = new Set<string>();
+    const keeps = tracks.map((track) => {
+      const color = track.style.lineColor.toUpperCase();
+      const first = !seen.has(color);
+      seen.add(color);
+      return first;
+    });
+    const free = TRACK_COLORS.filter((color) => !seen.has(color.toUpperCase()));
+    let nextFree = 0;
+    return {
+      ...etappe,
+      tracks: tracks.map((track, i) => ({
+        ...track,
+        waypoints:
+          track.waypoints.length === 0 && from
+            ? [{ ...from, id: ctx.createId('w') }]
+            : track.waypoints,
+        timing: { ...track.timing, startOffsetSec: start },
+        style: {
+          ...track.style,
+          lineColor: keeps[i] ? track.style.lineColor : (free[nextFree++] ?? track.style.lineColor),
+          lineDash: 'dashed',
+        },
+      })),
+    };
+  });
 }
 
 /** Removes a vehicle. A camera that followed it switches to keeping all vehicles in frame. */

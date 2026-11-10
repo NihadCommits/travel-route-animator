@@ -15,6 +15,7 @@ export interface SelectFieldProps<T extends string> {
   options: readonly SelectOption<T>[];
   onCommit: Commit<T>;
   hint?: string | undefined;
+  disabled?: boolean | undefined;
   className?: string | undefined;
 }
 
@@ -28,6 +29,7 @@ export function SelectField<T extends string>({
   options,
   onCommit,
   hint,
+  disabled,
   className,
 }: SelectFieldProps<T>) {
   const id = useId();
@@ -48,6 +50,7 @@ export function SelectField<T extends string>({
         {...controlProps(id, messageId, error, hint !== undefined)}
         className={CONTROL_CLASS}
         value={value}
+        disabled={disabled}
         onChange={(event) => setError(onCommit(event.target.value as T))}
       >
         {options.map((option) => (

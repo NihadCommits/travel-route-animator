@@ -2,14 +2,20 @@ import {
   changeVehicleType,
   checkEtappeReadiness,
   EasingSchema,
-  RoadAvoidSchema,
   editTrack,
+  flightStyleFor,
+  LineDashSchema,
+  PLANE_TYPES,
+  planeTypeOf,
+  RoadAvoidSchema,
   renameItem,
   VEHICLE_CATALOG,
   VEHICLE_TYPES,
   type Etappe,
+  type FlightOptions,
   type ItemLocation,
   type RoadAvoid,
+  type RouteAhead,
   type RoutingMode,
   type Track,
   type TrackStyle,
@@ -20,6 +26,7 @@ import { de } from '@/i18n/de';
 import { ColorField } from './fields/ColorField';
 import { NumberField } from './fields/NumberField';
 import { SelectField } from './fields/SelectField';
+import { SliderField } from './fields/SliderField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
@@ -27,8 +34,11 @@ import { RouteStatus } from './RouteStatus';
 import { useEdit } from './useEdit';
 import { WaypointList } from './waypoints/WaypointList';
 
-const LINE_DASHES = ['solid', 'dashed', 'dotted'] as const;
+const LINE_DASHES = LineDashSchema.options;
+const percent = (share: number) => `${Math.round(share * 100)} %`;
 const ROAD_AVOIDS = RoadAvoidSchema.options;
+/** Beyond half the distance the arc leaves the picture at any sensible zoom. */
+const MAX_ARC_PERCENT = 50;
 
 export function TrackForm({
   track,
@@ -55,6 +65,19 @@ export function TrackForm({
     change(`timing.${key}`, (t) => ({ ...t, timing: { ...t.timing, [key]: value } }), true);
   const setStyle = <K extends keyof TrackStyle>(key: K, value: TrackStyle[K], coalesce = true) =>
     change(`style.${key}`, (t) => ({ ...t, style: { ...t.style, [key]: value } }), coalesce);
+  const setAhead = <K extends keyof RouteAhead>(key: K, value: RouteAhead[K], coalesce: boolean) =>
+    change(
+      `style.ahead.${key}`,
+      (t) => ({ ...t, style: { ...t.style, ahead: { ...t.style.ahead, [key]: value } } }),
+      coalesce,
+    );
+  // Only planes have flight options (the factories add them); others never show the section.
+  const setFlight = <K extends keyof FlightOptions>(key: K, value: FlightOptions[K]) =>
+    change(
+      `flight.${key}`,
+      (t) => (t.flight ? { ...t, flight: { ...t.flight, [key]: value } } : t),
+      typeof value === 'number',
+    );
 
   // Routing options to avoid belong to road routing only, so they go when the mode changes.
   const setRouting = (mode: RoutingMode) =>
@@ -199,12 +222,70 @@ export function TrackForm({
           options={optionsOf(LINE_DASHES, de.inspector.lineDashes)}
           onCommit={(dash) => setStyle('lineDash', dash, false)}
         />
-        <SwitchField
-          label={de.inspector.track.ghostRoute}
-          checked={style.futureRoute === 'ghost'}
-          onCommit={(on) => setStyle('futureRoute', on ? 'ghost' : 'hidden', false)}
+      </Section>
+
+      <Section title={de.inspector.track.ahead.title}>
+        <SliderField
+          label={de.inspector.track.ahead.opacity}
+          // Stored as a share; the slider runs in whole per cent, which also keeps 0.35 exact.
+          value={Math.round(style.ahead.opacity * 100)}
+          min={0}
+          max={100}
+          step={1}
+          format={(value) => percent(value / 100)}
+          hint={de.inspector.track.ahead.opacityHint}
+          onCommit={(value) => setAhead('opacity', value / 100, true)}
+        />
+        <SelectField
+          label={de.inspector.track.ahead.dash}
+          value={style.ahead.dash}
+          options={optionsOf(LINE_DASHES, de.inspector.lineDashes)}
+          disabled={style.ahead.opacity === 0}
+          onCommit={(dash) => setAhead('dash', dash, false)}
         />
       </Section>
+
+      {track.flight && (
+        <Section title={de.inspector.track.flight.title}>
+          <SelectField
+            label={de.inspector.track.flight.planeType}
+            value={planeTypeOf(track.vehicle.variant)}
+            options={optionsOf(PLANE_TYPES, de.inspector.track.flight.planeTypes)}
+            hint={de.inspector.track.flight.planeTypeHint}
+            onCommit={(variant) =>
+              change('vehicle.variant', (t) => ({ ...t, vehicle: { ...t.vehicle, variant } }))
+            }
+          />
+          <NumberField
+            label={de.inspector.track.flight.arcHeight}
+            // Stored as a share; shown in per cent, which reads more naturally.
+            value={track.flight.arcHeightFactor * 100}
+            unit={de.fields.percent}
+            step={1}
+            hint={de.inspector.track.flight.arcHeightHint}
+            onCommit={(percent) =>
+              percent < 0 || percent > MAX_ARC_PERCENT
+                ? de.inspector.track.flight.arcHeightRange
+                : setFlight('arcHeightFactor', percent / 100)
+            }
+          />
+          <SwitchField
+            label={de.inspector.track.flight.shadow}
+            checked={track.flight.showGroundShadow}
+            onCommit={(on) => setFlight('showGroundShadow', on)}
+          />
+          <SwitchField
+            label={de.inspector.track.flight.takeoffLandingCamera}
+            checked={track.flight.takeoffLandingCamera}
+            onCommit={(on) => setFlight('takeoffLandingCamera', on)}
+          />
+          <p className="text-muted-foreground text-xs">
+            {flightStyleFor(etappe.view.pitchDeg) === 'arc-3d'
+              ? de.inspector.track.flight.arc3d
+              : de.inspector.track.flight.fake3d}
+          </p>
+        </Section>
+      )}
 
       <LaterNote text={de.inspector.track.later} />
     </>

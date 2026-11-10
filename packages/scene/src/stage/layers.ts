@@ -4,13 +4,19 @@ import { ICON_SIZE_PX, iconId, iconSvg } from '../vehicles/icons';
 import type { SceneFeatures } from './features';
 
 const SOURCES = {
-  ghosts: 'tra-ghosts',
+  shadows: 'tra-shadows',
+  shadowIcons: 'tra-shadow-icons',
+  ahead: 'tra-ahead',
   routes: 'tra-routes',
   vehicles: 'tra-vehicles',
   stops: 'tra-stops',
 } as const satisfies Record<keyof SceneFeatures, string>;
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
+
+/** The plane as a dark silhouette, for its shadow on the ground. */
+const SHADOW_ICON = 'vehicle-shadow:plane';
+const SHADOW_COLOR = '#0f172a';
 
 // Dash lengths are in multiples of the line width; "dotted" is short dashes with round caps.
 const DASHES = { solid: undefined, dashed: [2, 1.6], dotted: [0.01, 2] } as const;
@@ -38,11 +44,40 @@ export function addSceneLayers(map: MapLibreMap): void {
     map.addSource(source, { type: 'geojson', data: EMPTY });
   }
 
-  // The whole route ahead, faint ("ghost").
-  for (const layer of lineLayers('tra-ghost', SOURCES.ghosts, {
+  // Flights: their shadow lies on the ground, under everything else of ours (ADR 0007).
+  map.addLayer({
+    id: 'tra-shadow-line',
+    type: 'line',
+    source: SOURCES.shadows,
+    layout: { 'line-cap': 'round', 'line-join': 'round' },
+    paint: {
+      'line-color': SHADOW_COLOR,
+      'line-width': 3,
+      'line-opacity': 0.28,
+      'line-blur': 1.5,
+    },
+  });
+  map.addLayer({
+    id: 'tra-shadow-icon',
+    type: 'symbol',
+    source: SOURCES.shadowIcons,
+    layout: {
+      'icon-image': SHADOW_ICON,
+      'icon-size': ['get', 'size'],
+      'icon-rotate': ['get', 'bearing'],
+      'icon-rotation-alignment': 'map',
+      'icon-pitch-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+    paint: { 'icon-opacity': 0.3 },
+  });
+
+  // The route still ahead, in its own dash and opacity (ADR 0008).
+  for (const layer of lineLayers('tra-ahead', SOURCES.ahead, {
     'line-color': ['get', 'color'],
     'line-width': ['get', 'width'],
-    'line-opacity': 0.35,
+    'line-opacity': ['get', 'opacity'],
   })) {
     map.addLayer(layer);
   }
@@ -147,15 +182,24 @@ export function setSceneFeatures(map: MapLibreMap, features: SceneFeatures): Pro
  */
 export async function loadVehicleIcons(map: MapLibreMap, timeline: Timeline): Promise<void> {
   const wanted = new Map(
-    timeline.tracks.map((plan) => [iconId(plan.vehicle, plan.style.lineColor), plan] as const),
+    timeline.tracks.map(
+      (plan) =>
+        [
+          iconId(plan.vehicle, plan.style.lineColor),
+          iconSvg(plan.vehicle, plan.style.lineColor, ICON_SIZE_PX * 2),
+        ] as const,
+    ),
   );
+  if (timeline.tracks.some((plan) => plan.flight)) {
+    // All of the shape dark, the white outline and glass included.
+    const shadow = iconSvg('plane', SHADOW_COLOR, ICON_SIZE_PX * 2);
+    wanted.set(SHADOW_ICON, shadow.replaceAll('#ffffff', SHADOW_COLOR));
+  }
   await Promise.all(
-    [...wanted].map(async ([id, plan]) => {
+    [...wanted].map(async ([id, svg]) => {
       if (map.hasImage(id)) return;
       const image = new Image();
-      image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
-        iconSvg(plan.vehicle, plan.style.lineColor, ICON_SIZE_PX * 2),
-      )}`;
+      image.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
       await image.decode();
       if (!map.hasImage(id)) map.addImage(id, image, { pixelRatio: 2 });
     }),

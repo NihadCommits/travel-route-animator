@@ -46,7 +46,7 @@ describe('factories', () => {
     const project = createProject('Trip', ctx);
     expect(project).toMatchObject({
       id: 'p_1',
-      schemaVersion: 1,
+      schemaVersion: 2,
       createdAt: '2026-10-21T09:00:00.000Z',
       updatedAt: '2026-10-21T09:00:00.000Z',
     });
@@ -137,7 +137,7 @@ describe('createEtappe', () => {
     const tracks = [createTrack({ vehicleType: 'car' }), createTrack({ vehicleType: 'plane' })];
     expect(createEtappe({ name: 'Flight', tracks }).view).toMatchObject({
       mode: 'globe',
-      pitchDeg: 0,
+      pitchDeg: 40,
     });
   });
 

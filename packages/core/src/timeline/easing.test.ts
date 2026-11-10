@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EasingSchema } from '../model/enums';
-import { lineUntil, measureLine, pointAt } from '../geo/along';
+import { lineAhead, lineUntil, measureLine, pointAt } from '../geo/along';
 import { distanceM } from '../geo/distance';
 import { ease, invertEase } from './easing';
 import { outputSize } from './outputSize';
@@ -74,6 +74,25 @@ describe('measured line', () => {
     expect(lineUntil(line, line.lengthM)).toHaveLength(3);
   });
 
+  it('lists the rest of the line from its end back to the vehicle', () => {
+    const s = line.cumulative[1]! / 2;
+    expect(lineAhead(line, s)).toEqual([[16.1, 48.1], [16.1, 48.0], pointAt(line, s)]);
+    // Right at a point it is not repeated.
+    expect(lineAhead(line, line.cumulative[1]!)).toEqual([
+      [16.1, 48.1],
+      [16.1, 48.0],
+    ]);
+    expect(lineAhead(line, -5)).toEqual([
+      [16.1, 48.1],
+      [16.1, 48.0],
+      [16.0, 48.0],
+    ]);
+    expect(lineAhead(line, line.lengthM)).toEqual([
+      [16.1, 48.1],
+      [16.1, 48.1],
+    ]);
+  });
+
   it('measures over the date line the short way', () => {
     const pacific = measureLine([
       [179.9, 0],
@@ -92,7 +111,12 @@ describe('measured line', () => {
       [1, 2],
       [1, 2],
     ]);
+    expect(lineAhead(dot, 0)).toEqual([
+      [1, 2],
+      [1, 2],
+    ]);
     expect(() => pointAt(measureLine([]), 0)).toThrow(RangeError);
+    expect(() => lineAhead(measureLine([]), 0)).toThrow(RangeError);
   });
 });
 

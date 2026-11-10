@@ -1,5 +1,6 @@
 import { CURRENT_SCHEMA_VERSION, type Project } from '../model/project';
 import { validateProject, type ValidationResult } from '../model/validation';
+import { v1ToV2 } from './v1-to-v2';
 
 /**
  * One step of the file format, e.g. version 1 → 2. A migration receives plain JSON (not a
@@ -12,11 +13,10 @@ export interface Migration {
 }
 
 /**
- * All migrations in order. Version 1 is the first file format, so there are none yet.
- * When the format changes: add a step here, bump CURRENT_SCHEMA_VERSION, write a test with an
- * old file.
+ * All migrations in order. When the format changes: add a step here (one file per step, e.g.
+ * v2-to-v3.ts), bump CURRENT_SCHEMA_VERSION, write a test with an old file.
  */
-export const MIGRATIONS: readonly Migration[] = [];
+export const MIGRATIONS: readonly Migration[] = [v1ToV2];
 
 export class MigrationError extends Error {
   override name = 'MigrationError';

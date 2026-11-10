@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CURRENT_SCHEMA_VERSION } from '../model/project';
 import { sampleProject } from '../testing/sampleProject';
 import {
   MIGRATIONS,
@@ -74,8 +75,10 @@ describe('runMigrations', () => {
     expect(() => runMigrations(null)).toThrow(MigrationError);
   });
 
-  it('has no real migrations yet, because version 1 is the first file format', () => {
-    expect(MIGRATIONS).toEqual([]);
+  it('has one step per version, from the first file format to the current one', () => {
+    expect(MIGRATIONS.map(({ from, to }) => [from, to])).toEqual(
+      Array.from({ length: CURRENT_SCHEMA_VERSION - 1 }, (_, i) => [i + 1, i + 2]),
+    );
   });
 });
 

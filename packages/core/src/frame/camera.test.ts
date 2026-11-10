@@ -18,7 +18,11 @@ import { positionAt } from './position';
 const viewport: Viewport = { width: 1920, height: 1080 };
 
 /** Where a point lands on screen for a camera, with MapLibre's 512-pixel world (no tilt). */
-function screenPoint([lng, lat]: LngLat, camera: CameraState, view = viewport): [number, number] {
+function screenPoint(
+  [lng, lat]: LngLat,
+  camera: Pick<CameraState, 'center' | 'zoom'>,
+  view = viewport,
+): [number, number] {
   const x = (l: number) => (l + 180) / 360;
   const y = (p: number) => {
     const phi = (p * Math.PI) / 180;
@@ -77,8 +81,14 @@ describe('fitBounds', () => {
 describe('anchoredBlend', () => {
   it('lets the anchor glide straight across the screen while the zoom changes', () => {
     const anchor: LngLat = [-8.25, 37.09];
-    const close = { center: anchor, zoom: 10, pitchDeg: 0, bearingDeg: 0 };
-    const wide = { center: [-8.6, 38.3] as LngLat, zoom: 7, pitchDeg: 0, bearingDeg: 0 };
+    const close = { center: anchor, zoom: 10, pitchDeg: 0, bearingDeg: 0, centerAltitudeM: 0 };
+    const wide = {
+      center: [-8.6, 38.3] as LngLat,
+      zoom: 7,
+      pitchDeg: 0,
+      bearingDeg: 0,
+      centerAltitudeM: 0,
+    };
     const [x0, y0] = screenPoint(anchor, anchoredBlend(close, wide, 0, anchor));
     const [x1, y1] = screenPoint(anchor, anchoredBlend(close, wide, 1, anchor));
     const [xm, ym] = screenPoint(anchor, anchoredBlend(close, wide, 0.5, anchor));
@@ -92,13 +102,26 @@ describe('anchoredBlend', () => {
 
 describe('blendCamera', () => {
   it('turns the short way round', () => {
-    const a = { center: [0, 0] as LngLat, zoom: 4, pitchDeg: 0, bearingDeg: 350 };
-    const b = { center: [10, 10] as LngLat, zoom: 8, pitchDeg: 40, bearingDeg: 10 };
+    const a = {
+      center: [0, 0] as LngLat,
+      zoom: 4,
+      pitchDeg: 0,
+      bearingDeg: 350,
+      centerAltitudeM: 0,
+    };
+    const b = {
+      center: [10, 10] as LngLat,
+      zoom: 8,
+      pitchDeg: 40,
+      bearingDeg: 10,
+      centerAltitudeM: 1000,
+    };
     expect(blendCamera(a, b, 0.5)).toEqual({
       center: [5, 5],
       zoom: 6,
       pitchDeg: 20,
       bearingDeg: 360,
+      centerAltitudeM: 500,
     });
   });
 });
@@ -142,7 +165,7 @@ describe('camera modes', () => {
     const frames = Array.from({ length: 200 }, (_, i) => 1 + i / 25);
     // Where the map moves on screen from frame to frame, and how abruptly that changes.
     const world = (lngLat: LngLat): [number, number] =>
-      screenPoint(lngLat, { center: [0, 0], zoom: 11, pitchDeg: 0, bearingDeg: 0 });
+      screenPoint(lngLat, { center: [0, 0], zoom: 11 });
     const jerk = (points: [number, number][]) =>
       Math.max(
         ...points
@@ -250,7 +273,7 @@ describe('camera modes', () => {
       tracks: [{ points: route }],
       camera: { mode: 'static', staticCamera: fixed },
     });
-    expect(cameraAt(still, 3)).toEqual(fixed);
+    expect(cameraAt(still, 3)).toEqual({ ...fixed, centerAltitudeM: 0 });
   });
 
   it('starts with the overview and settles on the vehicle, and ends on the overview if asked', () => {

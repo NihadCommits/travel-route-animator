@@ -36,7 +36,7 @@ function project(): Project {
         lineColor: '#E4572E',
         lineWidthPx: 6,
         lineDash: 'solid' as const,
-        futureRoute: 'ghost' as const,
+        ahead: { opacity: 0.35, dash: 'solid' as const },
         glow: false,
         vehicleScale: 1,
       },

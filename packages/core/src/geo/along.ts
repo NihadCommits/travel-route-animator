@@ -108,3 +108,21 @@ export function lineUntil(line: MeasuredLine, s: number): LngLat[] {
   driven.push(pointAt(line, s));
   return driven;
 }
+
+/**
+ * The rest of the line, from s metres to its end, listed backwards from the end to pointAt(s):
+ * the route still ahead. Backwards because a dash pattern starts at a line's first point; from
+ * the fixed end the dashes stay put while the vehicle moves (ADR 0008). At least two points.
+ */
+export function lineAhead(line: MeasuredLine, s: number): LngLat[] {
+  const { points, lengthM } = line;
+  const last = points.at(-1);
+  if (!last) throw new RangeError('An empty line has no points');
+  if (s >= lengthM || points.length === 1) return [[...last], [...last]];
+  if (s <= 0) return points.map((point): LngLat => [...point]).reverse();
+  const i = segmentAt(line, s);
+  const rest = points.slice(i + 1).map((point): LngLat => [...point]);
+  rest.reverse();
+  rest.push(pointAt(line, s));
+  return rest;
+}

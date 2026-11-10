@@ -1,4 +1,13 @@
-import type { FrameState, LngLat, Timeline, TrackPlan } from '@travel-route-animator/core';
+import {
+  FAKE_LIFT,
+  liftedPoint,
+  type FrameState,
+  type LineDash,
+  type LngLat,
+  type Timeline,
+  type TrackFrame,
+  type TrackPlan,
+} from '@travel-route-animator/core';
 import { iconId, ROTATES } from '../vehicles/icons';
 
 // What the map draws in one frame, as GeoJSON: plain functions of the timeline and the frame
@@ -12,7 +21,8 @@ type Point = { type: 'Point'; coordinates: LngLat };
 export interface LineProps {
   color: string;
   width: number;
-  dash: 'solid' | 'dashed' | 'dotted';
+  dash: LineDash;
+  opacity: number;
   glow: boolean;
 }
 
@@ -28,8 +38,17 @@ export interface StopProps {
   opacity: number;
 }
 
+export interface ShadowIconProps {
+  bearing: number;
+  size: number;
+}
+
 export interface SceneFeatures {
-  ghosts: Collection<Feature<Line, LineProps>>;
+  /** Flights: the flown line on the ground and the plane's shadow (ADR 0007). */
+  shadows: Collection<Feature<Line, Record<string, never>>>;
+  shadowIcons: Collection<Feature<Point, ShadowIconProps>>;
+  /** The route still ahead of each vehicle, in its own opacity and dash (ADR 0008). */
+  ahead: Collection<Feature<Line, LineProps>>;
   routes: Collection<Feature<Line, LineProps>>;
   vehicles: Collection<Feature<Point, VehicleProps>>;
   stops: Collection<Feature<Point, StopProps>>;
@@ -43,46 +62,132 @@ function lineProps(plan: TrackPlan): LineProps {
     color: style.lineColor,
     width: style.lineWidthPx,
     dash: style.lineDash,
+    opacity: 1,
     glow: style.glow,
   };
+}
+
+/** Same colour and width as the driven line; glow and casing stay with the driven line. */
+function aheadProps(plan: TrackPlan): LineProps {
+  const { style } = plan;
+  return {
+    color: style.lineColor,
+    width: style.lineWidthPx,
+    dash: style.ahead.dash,
+    opacity: style.ahead.opacity,
+    glow: false,
+  };
+}
+
+/** Fake 3D: the icon grows by this share at the top of the arc, as if it came closer. */
+const FAKE_GROW = 0.6;
+/** The shadow shrinks by this share at the top, like a real one gets fainter and smaller. */
+const SHADOW_SHRINK = 0.25;
+
+const toRad = (deg: number) => (deg * Math.PI) / 180;
+
+/**
+ * Fake 3D (ADR 0007): every point moves towards the top of the picture by its share of the
+ * height, so the flat line bends up like an arc seen from an angle.
+ */
+function lifted(points: readonly LngLat[], altitudesM: readonly number[], up: number): LngLat[] {
+  return points.map((point, i) => liftedPoint(point, (altitudesM[i] ?? 0) * FAKE_LIFT, up));
+}
+
+/**
+ * The direction of the lifted line at the plane: its way over the ground plus the climb,
+ * which the lift turns into a move towards the top of the picture.
+ */
+function liftedBearing(track: TrackFrame, up: number): number {
+  const ground = toRad(track.head.bearingDeg);
+  const rise = Math.tan(toRad(track.flight?.climbDeg ?? 0)) * FAKE_LIFT;
+  const east = Math.sin(ground) + rise * Math.sin(toRad(up));
+  const north = Math.cos(ground) + rise * Math.cos(toRad(up));
+  return (Math.atan2(east, north) * 180) / Math.PI;
 }
 
 export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatures {
   const plans = new Map(timeline.tracks.map((plan) => [plan.trackId, plan]));
   const visible = state.tracks.filter((track) => track.visible && plans.has(track.trackId));
+  // Flights in a tilted view are drawn by the 3D layer; everything else by the flat layers.
+  const flat = visible.filter((track) => !track.flight || state.flightStyle === 'fake-3d');
+  const flights = visible.filter((track) => track.flight?.showShadow);
+  const up = state.camera.bearingDeg;
 
   return {
-    ghosts: collection(
-      visible.flatMap((track) =>
-        track.ghost
+    shadows: collection(
+      flights.map((track) => ({
+        type: 'Feature' as const,
+        geometry: { type: 'LineString' as const, coordinates: track.revealed },
+        properties: {},
+      })),
+    ),
+    shadowIcons: collection(
+      flights.map((track) => {
+        const { flight, head } = track;
+        const height = flight && flight.peakM > 0 ? head.altitudeM / flight.peakM : 0;
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: head.lngLat },
+          properties: {
+            bearing: head.bearingDeg,
+            size: plans.get(track.trackId)!.style.vehicleScale * (1 - SHADOW_SHRINK * height),
+          },
+        };
+      }),
+    ),
+    ahead: collection(
+      flat.flatMap((track) =>
+        track.ahead
           ? [
               {
                 type: 'Feature' as const,
-                geometry: { type: 'LineString' as const, coordinates: [...track.ghost] },
-                properties: lineProps(plans.get(track.trackId)!),
+                geometry: {
+                  type: 'LineString' as const,
+                  coordinates: track.flight?.aheadAltitudesM
+                    ? lifted(track.ahead, track.flight.aheadAltitudesM, up)
+                    : track.ahead,
+                },
+                properties: aheadProps(plans.get(track.trackId)!),
               },
             ]
           : [],
       ),
     ),
     routes: collection(
-      visible.map((track) => ({
+      flat.map((track) => ({
         type: 'Feature' as const,
-        geometry: { type: 'LineString' as const, coordinates: track.revealed },
+        geometry: {
+          type: 'LineString' as const,
+          coordinates: track.flight
+            ? lifted(track.revealed, track.flight.revealedAltitudesM, up)
+            : track.revealed,
+        },
         properties: lineProps(plans.get(track.trackId)!),
       })),
     ),
     vehicles: collection(
-      visible.map((track) => {
+      flat.map((track) => {
         const plan = plans.get(track.trackId)!;
+        const { flight, head } = track;
+        const height = flight && flight.peakM > 0 ? head.altitudeM / flight.peakM : 0;
         return {
           type: 'Feature' as const,
-          geometry: { type: 'Point' as const, coordinates: track.head.lngLat },
+          geometry: {
+            type: 'Point' as const,
+            coordinates: flight
+              ? liftedPoint(head.lngLat, head.altitudeM * FAKE_LIFT, up)
+              : head.lngLat,
+          },
           properties: {
             icon: iconId(plan.vehicle, plan.style.lineColor),
-            bearing: ROTATES[plan.vehicle] ? track.head.bearingDeg : 0,
+            bearing: !ROTATES[plan.vehicle]
+              ? 0
+              : flight
+                ? liftedBearing(track, up)
+                : head.bearingDeg,
             // Icons are added at their full size; icon-size scales them by the track setting.
-            size: plan.style.vehicleScale,
+            size: plan.style.vehicleScale * (1 + FAKE_GROW * height),
           },
         };
       }),

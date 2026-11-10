@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   EasingSchema,
+  LineDashSchema,
   RoadAvoidSchema,
   RoutingModeSchema,
   VehicleTypeSchema,
@@ -65,16 +66,25 @@ export const TrackTimingSchema = z.strictObject({
 });
 export type TrackTiming = z.infer<typeof TrackTimingSchema>;
 
+/**
+ * The part of the route the vehicle has not driven yet (ADR 0008). Colour and width are the
+ * driven line's; glow and the white casing stay with the driven line.
+ */
+export const RouteAheadSchema = z.strictObject({
+  /** 0 hides the route ahead, 1 draws it as strongly as the driven line. */
+  opacity: z.number().min(0).max(1),
+  dash: LineDashSchema,
+});
+export type RouteAhead = z.infer<typeof RouteAheadSchema>;
+
 export const TrackStyleSchema = z.strictObject({
   lineColor: HexColorSchema,
   lineWidthPx: z.number().positive(),
-  lineDash: z.enum(['solid', 'dashed', 'dotted']),
-  /** 'ghost' shows the whole route faintly before the vehicle gets there. */
-  futureRoute: z.enum(['hidden', 'ghost']),
+  /** The driven line. */
+  lineDash: LineDashSchema,
+  ahead: RouteAheadSchema,
   glow: z.boolean(),
   vehicleScale: z.number().positive(),
-  /** Short badge for route options such as "A", "B", "C". */
-  variantBadge: z.string().min(1).max(3).optional(),
 });
 export type TrackStyle = z.infer<typeof TrackStyleSchema>;
 

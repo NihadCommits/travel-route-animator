@@ -166,8 +166,8 @@ describe('labels and counter', () => {
           ['Faro', C],
         ],
         timing: { easing: 'linear' },
-        // The default "ghost" shows every stop from the start; here they appear on arrival.
-        style: { futureRoute: 'hidden' },
+        // A visible route ahead shows every stop from the start; here they appear on arrival.
+        style: { ahead: { opacity: 0, dash: 'solid' } },
       },
     ],
     etappe: {
@@ -188,20 +188,35 @@ describe('labels and counter', () => {
     expect(opacity(10, 'Faro')).toBe(0);
   });
 
-  it('shows all stops ahead with a ghost route, and none when labels are off', () => {
-    const ghost = timelineOf({
+  it('shows all stops ahead with a visible route ahead, and none when labels are off', () => {
+    const ahead = timelineOf({
       ...options,
-      tracks: [{ ...options.tracks[0]!, style: { futureRoute: 'ghost' } }],
+      tracks: [{ ...options.tracks[0]!, style: { ahead: { opacity: 0.2, dash: 'dotted' } } }],
     });
-    const first = computeFrameState(ghost.timeline, 0);
+    const first = computeFrameState(ahead.timeline, 0);
     expect(first.labels.map((l) => l.opacity)).toEqual([1, 1, 1]);
-    expect(first.tracks[0]!.ghost).toHaveLength(3);
+    expect(first.tracks[0]!.ahead).toHaveLength(3);
 
     const off = timelineOf({
       ...options,
       etappe: { overlays: { ...options.etappe!.overlays!, labels: false } },
     });
     expect(computeFrameState(off.timeline, 0).labels).toEqual([]);
+  });
+
+  it('draws the route ahead from its end back to the vehicle, and none when it is hidden', () => {
+    const visible = timelineOf({
+      ...options,
+      tracks: [{ ...options.tracks[0]!, style: { ahead: { opacity: 1, dash: 'dashed' } } }],
+    });
+    const track = computeFrameState(visible.timeline, frameAt(5)).tracks[0]!;
+    // Starting at the fixed end keeps a dash pattern still while the vehicle moves (ADR 0008).
+    expect(track.ahead![0]).toEqual(C);
+    expect(track.ahead!.at(-1)).toEqual(track.head.lngLat);
+    expect(track.revealed.at(-1)).toEqual(track.head.lngLat);
+
+    const { timeline } = timelineOf(options);
+    expect(computeFrameState(timeline, frameAt(5)).tracks[0]!.ahead).toBeUndefined();
   });
 
   it('counts kilometres up to the route distance', () => {

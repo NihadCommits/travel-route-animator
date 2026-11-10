@@ -1,4 +1,4 @@
-import type { RoadAvoid, VehicleType } from '@travel-route-animator/core';
+import type { PlaneType, RoadAvoid, VehicleType } from '@travel-route-animator/core';
 
 // All UI strings live here so that an English translation can be added later without touching components.
 export const de = {
@@ -225,6 +225,10 @@ export const de = {
       title: 'Titel',
       titlePlaceholder: 'z. B. Tag 4',
       attribution: 'Karten-Credits',
+      options: 'Routen-Optionen',
+      presentAsOptions: 'Als Optionen darstellen',
+      presentAsOptionsHint:
+        'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
       later:
         'Kartenstil (M9), Intro und Outro (M11), Gelände (M12) und Zähler (M5) kommen mit ihren Modulen dazu.',
     },
@@ -241,9 +245,40 @@ export const de = {
       lineColor: 'Linienfarbe',
       lineWidth: 'Linienbreite',
       lineDash: 'Linienart',
-      ghostRoute: 'Ganze Route vorab blass zeigen',
       vehicleScale: 'Fahrzeuggröße',
-      later: 'Flug-Optionen und Badges (M8) kommen mit ihrem Modul dazu.',
+      ahead: {
+        title: 'Route voraus',
+        opacity: 'Deckkraft',
+        opacityHint:
+          'Der Teil der Route, der noch vor dem Fahrzeug liegt. Bei 0 % ist er unsichtbar, sonst stehen auch die Ortsnamen voraus von Anfang an da.',
+        dash: 'Linienart',
+      },
+      later: 'Eigene Icons und das 3D-Auto kommen mit dem letzten Teil von M8.',
+      flight: {
+        title: 'Flug',
+        planeType: 'Flugzeugtyp',
+        planeTypeHint: 'Form des 3D-Flugzeugs; in der Ansicht von oben bleibt es beim Symbol.',
+        planeTypes: {
+          'plane-default': 'Standard',
+          'plane-a320': 'Airbus A320',
+          'plane-b737': 'Boeing 737',
+          'plane-e190': 'Embraer E190',
+          'plane-atr72': 'ATR 72 (Propeller)',
+          'plane-b787': 'Boeing 787',
+          'plane-a350': 'Airbus A350',
+          'plane-b777': 'Boeing 777',
+          'plane-b747': 'Boeing 747',
+          'plane-a380': 'Airbus A380',
+        } satisfies Record<PlaneType, string>,
+        arcHeight: 'Bogenhöhe',
+        arcHeightHint: 'Anteil der Strecke. Die echte Flughöhe wäre auf der Karte unsichtbar.',
+        arcHeightRange: 'Bitte einen Wert zwischen 0 und 50 % eingeben.',
+        shadow: 'Schatten am Boden',
+        takeoffLandingCamera: 'Kamera zoomt bei Start und Landung',
+        arc3d: 'Die geneigte Ansicht zeigt den Bogen in echtem 3D.',
+        fake3d:
+          'Von oben gesehen wird der Bogen zum Bildrand hin angehoben (Fake-3D). Ab 20° Neigung erscheint er in echtem 3D.',
+      },
       avoid: 'Vermeiden',
       avoids: {
         highways: 'Autobahnen meiden',
@@ -381,6 +416,7 @@ export const de = {
     degrees: '°',
     pixels: 'px',
     times: '×',
+    percent: '%',
   },
   vehicles: {
     plane: 'Flugzeug',

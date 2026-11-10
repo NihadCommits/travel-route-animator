@@ -5,7 +5,7 @@ import {
   createProject,
   type Project,
 } from '@travel-route-animator/core';
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AppProviders, createQueryClient } from '@/AppProviders';
@@ -143,6 +143,78 @@ describe('Inspector', () => {
     await user.selectOptions(inspector().getByLabelText('Fahrzeug'), 'Zug');
     expect(routing).toHaveDisplayValue('Geglättete Kurve');
     expect(screen.getByRole('treeitem', { name: 'Zug' })).toBeInTheDocument();
+  });
+
+  it('edits the flight of a plane and says how it is drawn', async () => {
+    const { project, etappeId } = trip();
+    const withPlane = addTrack(project, etappeId, 'plane', { label: 'Flugzeug' }).project;
+    const { user } = await renderEditor(withPlane);
+    await selectRow('Flugzeug');
+    const arc = inspector().getByLabelText('Bogenhöhe');
+    expect(arc).toHaveValue('15');
+    // A plane as the first vehicle makes the stage a tilted globe: the arc is real 3D.
+    expect(inspector().getByText(/echtem 3D/)).toBeInTheDocument();
+
+    await typeInto(user, arc, '80');
+    await user.keyboard('{Enter}');
+    expect(arc).toBeInvalid();
+    await typeInto(user, arc, '25');
+    await user.keyboard('{Enter}');
+    expect(arc).toBeValid();
+    expect(arc).toHaveValue('25');
+
+    const shadow = inspector().getByRole('switch', { name: 'Schatten am Boden' });
+    await user.click(shadow);
+    expect(shadow).not.toBeChecked();
+
+    const planeType = inspector().getByLabelText('Flugzeugtyp');
+    expect(planeType).toHaveDisplayValue('Standard');
+    await user.selectOptions(planeType, 'Airbus A380');
+    expect(planeType).toHaveDisplayValue('Airbus A380');
+  });
+
+  it('shows no flight options for a car', async () => {
+    await renderEditor(trip({ withCar: true }).project);
+    await selectRow('Auto');
+    expect(inspector().queryByLabelText('Bogenhöhe')).toBeNull();
+  });
+
+  it('sets how the route ahead looks', async () => {
+    const { user } = await renderEditor(trip({ withCar: true }).project);
+    await selectRow('Auto');
+    const ahead = within(inspector().getByRole('region', { name: 'Route voraus' }));
+    const opacity = ahead.getByLabelText('Deckkraft');
+    const dash = ahead.getByLabelText('Linienart');
+    expect(opacity).toHaveValue('35');
+
+    // Range inputs take no typing; a change event is what dragging sends.
+    fireEvent.change(opacity, { target: { value: '0' } });
+    expect(ahead.getByText('0 %')).toBeInTheDocument();
+    expect(dash).toBeDisabled();
+    fireEvent.change(opacity, { target: { value: '80' } });
+    expect(dash).toBeEnabled();
+    await user.selectOptions(dash, 'Gepunktet');
+    expect(dash).toHaveDisplayValue('Gepunktet');
+    // The driven line keeps its own dash.
+    expect(inspector().getAllByLabelText('Linienart')[0]).toHaveDisplayValue('Durchgezogen');
+  });
+
+  it('makes the vehicles of a stage read as options in one go', async () => {
+    const { project, etappeId } = trip({ withCar: true });
+    const { user } = await renderEditor(
+      addTrack(project, etappeId, 'car', { label: 'Andere Route' }).project,
+    );
+    await selectRow('Wien – Porto');
+    await user.click(inspector().getByRole('button', { name: 'Als Optionen darstellen' }));
+
+    await selectRow('Andere Route');
+    expect(inspector().getAllByLabelText('Linienart')[0]).toHaveDisplayValue('Gestrichelt');
+  });
+
+  it('offers options only for a stage with several vehicles', async () => {
+    await renderEditor(trip({ withCar: true }).project);
+    await selectRow('Wien – Porto');
+    expect(inspector().queryByRole('button', { name: 'Als Optionen darstellen' })).toBeNull();
   });
 
   it('gives a track its own duration and warns when it runs past the stage', async () => {

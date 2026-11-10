@@ -1,10 +1,16 @@
 import type { LngLat } from '../geo/lngLat';
 import type { VehicleType } from '../model/enums';
-import type { CameraSettings, Etappe } from '../model/etappe';
+import type { CameraSettings, Etappe, ViewSettings } from '../model/etappe';
 import { createEtappe, createProject, createTrack, createWaypoint } from '../model/factories';
 import type { OutputSettings } from '../model/output';
 import type { Project } from '../model/project';
-import type { RoutingSettings, Track, TrackStyle, TrackTiming } from '../model/track';
+import type {
+  FlightOptions,
+  RoutingSettings,
+  Track,
+  TrackStyle,
+  TrackTiming,
+} from '../model/track';
 
 // Small trips for the timeline and frame tests. Tracks drive straight lines by default, which
 // core computes itself, so no router and no stored route is needed.
@@ -16,12 +22,16 @@ export interface TripTrack {
   routing?: RoutingSettings;
   timing?: Partial<TrackTiming>;
   style?: Partial<TrackStyle>;
+  /** Planes only; the defaults otherwise. */
+  flight?: Partial<FlightOptions>;
 }
 
 export interface TripOptions {
   durationSec?: number;
   tracks: TripTrack[];
   camera?: Partial<CameraSettings>;
+  /** View mode and angles; a plane makes the stage a globe by default. */
+  view?: Partial<Pick<ViewSettings, 'mode' | 'pitchDeg' | 'bearingDeg'>>;
   etappe?: Partial<Pick<Etappe, 'intro' | 'outro' | 'overlays'>>;
   output?: Partial<OutputSettings>;
 }
@@ -49,6 +59,7 @@ function track(input: TripTrack, index: number): Track {
     routing: input.routing ?? { mode: 'straight' },
     timing: { ...base.timing, ...input.timing },
     style: { ...base.style, ...input.style },
+    ...(base.flight && { flight: { ...base.flight, ...input.flight } }),
   };
 }
 
@@ -70,7 +81,11 @@ export function trip(options: TripOptions): {
   const withSettings: Etappe = {
     ...etappe,
     ...options.etappe,
-    view: { ...etappe.view, camera: { ...etappe.view.camera, ...options.camera } },
+    view: {
+      ...etappe.view,
+      ...options.view,
+      camera: { ...etappe.view.camera, ...options.camera },
+    },
   };
   const project = createProject('Trip', ctx);
   return {

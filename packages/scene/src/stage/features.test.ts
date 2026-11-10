@@ -42,30 +42,104 @@ function featuresAt(tracks: Track[], frame: number) {
 describe('sceneFeatures', () => {
   it('draws the driven line and a turned vehicle icon in the track colour', () => {
     const features = featuresAt(
-      [track('car', { lineColor: '#E4572E', futureRoute: 'hidden' })],
+      [track('car', { lineColor: '#E4572E', ahead: { opacity: 0, dash: 'solid' } })],
       100,
     );
     const [route] = features.routes.features;
-    expect(route!.properties).toEqual({ color: '#E4572E', width: 6, dash: 'solid', glow: false });
+    expect(route!.properties).toEqual({
+      color: '#E4572E',
+      width: 6,
+      dash: 'solid',
+      opacity: 1,
+      glow: false,
+    });
     const [vehicle] = features.vehicles.features;
     expect(vehicle!.properties.icon).toBe('vehicle:car:#e4572e');
     // Lisboa lies south-south-west of Porto.
     expect(vehicle!.properties.bearing).toBeGreaterThan(180);
     expect(vehicle!.properties.bearing).toBeLessThan(200);
     expect(vehicle!.geometry.coordinates).toEqual(route!.geometry.coordinates.at(-1));
-    expect(features.ghosts.features).toEqual([]);
+    expect(features.ahead.features).toEqual([]);
   });
 
-  it('keeps the disc of a walker upright and shows the route ahead for a ghost track', () => {
-    const features = featuresAt([track('walk', { futureRoute: 'ghost', lineDash: 'dotted' })], 50);
+  it('keeps the disc of a walker upright and draws the route ahead in its own look', () => {
+    const features = featuresAt(
+      [track('walk', { glow: true, ahead: { opacity: 0.6, dash: 'dotted' } })],
+      50,
+    );
     expect(features.vehicles.features[0]!.properties.bearing).toBe(0);
-    expect(features.ghosts.features[0]!.properties.dash).toBe('dotted');
+    const [ahead] = features.ahead.features;
+    expect(ahead!.properties).toMatchObject({ dash: 'dotted', opacity: 0.6, glow: false });
+    expect(features.routes.features[0]!.properties).toMatchObject({ dash: 'solid', glow: true });
+    // From Lisboa back to the walker, where the driven line ends.
+    expect(ahead!.geometry.coordinates[0]).toEqual([-9.14, 38.72]);
+    expect(ahead!.geometry.coordinates.at(-1)).toEqual(
+      features.routes.features[0]!.geometry.coordinates.at(-1),
+    );
     expect(
       features.stops.features.map((stop) => [stop.properties.text, stop.properties.opacity]),
     ).toEqual([
       ['Porto', 1],
       ['Lisboa', 1],
     ]);
+  });
+});
+
+describe('flights', () => {
+  function flight(view: { mode: 'globe' | '2d'; pitchDeg: number }, showGroundShadow = true) {
+    const base = createTrack({
+      vehicleType: 'plane',
+      waypoints: [
+        createWaypoint({ name: 'Wien', lngLat: [16.57, 48.11] }),
+        createWaypoint({ name: 'Porto', lngLat: [-8.68, 41.25] }),
+      ],
+    });
+    const plane: Track = {
+      ...base,
+      routing: { mode: 'great-circle' },
+      flight: { ...base.flight!, showGroundShadow },
+    };
+    const { project, etappeId } = stage([plane]);
+    const etappe = project.groups[0]!.etappen[0]!;
+    const tilted = {
+      ...project,
+      groups: [
+        { ...project.groups[0]!, etappen: [{ ...etappe, view: { ...etappe.view, ...view } }] },
+      ],
+    };
+    const timeline = compileTimeline(tilted, etappeId);
+    const state = computeFrameState(timeline, Math.round(timeline.durationInFrames / 2));
+    return { features: sceneFeatures(timeline, state), state };
+  }
+
+  it('leaves a tilted flight to the 3D layer and keeps only its shadow flat', () => {
+    const { features, state } = flight({ mode: 'globe', pitchDeg: 40 });
+    expect(state.flightStyle).toBe('arc-3d');
+    expect(features.routes.features).toEqual([]);
+    expect(features.vehicles.features).toEqual([]);
+    expect(features.shadows.features).toHaveLength(1);
+    expect(features.shadowIcons.features[0]!.geometry.coordinates).toEqual(
+      state.tracks[0]!.head.lngLat,
+    );
+  });
+
+  it('lifts a flat flight towards the top of the picture and grows its icon', () => {
+    const { features, state } = flight({ mode: '2d', pitchDeg: 0 });
+    const { head } = state.tracks[0]!;
+    const [route] = features.routes.features;
+    const [vehicle] = features.vehicles.features;
+    // North is up: the lifted plane lies north of where it flies over the ground.
+    expect(vehicle!.geometry.coordinates[1]).toBeGreaterThan(head.lngLat[1] + 1);
+    expect(vehicle!.geometry.coordinates).toEqual(route!.geometry.coordinates.at(-1));
+    expect(vehicle!.properties.size).toBeGreaterThan(1.4);
+    // The first point is the airport, on the ground.
+    expect(route!.geometry.coordinates[0]).toEqual([16.57, 48.11]);
+  });
+
+  it('draws no shadow when the track turns it off', () => {
+    const { features } = flight({ mode: '2d', pitchDeg: 0 }, false);
+    expect(features.shadows.features).toEqual([]);
+    expect(features.shadowIcons.features).toEqual([]);
   });
 });
 
