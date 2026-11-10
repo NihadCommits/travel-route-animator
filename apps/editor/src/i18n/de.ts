@@ -225,6 +225,10 @@ export const de = {
       title: 'Titel',
       titlePlaceholder: 'z. B. Tag 4',
       attribution: 'Karten-Credits',
+      options: 'Routen-Optionen',
+      presentAsOptions: 'Als Optionen darstellen',
+      presentAsOptionsHint:
+        'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
       later:
         'Kartenstil (M9), Intro und Outro (M11), Gelände (M12) und Zähler (M5) kommen mit ihren Modulen dazu.',
     },

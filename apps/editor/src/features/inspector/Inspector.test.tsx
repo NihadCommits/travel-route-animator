@@ -199,6 +199,24 @@ describe('Inspector', () => {
     expect(inspector().getAllByLabelText('Linienart')[0]).toHaveDisplayValue('Durchgezogen');
   });
 
+  it('makes the vehicles of a stage read as options in one go', async () => {
+    const { project, etappeId } = trip({ withCar: true });
+    const { user } = await renderEditor(
+      addTrack(project, etappeId, 'car', { label: 'Andere Route' }).project,
+    );
+    await selectRow('Wien – Porto');
+    await user.click(inspector().getByRole('button', { name: 'Als Optionen darstellen' }));
+
+    await selectRow('Andere Route');
+    expect(inspector().getAllByLabelText('Linienart')[0]).toHaveDisplayValue('Gestrichelt');
+  });
+
+  it('offers options only for a stage with several vehicles', async () => {
+    await renderEditor(trip({ withCar: true }).project);
+    await selectRow('Wien – Porto');
+    expect(inspector().queryByRole('button', { name: 'Als Optionen darstellen' })).toBeNull();
+  });
+
   it('gives a track its own duration and warns when it runs past the stage', async () => {
     const { user } = await renderEditor(trip({ withCar: true }).project);
     await selectRow('Auto');

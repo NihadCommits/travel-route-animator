@@ -17,6 +17,7 @@ import {
   moveEtappe,
   moveGroup,
   moveTrack,
+  presentAsOptions,
   removeItem,
   removeTrack,
   renameItem,
@@ -389,5 +390,55 @@ describe('move', () => {
     expect(arrived.view.camera).toMatchObject({ mode: 'follow', followTrackId: 't_a' });
     expect(arrived.view.mode).toBe('3d-tilted');
     expectStorable(moved);
+  });
+});
+
+describe('presentAsOptions', () => {
+  const options = (project: ReturnType<typeof sampleProject>) =>
+    project.groups[1]!.etappen[0]!.tracks;
+
+  it('dashes the lines and starts every option together', () => {
+    const project = editTrack(sampleProject(), 't_b', (t) => ({
+      ...t,
+      timing: { ...t.timing, startOffsetSec: 2 },
+    }));
+    const result = presentAsOptions(project, 'e_options');
+    const [a, b] = options(result);
+    expect([a!.style.lineDash, b!.style.lineDash]).toEqual(['dashed', 'dashed']);
+    expect([a!.timing.startOffsetSec, b!.timing.startOffsetSec]).toEqual([0, 0]);
+    // The route ahead keeps its own look.
+    expect(b!.style.ahead).toEqual(options(project)[1]!.style.ahead);
+    expectStorable(result);
+  });
+
+  it('gives a vehicle that shares a colour a free one, and keeps distinct colours', () => {
+    const project = sampleProject();
+    const [a, b] = options(project);
+    expect(a!.style.lineColor).toBe(b!.style.lineColor);
+    const [newA, newB] = options(presentAsOptions(project, 'e_options'));
+    expect(newA!.style.lineColor).toBe(a!.style.lineColor);
+    expect(newB!.style.lineColor).not.toBe(a!.style.lineColor);
+
+    const distinct = editTrack(project, 't_b', (t) => ({
+      ...t,
+      style: { ...t.style, lineColor: '#123456' },
+    }));
+    expect(options(presentAsOptions(distinct, 'e_options'))[1]!.style.lineColor).toBe('#123456');
+  });
+
+  it('starts a vehicle without waypoints where the first option starts', () => {
+    const ctx = predictableContext();
+    const { project, id } = addTrack(sampleProject(), 'e_options', 'car', { ctx });
+    const result = presentAsOptions(project, 'e_options', ctx);
+    const added = options(result).find((t) => t.id === id)!;
+    const start = options(project)[0]!.waypoints[0]!;
+    expect(added.waypoints).toEqual([{ ...start, id: 'w_new2' }]);
+    expect(added.style.lineDash).toBe('dashed');
+    expectStorable(result);
+  });
+
+  it('leaves a stage without vehicles alone', () => {
+    const { project, id } = addEtappe(sampleProject(), 'g_day4', 'Empty');
+    expect(presentAsOptions(project, id)).toEqual(project);
   });
 });

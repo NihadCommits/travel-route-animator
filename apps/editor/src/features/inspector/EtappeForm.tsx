@@ -2,6 +2,7 @@ import {
   CameraModeSchema,
   checkEtappeReadiness,
   editEtappe,
+  presentAsOptions,
   renameItem,
   setCameraMode,
   setViewMode,
@@ -14,6 +15,7 @@ import {
   type ViewSettings,
 } from '@travel-route-animator/core';
 import { useMemo } from 'react';
+import { Button } from '@/components/ui/button';
 import { de } from '@/i18n/de';
 import { translateIssue } from '@/i18n/issues';
 import { NumberField } from './fields/NumberField';
@@ -160,6 +162,22 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
           onCommit={(on) => setOverlay('attribution', on)}
         />
       </Section>
+
+      {etappe.tracks.length >= 2 && (
+        <Section title={de.inspector.etappe.options}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => edit('tracks', (p) => presentAsOptions(p, etappe.id))}
+          >
+            {de.inspector.etappe.presentAsOptions}
+          </Button>
+          <p className="text-muted-foreground text-xs">
+            {de.inspector.etappe.presentAsOptionsHint}
+          </p>
+        </Section>
+      )}
 
       <LaterNote text={de.inspector.etappe.later} />
     </>
