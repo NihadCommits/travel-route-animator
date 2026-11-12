@@ -1,6 +1,5 @@
 import { flightStyleFor, type FrameState, type Timeline } from '@travel-route-animator/core';
-import { OPENFREEMAP_LIBERTY_STYLE_URL } from '@travel-route-animator/styles';
-import type { Map as MapLibreMap, SkySpecification } from 'maplibre-gl';
+import type { Map as MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useBufferState, useDelayRender, useRemotionEnvironment } from 'remotion';
 import { decodeImage, type DecodedImage, type StageImage } from '../vehicles/images';
@@ -9,18 +8,24 @@ import { sceneFeatures } from './features';
 import type { Layer3d } from './layer3d';
 import { addSceneLayers, addStageImages, loadVehicleIcons, setSceneFeatures } from './layers';
 import type { ImageTimings } from './look';
+import type { MapLook } from './mapLook';
 import { createRenderMap } from './renderMap';
 
-/** A thin atmosphere around the globe that fades out as the camera comes closer. */
-const GLOBE_SKY: SkySpecification = {
-  'sky-color': '#7fb8f0',
-  'horizon-color': '#e8f2fc',
-  'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 8, 0],
-};
-
-function applyProjection(map: MapLibreMap, projection: FrameState['projection']): void {
+/**
+ * A thin atmosphere around the globe in the theme's colours, fading out as the camera comes
+ * closer; none on the flat map.
+ */
+function applyProjection(
+  map: MapLibreMap,
+  projection: FrameState['projection'],
+  sky: MapLook['sky'],
+): void {
   if (map.getProjection()?.type !== projection) map.setProjection({ type: projection });
-  map.setSky(projection === 'globe' ? GLOBE_SKY : { 'atmosphere-blend': 0 });
+  map.setSky(
+    projection === 'globe'
+      ? { ...sky, 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 8, 0] }
+      : { 'atmosphere-blend': 0 },
+  );
 }
 
 /**
@@ -75,6 +80,8 @@ export interface MapStageProps {
   state: FrameState;
   /** Own images of the stage's vehicles (ADR 0009). */
   images?: readonly StageImage[];
+  /** The style and its sky; a new look needs a new MapStage (give it the look's key). */
+  look: MapLook;
 }
 
 const NO_IMAGES: readonly StageImage[] = [];
@@ -94,7 +101,7 @@ const NO_IMAGES: readonly StageImage[] = [];
  * the same at every resolution, and a half-resolution preview only draws a quarter of the
  * pixels.
  */
-export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGES }) => {
+export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGES, look }) => {
   const { isRendering } = useRemotionEnvironment();
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   const buffer = useBufferState();
@@ -104,7 +111,7 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGE
   const [loadHandle] = useState(() => delayRender('Loading the map'));
   const loadPending = useRef(true);
   // What the map is created with; later changes arrive through the effects below.
-  const initial = useRef({ timeline, state, images });
+  const initial = useRef({ timeline, state, images, look });
   const layer3d = useRef<Layer3d | null>(null);
   // Decoded once per image; the frame picks a picture by the timings (never by a clock).
   const decoded = useRef(new Map<string, DecodedImage>());
@@ -113,20 +120,22 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGE
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
-    const { timeline: first, state: firstState } = initial.current;
+    const { timeline: first, state: firstState, look: firstLook } = initial.current;
     // The preview pauses until the map can draw; created here and not in useState, because
     // React's strict mode runs state initialisers twice and one handle would never be freed.
     const playback = buffer.delayPlayback();
     const instance = createRenderMap({
       container,
-      style: OPENFREEMAP_LIBERTY_STYLE_URL,
+      style: firstLook.style,
       center: firstState.camera.center,
       zoom: firstState.camera.zoom,
       pitch: firstState.camera.pitchDeg,
       bearing: firstState.camera.bearingDeg,
       pixelRatio: first.scale,
     });
-    instance.on('style.load', () => applyProjection(instance, firstState.projection));
+    instance.on('style.load', () =>
+      applyProjection(instance, firstState.projection, firstLook.sky),
+    );
     instance.on('load', () => {
       addSceneLayers(instance);
       const models = needsLayer3d(first)
@@ -180,8 +189,8 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGE
   // Switching the view between flat map and globe in the editor.
   const { projection } = state;
   useEffect(() => {
-    if (map) applyProjection(map, projection);
-  }, [map, projection]);
+    if (map) applyProjection(map, projection, look.sky);
+  }, [map, projection, look.sky]);
 
   // Switching the preview between half and full resolution.
   useEffect(() => {

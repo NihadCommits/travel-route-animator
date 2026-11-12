@@ -1,4 +1,4 @@
-import type { OutputSettings, Project } from '@travel-route-animator/core';
+import type { OutputSettings, Project, Theme } from '@travel-route-animator/core';
 
 // Kept apart from EtappeComposition.tsx on purpose: the Node-side render code (render/) and
 // through it the server import these types, and they are type-checked without JSX and DOM.
@@ -20,6 +20,10 @@ export type EtappeProps = {
    * editor, data: URLs in a render. The scene itself knows nothing of the server.
    */
   assetUrls?: Record<string, string>;
+  /** Own themes the stage's style may name (ADR 0010); built-in ones need not be passed. */
+  themes?: Record<string, Theme>;
+  /** Our local server, where satellite tiles come from (the key stays there). */
+  serverUrl?: string;
   /** Preview only: draw with fewer pixels (0.5 = half resolution), same picture otherwise. */
   previewScale?: number;
   /** Preview only: safe-area guides on top. Never set for an export. */
