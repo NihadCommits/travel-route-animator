@@ -46,7 +46,7 @@ describe('factories', () => {
     const project = createProject('Trip', ctx);
     expect(project).toMatchObject({
       id: 'p_1',
-      schemaVersion: 2,
+      schemaVersion: 3,
       createdAt: '2026-10-21T09:00:00.000Z',
       updatedAt: '2026-10-21T09:00:00.000Z',
     });

@@ -22,6 +22,7 @@ import {
   removeTrack,
   renameItem,
   setCameraMode,
+  setImageIcon,
   setViewMode,
 } from './operations';
 
@@ -185,6 +186,40 @@ describe('edit', () => {
 
   it('fails loudly when the ID belongs to something else', () => {
     expect(() => editEtappe(sampleProject(), 't_a', (etappe) => etappe)).toThrow(/No etappe/);
+  });
+});
+
+describe('setImageIcon', () => {
+  const runner = {
+    id: 'a_runner',
+    kind: 'image',
+    name: 'Läufer.gif',
+    mimeType: 'image/gif',
+    widthPx: 120,
+    heightPx: 160,
+    frameCount: 12,
+  } as const;
+  const iconOf = (project: ReturnType<typeof sampleProject>, index = 0) =>
+    project.groups[1]!.etappen[0]!.tracks[index]!.style.icon;
+
+  it('adds the image to the project and draws the vehicle as it, upright', () => {
+    const project = setImageIcon(sampleProject(), 't_a', runner);
+    expect(project.assets).toEqual([runner]);
+    expect(iconOf(project)).toEqual({ kind: 'image', assetId: 'a_runner', rotates: false });
+    expectStorable(project);
+  });
+
+  it('uses an image the project has without adding it twice, and keeps the turning', () => {
+    const first = setImageIcon(sampleProject(), 't_a', runner);
+    const turning = editTrack(first, 't_a', (track) => ({
+      ...track,
+      style: { ...track.style, icon: { kind: 'image', assetId: 'a_runner', rotates: true } },
+    }));
+    const flag = { ...runner, id: 'a_flag', mimeType: 'image/png', frameCount: 1 } as const;
+    const swapped = setImageIcon(setImageIcon(turning, 't_b', runner), 't_a', flag);
+    expect(swapped.assets.map((asset) => asset.id)).toEqual(['a_runner', 'a_flag']);
+    expect(iconOf(swapped, 0)).toEqual({ kind: 'image', assetId: 'a_flag', rotates: true });
+    expect(iconOf(swapped, 1)).toEqual({ kind: 'image', assetId: 'a_runner', rotates: false });
   });
 });
 

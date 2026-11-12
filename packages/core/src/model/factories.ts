@@ -39,6 +39,7 @@ export function createProject(name: string, ctx = defaultFactoryContext): Projec
     updatedAt: timestamp,
     defaults: defaultProjectSettings(),
     groups: [],
+    assets: [],
   };
 }
 

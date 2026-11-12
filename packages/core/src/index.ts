@@ -14,6 +14,7 @@ export * from './model/planeTypes';
 export * from './model/carTypes';
 export * from './model/style';
 export * from './model/output';
+export * from './model/assets';
 export * from './model/track';
 export * from './model/etappe';
 export * from './model/project';

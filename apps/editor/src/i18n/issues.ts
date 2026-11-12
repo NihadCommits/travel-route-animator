@@ -28,6 +28,8 @@ const ISSUE_TEXTS: Record<IssueCode, Translate> = {
   'track.routingNotAllowed': (v) =>
     `Dieses Routing passt nicht zum Fahrzeug ${vehicle(v.vehicle)}.`,
   'track.flightOnlyPlane': () => 'Flug-Optionen gibt es nur beim Flugzeug.',
+  'track.iconAssetMissing': () =>
+    'Das Bild für das Fahrzeug fehlt im Projekt. Wähle ein anderes Bild oder das Standard-Icon.',
   'style.onlyThemedBases': () => 'Themes gibt es nur bei Vektor- und Geländekarten.',
   'output.transparentNeedsProres': () =>
     'Ein transparentes Overlay braucht den Codec ProRes 4444 (mit Alphakanal).',

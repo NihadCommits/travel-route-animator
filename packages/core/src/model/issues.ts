@@ -13,6 +13,7 @@ export type IssueCode =
   | 'routing.avoidOnlyRoad'
   | 'track.routingNotAllowed'
   | 'track.flightOnlyPlane'
+  | 'track.iconAssetMissing'
   | 'style.onlyThemedBases'
   | 'output.transparentNeedsProres'
   | 'view.flat2d'
