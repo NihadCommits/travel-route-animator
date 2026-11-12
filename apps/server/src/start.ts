@@ -1,3 +1,4 @@
+import { join } from 'node:path';
 import { isRenderJobFinished } from '@travel-route-animator/core';
 import type { FastifyInstance, FastifyServerOptions } from 'fastify';
 import { buildApp } from './app';
@@ -9,6 +10,7 @@ import { createRemotionRenderer } from './render/remotionRenderer';
 import type { RevealFile } from './render/reveal';
 import { createOrsProvider } from './routing/ors';
 import { createOsrmProvider } from './routing/osrm';
+import { createMapTilerSatellite } from './tiles/satellite';
 
 export interface StartOptions {
   dataDir: string;
@@ -77,6 +79,12 @@ export async function startServer({
     geocodingProvider: createPhotonProvider({
       baseUrl: services.photonUrl,
       userAgent: services.userAgent,
+    }),
+    ...(services.maptilerApiKey && {
+      satellite: createMapTilerSatellite({
+        apiKey: services.maptilerApiKey,
+        cacheDir: join(dataDir, 'cache', 'tiles', 'satellite'),
+      }),
     }),
     routingProviders: {
       ...(services.orsApiKey && {

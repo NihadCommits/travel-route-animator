@@ -337,6 +337,9 @@ importers:
       '@travel-route-animator/scene':
         specifier: workspace:*
         version: link:../../packages/scene
+      '@travel-route-animator/styles':
+        specifier: workspace:*
+        version: link:../../packages/styles
       fastify:
         specifier: ^5.12.7
         version: 5.12.7

@@ -6,6 +6,8 @@ export interface ServiceConfig {
   orsUrl: string;
   /** Missing: road routes go to OSRM only on request, the editor explains why. */
   orsApiKey: string | undefined;
+  /** Missing: satellite maps stay off, the editor explains why (ADR 0010). */
+  maptilerApiKey: string | undefined;
   osrmUrl: string;
   /** Sent to free services, which ask callers to identify themselves. */
   userAgent: string;
@@ -33,6 +35,7 @@ export function resolveServiceConfig(env: NodeJS.ProcessEnv): ServiceConfig {
     photonUrl: serviceUrl(env, 'PHOTON_URL'),
     orsUrl: serviceUrl(env, 'ORS_URL'),
     orsApiKey: env.ORS_API_KEY?.trim() || undefined,
+    maptilerApiKey: env.MAPTILER_API_KEY?.trim() || undefined,
     osrmUrl: serviceUrl(env, 'OSRM_URL'),
     userAgent: `travel-route-animator (local tool${contact ? `; ${contact}` : ''})`,
   };

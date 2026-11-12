@@ -18,6 +18,9 @@ import { registerRenderRoutes } from './render/routes';
 import type { RoutingProvider } from './routing/provider';
 import { createRouter } from './routing/router';
 import { registerRoutingRoutes } from './routing/routes';
+import { registerMapRoutes } from './themes/routes';
+import { createThemeStore } from './themes/themeStore';
+import type { SatelliteSource } from './tiles/satellite';
 
 export interface AppOptions {
   dataDir: string;
@@ -32,6 +35,8 @@ export interface AppOptions {
   routingProviders?: Partial<Record<RouterId, RoutingProvider>>;
   /** Minimum time between two requests per router (ORS: 40 per minute, OSRM: one per second). */
   routingIntervalsMs?: Record<RouterId, number>;
+  /** Satellite tiles with the MapTiler key (ADR 0010); without one the option stays off. */
+  satellite?: SatelliteSource;
   /** Where rendered videos go; index.ts reads OUTPUT_DIR. */
   outputDir?: string;
   /** Renders the jobs; index.ts passes Remotion, tests a fake. Without one, jobs fail. */
@@ -67,6 +72,7 @@ export function buildApp({
   geocodingIntervalMs = 1000,
   routingProviders = {},
   routingIntervalsMs = { ors: 1500, osrm: 1000 },
+  satellite,
   outputDir = join(dataDir, 'output'),
   renderer = noRenderer,
   revealFile = () => false,
@@ -87,6 +93,9 @@ export function buildApp({
     warn: (message) => app.log.warn(message),
   });
   registerProjectRoutes(app, store);
+
+  const themes = createThemeStore({ dataDir, warn: (message) => app.log.warn(message) });
+  registerMapRoutes(app, { themes, satellite });
 
   const airports = createAirportStore(dataDir);
   registerAirportRoutes(app, airports);
@@ -122,6 +131,7 @@ export function buildApp({
   registerRenderRoutes(app, {
     queue: renderQueue,
     store,
+    themes,
     outputDir,
     now: now ?? (() => new Date()),
     revealFile,
