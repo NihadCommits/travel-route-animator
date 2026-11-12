@@ -347,6 +347,19 @@ export function cameraAt(timeline: Timeline, sec: number): CameraState {
   };
 }
 
+/** How close the 3D arrival comes: buildings stand from zoom 13 on and read well at 16. */
+export const ARRIVAL_ZOOM = 16;
+/** A dive-out starts this close above the start, as if a drone had just taken off. */
+export const DIVE_OUT_ZOOM = 17;
+/** Share of the 3D arrival spent moving in and tilting; the orbit takes the whole time. */
+const ARRIVAL_APPROACH_SHARE = 0.5;
+
+/** Where the eye ends up: the followed vehicle's place at `sec`, else the first vehicle's. */
+function placeAt(timeline: Timeline, sec: number): LngLat | undefined {
+  const track = followedTrack(timeline);
+  return track ? positionAt(track, sec) : undefined;
+}
+
 function cameraOnPath(timeline: Timeline, sec: number): CameraState {
   const { camera } = timeline.view;
   const { mainSec, introSec, outroSec, intro, outro } = timeline;
@@ -357,18 +370,65 @@ function cameraOnPath(timeline: Timeline, sec: number): CameraState {
     followed ? positionAt(followed, time) : base.center;
 
   if (sec < 0) {
-    const start = modeCamera(timeline, 0);
-    // dive-out comes with M11; until then the intro holds the first camera.
-    if (intro.type !== 'overview-to-start' || introSec <= 0) return start;
-    const f = ease('ease-in-out', (sec + introSec) / introSec);
-    return anchoredBlend(overviewCamera(timeline), start, f, anchorAt(0, start));
+    // Where the main part really starts (an overview start included), so nothing jumps.
+    const start = cameraOnPath(timeline, 0);
+    if (intro.type === 'none' || introSec <= 0) return start;
+    const t = (sec + introSec) / introSec;
+    if (intro.type === 'overview-to-start') {
+      return anchoredBlend(
+        overviewCamera(timeline),
+        start,
+        ease('ease-in-out', t),
+        anchorAt(0, start),
+      );
+    }
+    // dive-out: from straight above the start, fast at first, settling into the stage.
+    const origin = placeAt(timeline, 0) ?? start.center;
+    const deep: CameraState = {
+      ...start,
+      center: origin,
+      zoom: Math.max(start.zoom, DIVE_OUT_ZOOM),
+      pitchDeg: 0,
+    };
+    return anchoredBlend(deep, start, ease('ease-out', t), origin);
   }
   if (sec > mainSec) {
-    const end = modeCamera(timeline, mainSec);
-    // dive-in and arrival-3d come with M11; until then the outro holds the last camera.
-    if (outro.type !== 'overview' || outroSec <= 0) return end;
-    const f = ease('ease-in-out', (sec - mainSec) / Math.min(2, outroSec * 0.6));
-    return anchoredBlend(end, overviewCamera(timeline), f, anchorAt(mainSec, end));
+    // Where the main part really ends (an overview end included), so nothing jumps.
+    const end = cameraOnPath(timeline, mainSec);
+    if (outro.type === 'none' || outroSec <= 0) return end;
+    const t = Math.min(1, (sec - mainSec) / outroSec);
+    const target = placeAt(timeline, mainSec) ?? end.center;
+    switch (outro.type) {
+      case 'overview': {
+        const f = ease('ease-in-out', (sec - mainSec) / Math.min(2, outroSec * 0.6));
+        return anchoredBlend(end, overviewCamera(timeline), f, anchorAt(mainSec, end));
+      }
+      case 'dive-in': {
+        // Straight down onto the destination, faster and faster: the hard cut to the footage
+        // comes in the middle of the movement.
+        const deep: CameraState = {
+          center: target,
+          zoom: outro.targetZoom,
+          pitchDeg: 0,
+          bearingDeg: end.bearingDeg,
+          centerAltitudeM: 0,
+        };
+        return anchoredBlend(end, deep, ease('ease-in', t), target);
+      }
+      case 'arrival-3d': {
+        // Move in and tilt during the first half; circle the destination the whole time.
+        const close: CameraState = {
+          center: target,
+          zoom: Math.max(end.zoom, ARRIVAL_ZOOM),
+          pitchDeg: outro.pitchDeg,
+          bearingDeg: end.bearingDeg,
+          centerAltitudeM: 0,
+        };
+        const approach = ease('ease-in-out', Math.min(1, t / ARRIVAL_APPROACH_SHARE));
+        const moved = anchoredBlend(end, close, approach, target);
+        return { ...moved, bearingDeg: end.bearingDeg + outro.orbitDeg * ease('ease-in-out', t) };
+      }
+    }
   }
 
   const base = modeCamera(timeline, sec);
@@ -382,4 +442,39 @@ function cameraOnPath(timeline: Timeline, sec: number): CameraState {
     return anchoredBlend(base, overviewCamera(timeline), f, anchorAt(sec, base));
   }
   return base;
+}
+
+/** What an outro adds over the map in a frame (FrameState.effects). */
+export interface SectionEffects {
+  /** Blur in reference pixels. */
+  blur: number;
+  /** White over the picture, 0 to 1 (flash, fade to white). */
+  flash: number;
+  /** Black over the picture, 0 to 1. */
+  fade: number;
+  /** How much of the satellite picture shows over the map, 0 to 1. */
+  satelliteMix: number;
+}
+
+const NO_EFFECTS: SectionEffects = { blur: 0, flash: 0, fade: 0, satelliteMix: 0 };
+/** Strongest blur of a dive-in, at its last frame. */
+const DIVE_BLUR_PX = 14;
+
+/**
+ * The look of a dive-in's end (M11): the effect rises towards the last frame, so that frame is
+ * the strongest, and the cut to the footage comes right after it.
+ */
+export function sectionEffects(timeline: Timeline, sec: number): SectionEffects {
+  const { outro, mainSec, outroSec } = timeline;
+  if (outro.type !== 'dive-in' || outroSec <= 0 || sec <= mainSec) return NO_EFFECTS;
+  const t = Math.min(1, (sec - mainSec) / outroSec);
+  // 0 until `from` of the way through, 1 at the end.
+  const ramp = (from: number) => Math.max(0, (t - from) / (1 - from));
+  return {
+    blur: outro.effect === 'blur' ? DIVE_BLUR_PX * ramp(0.6) : 0,
+    flash:
+      outro.effect === 'flash' ? ramp(0.85) ** 2 : outro.effect === 'fade-white' ? ramp(0.6) : 0,
+    fade: outro.effect === 'fade-black' ? ramp(0.6) : 0,
+    satelliteMix: outro.switchToSatellite ? ramp(0.45) : 0,
+  };
 }

@@ -3,7 +3,7 @@ import type { LngLat } from '../geo/lngLat';
 import type { Id } from '../model/primitives';
 import type { Timeline, TrackPlan } from '../timeline/compileTimeline';
 import { movingSecAt } from './animation';
-import { cameraAt, metersPerPixel, type CameraState } from './camera';
+import { cameraAt, metersPerPixel, sectionEffects, type CameraState } from './camera';
 import {
   altitudeAt,
   arcAhead,
@@ -182,6 +182,6 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     tracks: timeline.tracks.map((plan) => trackFrame(plan, sec, camera)),
     labels: labelsAt(timeline, sec),
     counters: distanceKm === undefined ? {} : { distanceKm },
-    effects: { blur: 0, flash: 0, fade: 0, satelliteMix: 0 },
+    effects: sectionEffects(timeline, sec),
   };
 }
