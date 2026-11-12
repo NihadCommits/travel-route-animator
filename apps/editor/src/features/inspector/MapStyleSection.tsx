@@ -2,6 +2,7 @@ import {
   editEtappe,
   editGroup,
   LabelKindSchema,
+  LabelLanguageSchema,
   MapBaseSchema,
   type Etappe,
   type Group,
@@ -22,7 +23,7 @@ import { de } from '@/i18n/de';
 import { SelectField } from './fields/SelectField';
 import { SwitchField } from './fields/SwitchField';
 import { useOwnThemes, useSatelliteAvailable } from './mapStyles';
-import { Section } from './parts';
+import { optionsOf, Section } from './parts';
 import { ThemeEditorDialog } from './ThemeEditorDialog';
 import type { Edit } from './useEdit';
 
@@ -182,6 +183,17 @@ export function MapStyleSection({
       {style.base !== 'satellite' && (
         <fieldset className="space-y-1.5">
           <legend className="text-muted-foreground mb-1 text-xs">{texts.labels}</legend>
+          <SelectField
+            label={texts.language}
+            value={style.language ?? 'local'}
+            options={optionsOf(LabelLanguageSchema.options, texts.languages)}
+            hint={texts.languageHint}
+            onCommit={(language) => {
+              // The country's own language is the default; leave the field out for it.
+              const { language: _old, ...rest } = style;
+              return setStyle(language === 'local' ? rest : { ...rest, language });
+            }}
+          />
           <SwitchField label={texts.cleanMap} checked={allOff} onCommit={setCleanMap} />
           <p className="text-muted-foreground text-xs">{texts.cleanMapHint}</p>
           {LABEL_KINDS.map((kind) => (

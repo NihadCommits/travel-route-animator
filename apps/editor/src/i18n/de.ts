@@ -1,6 +1,7 @@
 import type {
   CarType,
   LabelKind,
+  LabelLanguage,
   MapBase,
   PlaneType,
   RoadAvoid,
@@ -265,6 +266,13 @@ export const de = {
       themeMissing: 'Dieses eigene Theme fehlt. Die Karte nutzt „Clean Hell“.',
       editTheme: 'Theme bearbeiten …',
       labels: 'Beschriftungen',
+      language: 'Sprache der Ortsnamen',
+      languages: {
+        local: 'Landessprache (Lisboa)',
+        de: 'Deutsch (Lissabon)',
+        en: 'Englisch (Lisbon)',
+      } satisfies Record<LabelLanguage, string>,
+      languageHint: 'Wo die Karte keinen Namen in dieser Sprache kennt, steht der Name des Landes.',
       cleanMap: 'Saubere Karte',
       cleanMapHint: 'Blendet alle Namen der Karte aus. Die Namen der Stopps bleiben.',
       labelKinds: {

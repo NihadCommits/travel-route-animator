@@ -56,6 +56,10 @@ export const LabelSettingsSchema = z.strictObject({
 });
 export type LabelSettings = z.infer<typeof LabelSettingsSchema>;
 
+/** Which spelling place names take: the country's own (Lisboa), German (Lissabon) or English. */
+export const LabelLanguageSchema = z.enum(['local', 'de', 'en']);
+export type LabelLanguage = z.infer<typeof LabelLanguageSchema>;
+
 /** Layers a theme shows or leaves out. */
 export const ThemeLayersSchema = z.strictObject({
   minorRoads: z.boolean(),
@@ -100,6 +104,8 @@ export const MapStyleRefSchema = z
     overrides: ThemeTokensSchema.partial().optional(),
     /** Label kinds that differ from the theme; all false is "Saubere Karte" (ADR 0010). */
     labels: LabelSettingsSchema.partial().optional(),
+    /** Missing is the country's own language. */
+    language: LabelLanguageSchema.optional(),
   })
   .superRefine((style, ctx) => {
     if (THEMED_BASES.has(style.base)) return;
