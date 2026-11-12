@@ -1,4 +1,4 @@
-import type { PlaneType, RoadAvoid, VehicleType } from '@travel-route-animator/core';
+import type { CarType, PlaneType, RoadAvoid, VehicleType } from '@travel-route-animator/core';
 
 // All UI strings live here so that an English translation can be added later without touching components.
 export const de = {
@@ -235,6 +235,18 @@ export const de = {
     track: {
       label: 'Bezeichnung',
       vehicle: 'Fahrzeug',
+      carType: 'Fahrzeugtyp',
+      carTypes: {
+        'car-default': 'Limousine',
+        'car-compact': 'Kleinwagen',
+        'car-estate': 'Kombi',
+        'car-suv': 'SUV',
+        'car-van': 'Transporter',
+        'car-camper': 'Wohnmobil',
+      } satisfies Record<CarType, string>,
+      carType3d: 'Form des 3D-Autos, das die geneigte Ansicht zeigt.',
+      carTypeFlat:
+        'Form des 3D-Autos. Es erscheint ab 20° Neigung; von oben gesehen bleibt es beim Symbol.',
       routing: 'Routing',
       timing: 'Zeitablauf',
       start: 'Start',
@@ -253,7 +265,7 @@ export const de = {
           'Der Teil der Route, der noch vor dem Fahrzeug liegt. Bei 0 % ist er unsichtbar, sonst stehen auch die Ortsnamen voraus von Anfang an da.',
         dash: 'Linienart',
       },
-      later: 'Eigene Icons und das 3D-Auto kommen mit dem letzten Teil von M8.',
+      later: 'Eigene Icons kommen mit dem letzten Teil von M8.',
       flight: {
         title: 'Flug',
         planeType: 'Flugzeugtyp',

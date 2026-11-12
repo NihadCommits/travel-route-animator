@@ -173,10 +173,20 @@ describe('Inspector', () => {
     expect(planeType).toHaveDisplayValue('Airbus A380');
   });
 
-  it('shows no flight options for a car', async () => {
-    await renderEditor(trip({ withCar: true }).project);
+  it('gives a car a body type instead of flight options', async () => {
+    const { user } = await renderEditor(trip({ withCar: true }).project);
     await selectRow('Auto');
     expect(inspector().queryByLabelText('Bogenhöhe')).toBeNull();
+
+    const carType = inspector().getByLabelText('Fahrzeugtyp');
+    expect(carType).toHaveDisplayValue('Limousine');
+    expect(carType).toHaveAccessibleDescription(/3D-Autos/);
+    await user.selectOptions(carType, 'Wohnmobil');
+    expect(carType).toHaveDisplayValue('Wohnmobil');
+
+    // Another vehicle has no body types; a car again starts as the default.
+    await user.selectOptions(inspector().getByLabelText('Fahrzeug'), 'Bus');
+    expect(inspector().queryByLabelText('Fahrzeugtyp')).toBeNull();
   });
 
   it('sets how the route ahead looks', async () => {

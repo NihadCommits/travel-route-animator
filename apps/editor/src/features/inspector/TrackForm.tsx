@@ -1,4 +1,6 @@
 import {
+  CAR_TYPES,
+  carTypeOf,
   changeVehicleType,
   checkEtappeReadiness,
   EasingSchema,
@@ -79,6 +81,10 @@ export function TrackForm({
       typeof value === 'number',
     );
 
+  const setVariant = (variant: string) =>
+    change('vehicle.variant', (t) => ({ ...t, vehicle: { ...t.vehicle, variant } }));
+  const tilted = flightStyleFor(etappe.view.pitchDeg) === 'arc-3d';
+
   // Routing options to avoid belong to road routing only, so they go when the mode changes.
   const setRouting = (mode: RoutingMode) =>
     change('routing.mode', (t) => ({
@@ -135,6 +141,15 @@ export function TrackForm({
           })
         }
       />
+      {track.vehicle.type === 'car' && (
+        <SelectField
+          label={de.inspector.track.carType}
+          value={carTypeOf(track.vehicle.variant)}
+          options={optionsOf(CAR_TYPES, de.inspector.track.carTypes)}
+          hint={tilted ? de.inspector.track.carType3d : de.inspector.track.carTypeFlat}
+          onCommit={setVariant}
+        />
+      )}
       <SelectField
         label={de.inspector.track.routing}
         value={track.routing.mode}
@@ -252,9 +267,7 @@ export function TrackForm({
             value={planeTypeOf(track.vehicle.variant)}
             options={optionsOf(PLANE_TYPES, de.inspector.track.flight.planeTypes)}
             hint={de.inspector.track.flight.planeTypeHint}
-            onCommit={(variant) =>
-              change('vehicle.variant', (t) => ({ ...t, vehicle: { ...t.vehicle, variant } }))
-            }
+            onCommit={setVariant}
           />
           <NumberField
             label={de.inspector.track.flight.arcHeight}
@@ -280,9 +293,7 @@ export function TrackForm({
             onCommit={(on) => setFlight('takeoffLandingCamera', on)}
           />
           <p className="text-muted-foreground text-xs">
-            {flightStyleFor(etappe.view.pitchDeg) === 'arc-3d'
-              ? de.inspector.track.flight.arc3d
-              : de.inspector.track.flight.fake3d}
+            {tilted ? de.inspector.track.flight.arc3d : de.inspector.track.flight.fake3d}
           </p>
         </Section>
       )}

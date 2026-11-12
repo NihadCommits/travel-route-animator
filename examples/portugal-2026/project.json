@@ -355,7 +355,7 @@
             {
               "id": "t_option_a",
               "label": "Option A",
-              "vehicle": { "type": "car", "variant": "car-default" },
+              "vehicle": { "type": "car", "variant": "car-compact" },
               "routing": { "mode": "road" },
               "waypoints": [
                 {
@@ -390,7 +390,7 @@
             {
               "id": "t_option_b",
               "label": "Option B",
-              "vehicle": { "type": "car", "variant": "car-default" },
+              "vehicle": { "type": "car", "variant": "car-suv" },
               "routing": { "mode": "road" },
               "waypoints": [
                 {
@@ -425,7 +425,7 @@
             {
               "id": "t_option_c",
               "label": "Option C",
-              "vehicle": { "type": "car", "variant": "car-default" },
+              "vehicle": { "type": "car", "variant": "car-camper" },
               "routing": { "mode": "road" },
               "waypoints": [
                 {
