@@ -1,4 +1,5 @@
 import { flightStyleFor, type FrameState, type Timeline } from '@travel-route-animator/core';
+import { SATELLITE_MIX_LAYER } from '@travel-route-animator/styles';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useBufferState, useDelayRender, useRemotionEnvironment } from 'remotion';
@@ -219,6 +220,10 @@ export const MapStage: FC<MapStageProps> = ({
       bearing: camera.bearingDeg,
     });
     layer3d.current?.setDrawings(drawings3d(timeline, state, timings));
+    // The satellite picture a dive-in fades in, by the frame's share (M11).
+    if (map.getLayer(SATELLITE_MIX_LAYER)) {
+      map.setPaintProperty(SATELLITE_MIX_LAYER, 'raster-opacity', state.effects.satelliteMix);
+    }
     const drawn = setSceneFeatures(map, sceneFeatures(timeline, state, timings));
     if (!isRendering) {
       drawn.catch((error: unknown) => cancelRender(error));
@@ -272,6 +277,8 @@ export const MapStage: FC<MapStageProps> = ({
         height: viewport.height,
         transform: scale === 1 ? undefined : `scale(${scale})`,
         transformOrigin: 'top left',
+        // The blur of a dive-in's end (M11), in reference pixels like everything here.
+        filter: state.effects.blur > 0 ? `blur(${state.effects.blur}px)` : undefined,
       }}
     />
   );

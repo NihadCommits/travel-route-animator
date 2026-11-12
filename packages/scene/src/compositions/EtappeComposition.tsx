@@ -3,6 +3,7 @@ import { useMemo, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'remotion';
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
+import { EffectsOverlay } from '../overlays/EffectsOverlay';
 import { MapFinish } from '../overlays/MapFinish';
 import { mapLookOf } from '../stage/mapLook';
 import { MapStage } from '../stage/MapStage';
@@ -49,6 +50,7 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
       <MapStage key={look.key} timeline={timeline} state={state} images={images} look={look} />
       <MapFinish extras={look.extras} />
       <Overlays timeline={timeline} state={state} credits={look.credits} />
+      <EffectsOverlay effects={state.effects} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>
   );

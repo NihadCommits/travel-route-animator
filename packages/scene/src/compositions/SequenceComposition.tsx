@@ -1,6 +1,7 @@
 import { compileSequence, sequenceFrameAt } from '@travel-route-animator/core';
 import { useMemo, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'remotion';
+import { EffectsOverlay } from '../overlays/EffectsOverlay';
 import { MapFinish } from '../overlays/MapFinish';
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
@@ -64,7 +65,7 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
       />
       <MapFinish extras={look.extras} />
       <Overlays timeline={timeline} state={state} credits={look.credits} />
-      {dip > 0 && <AbsoluteFill style={{ backgroundColor: '#000000', opacity: dip }} />}
+      <EffectsOverlay effects={state.effects} dip={dip} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>
   );

@@ -5,9 +5,11 @@
  */
 import { readdir, rename, rm, stat, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { findEtappe } from '@travel-route-animator/core';
 import {
   ensureBrowser,
   renderMedia,
+  renderStill,
   selectComposition,
   type CancelSignal,
   type OpenGlRenderer,
@@ -150,6 +152,18 @@ export interface RenderEtappeOptions {
 
 export interface RenderedVideo extends VideoInfo {
   outputLocation: string;
+  /** The last frame as PNG, when the last stage dives in and asks for it (M11). */
+  endFrameLocation?: string;
+}
+
+/**
+ * Whether the video's last frame should also come out as a PNG: the last stage ends with a
+ * dive-in that asks for it, so the editor can line the footage up with it.
+ */
+export function wantsEndFrame(props: StageProps): boolean {
+  const lastId = 'etappeIds' in props ? props.etappeIds.at(-1) : props.etappeId;
+  const outro = lastId ? findEtappe(props.project, lastId)?.etappe.outro : undefined;
+  return outro?.type === 'dive-in' && outro.exportEndFrame;
 }
 
 /**
@@ -215,7 +229,22 @@ export async function renderEtappe({
       );
     }
     await rename(partial, outputLocation);
-    return { outputLocation, ...info };
+    if (!wantsEndFrame(props)) return { outputLocation, ...info };
+    // Drawn by the same composition, so it is the video's last frame without the compression.
+    const endFrameLocation = outputLocation.replace(/\.[^.\\/]+$/, '') + '.png';
+    await renderStill({
+      serveUrl,
+      composition,
+      inputProps: props,
+      frame: durationInFrames - 1,
+      output: endFrameLocation,
+      imageFormat: 'png',
+      chromiumOptions,
+      ...binaries,
+      timeoutInMilliseconds: 60_000,
+      ...(cancelSignal && { cancelSignal }),
+    });
+    return { outputLocation, ...info, endFrameLocation };
   } catch (error) {
     await rm(partial, { force: true });
     throw error;
