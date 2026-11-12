@@ -16,6 +16,7 @@ export * from './model/style';
 export * from './model/output';
 export * from './model/assets';
 export * from './assets/imageInfo';
+export * from './assets/used';
 export * from './model/track';
 export * from './model/etappe';
 export * from './model/project';

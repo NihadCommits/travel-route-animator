@@ -12,9 +12,10 @@
  */
 import { spawn, type ChildProcess } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
+  assetsOfEtappe,
   checkRenderReadiness,
   ComputedRouteSchema,
   describeIssues,
@@ -28,6 +29,7 @@ import {
   type OutputSettings,
   type Project,
 } from '@travel-route-animator/core';
+import { readAssetUrls } from '../render/assets';
 import { bundleScene, GL_RENDERERS, renderEtappe } from '../render/renderEtappe';
 
 const repoRoot = resolve(import.meta.dirname, '../../..');
@@ -182,6 +184,11 @@ const issues = checkRenderReadiness(project, [etappe.id]);
 if (issues.length > 0) fail(`"${etappe.name}" cannot be rendered yet:\n${describeIssues(issues)}`);
 
 const output = outputOverrides(project);
+// Images of the vehicles lie in assets/ next to the project file, as in the data folder.
+const assetUrls = await readAssetUrls(
+  join(dirname(resolve(repoRoot, values.file)), 'assets'),
+  assetsOfEtappe(project, etappe.id),
+);
 const name = suggestVideoName(etappe.name, resolveOutput(project, output), new Date());
 const outputLocation = join(repoRoot, 'output', slugify(project.name), `${name}.mp4`);
 
@@ -191,7 +198,7 @@ const startedAt = performance.now();
 let lastReported = -1;
 const video = await renderEtappe({
   serveUrl,
-  props: { project, etappeId: etappe.id, output },
+  props: { project, etappeId: etappe.id, output, assetUrls },
   outputLocation,
   gl,
   onFormat: ({ width, height, fps, durationInFrames }) =>

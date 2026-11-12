@@ -15,6 +15,11 @@ export type EtappeProps = {
   etappeId: string;
   /** Overrides from the render dialog, e.g. a 9:16 version of the same stage. */
   output?: Partial<OutputSettings>;
+  /**
+   * Where the stage's images load from, by asset ID (ADR 0009): the server's URLs in the
+   * editor, data: URLs in a render. The scene itself knows nothing of the server.
+   */
+  assetUrls?: Record<string, string>;
   /** Preview only: draw with fewer pixels (0.5 = half resolution), same picture otherwise. */
   previewScale?: number;
   /** Preview only: safe-area guides on top. Never set for an export. */

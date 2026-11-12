@@ -1,5 +1,7 @@
 import { join } from 'node:path';
+import { readAssetUrls } from '@travel-route-animator/scene/render/assets';
 import {
+  assetsOfEtappe,
   checkRenderReadiness,
   cleanVideoName,
   describeIssues,
@@ -113,6 +115,7 @@ export function registerRenderRoutes(
         });
       }
 
+      const assets = assetsOfEtappe(project, etappeId);
       const job = await queue.add({
         project,
         etappe,
@@ -120,6 +123,9 @@ export function registerRenderRoutes(
         output,
         dir: join(outputDir, slugify(project.name)),
         name,
+        ...(assets.length > 0 && {
+          assetUrls: await readAssetUrls(await store.assetsDir(projectId), assets),
+        }),
       });
       return reply.code(202).send(job);
     });

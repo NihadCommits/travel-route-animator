@@ -1,7 +1,13 @@
 import { cp, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import type { RenderJob, VideoInfo } from '@travel-route-animator/core';
+import {
+  setImageIcon,
+  type ImageAsset,
+  type Project,
+  type RenderJob,
+  type VideoInfo,
+} from '@travel-route-animator/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../app';
 import type { StageRenderer, StageRenderJob } from './renderer';
@@ -82,6 +88,37 @@ describe('POST /api/render', () => {
     renders[0]!.finish();
     await settle();
     expect((await jobs())[0]).toMatchObject({ state: 'done', video: VIDEO });
+  });
+
+  it('hands the images of the stage to the render as data URLs', async () => {
+    // A 2 × 2 GIF of one picture: header, image descriptor, two bytes of data, trailer.
+    const gif = Buffer.from([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x02, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x2c, 0x00,
+      0x00, 0x00, 0x00, 0x02, 0x00, 0x02, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3b,
+    ]);
+    const uploaded = await app.inject({
+      method: 'POST',
+      url: '/api/projects/p_portugal26/assets?name=plane.gif',
+      headers: { 'content-type': 'application/octet-stream' },
+      payload: gif,
+    });
+    expect(uploaded.statusCode).toBe(201);
+    const asset = uploaded.json<ImageAsset>();
+    const project = (
+      await app.inject({ method: 'GET', url: '/api/projects/p_portugal26' })
+    ).json<Project>();
+    const saved = await app.inject({
+      method: 'PUT',
+      url: '/api/projects/p_portugal26',
+      payload: setImageIcon(project, 't_flugzeug', asset),
+    });
+    expect(saved.statusCode).toBe(200);
+
+    expect((await startRender(wienPorto)).statusCode).toBe(202);
+    await settle();
+    expect(renders[0]!.job.props.assetUrls).toEqual({
+      [asset.id]: `data:image/gif;base64,${gif.toString('base64')}`,
+    });
   });
 
   it('refuses a stage whose road route is not there yet', async () => {

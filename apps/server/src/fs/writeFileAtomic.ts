@@ -19,14 +19,14 @@ const RETRYABLE_CODES = new Set(['EPERM', 'EBUSY', 'EACCES']);
  */
 export async function writeFileAtomic(
   path: string,
-  data: string,
+  data: string | Uint8Array,
   { renameFile = rename, retries = 5, retryDelayMs = 50 }: AtomicWriteOptions = {},
 ): Promise<void> {
   const tempPath = join(dirname(path), `.${basename(path)}.${randomBytes(6).toString('hex')}.tmp`);
   try {
     const handle = await open(tempPath, 'wx');
     try {
-      await handle.writeFile(data, 'utf8');
+      await handle.writeFile(data, typeof data === 'string' ? 'utf8' : undefined);
       // Without fsync, a power cut right after the rename could leave an empty file behind.
       await handle.sync();
     } finally {
