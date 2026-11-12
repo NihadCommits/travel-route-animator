@@ -1,11 +1,10 @@
 import { routingCredits, type FrameState, type Timeline } from '@travel-route-animator/core';
-import { OPENFREEMAP_ATTRIBUTION } from '@travel-route-animator/styles';
 import type { CSSProperties, FC } from 'react';
 
 // HTML on top of the map, in the same reference size (1080 pixels on the short side) and
 // scaled with it. Everything comes from the frame state; no CSS transitions (Determinismus).
 
-/** System fonts for now; own fonts per theme come with M9. */
+/** System fonts; own fonts for the overlays are an idea for later (M9 plan). */
 const FONT = '"Segoe UI", "Noto Sans", "Helvetica Neue", Arial, sans-serif';
 
 const pill: CSSProperties = {
@@ -22,13 +21,15 @@ const pill: CSSProperties = {
 
 const kilometres = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 
-export const Overlays: FC<{ timeline: Timeline; state: FrameState }> = ({ timeline, state }) => {
+export const Overlays: FC<{
+  timeline: Timeline;
+  state: FrameState;
+  /** The map's own credits, by source (styleCredits). */
+  credits: readonly string[];
+}> = ({ timeline, state, credits: mapCredits }) => {
   const { overlays, viewport, scale } = timeline;
   const { distanceKm } = state.counters;
-  const credits = [
-    OPENFREEMAP_ATTRIBUTION,
-    ...routingCredits(timeline.tracks.map((t) => t.provider)),
-  ];
+  const credits = [...mapCredits, ...routingCredits(timeline.tracks.map((t) => t.provider))];
 
   return (
     <div

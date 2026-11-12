@@ -337,6 +337,9 @@ importers:
       '@travel-route-animator/scene':
         specifier: workspace:*
         version: link:../../packages/scene
+      '@travel-route-animator/styles':
+        specifier: workspace:*
+        version: link:../../packages/styles
       fastify:
         specifier: ^5.12.7
         version: 5.12.7
@@ -413,7 +416,18 @@ importers:
         specifier: ^4.23.15
         version: 4.23.15
 
-  packages/styles: {}
+  packages/styles:
+    dependencies:
+      '@travel-route-animator/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      '@maplibre/maplibre-gl-style-spec':
+        specifier: ^26.4.4
+        version: 26.4.4
+      maplibre-gl:
+        specifier: ^6.16.0
+        version: 6.16.0
 
 packages:
 

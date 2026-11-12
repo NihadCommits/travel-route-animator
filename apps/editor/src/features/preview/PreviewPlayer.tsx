@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatSec } from '@/features/timeline/scale';
 import { de } from '@/i18n/de';
+import { useOwnThemes } from '@/features/inspector/mapStyles';
 import { assetUrl } from '@/lib/api';
 import { selectProject, useEditor, type PreviewSettings } from '@/state/editorStore';
 import { usePlayerBridge, usePreviewFrame, usePreviewPlaying } from './playerBridge';
@@ -38,6 +39,8 @@ export function PreviewPlayer({ etappeId }: { etappeId: Id }) {
     () => Object.fromEntries(assets.map((asset) => [asset.id, assetUrl(project.id, asset)])),
     [assets, project.id],
   );
+  // Own themes come from the server; satellite tiles too, through the editor's own origin.
+  const themes = useOwnThemes();
   const inputProps = useMemo<EtappeProps>(
     () => ({
       project,
@@ -45,8 +48,10 @@ export function PreviewPlayer({ etappeId }: { etappeId: Id }) {
       previewScale: PREVIEW_SCALE[quality],
       guides: project.defaults.output.safeAreaGuides,
       assetUrls,
+      themes: { ...themes },
+      serverUrl: window.location.origin,
     }),
-    [project, etappeId, quality, assetUrls],
+    [project, etappeId, quality, assetUrls, themes],
   );
   // Length, frame rate and size the same way the export works them out (calculateMetadata).
   const timeline = useMemo(() => timelineOf(inputProps), [inputProps]);

@@ -16,6 +16,8 @@ import { dirname, join, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import {
   assetsOfEtappe,
+  resolveMapStyle,
+  ThemeSchema,
   checkRenderReadiness,
   ComputedRouteSchema,
   describeIssues,
@@ -28,7 +30,9 @@ import {
   tracksAwaitingRoute,
   type OutputSettings,
   type Project,
+  type Theme,
 } from '@travel-route-animator/core';
+import { isBuiltInTheme } from '@travel-route-animator/styles';
 import { readAssetUrls } from '../render/assets';
 import { bundleScene, GL_RENDERERS, renderEtappe } from '../render/renderEtappe';
 
@@ -178,8 +182,27 @@ const etappe = loaded.groups
 if (!etappe) fail(`No stage "${values.etappe}" in ${values.file}`);
 
 const project = refreshLocalRoutes(await withRoadRoutes(loaded, etappe.id), loaded.updatedAt);
-// The render needs no server; only the routes did.
-stopStartedServer();
+
+// An own theme lives with the server (data/themes), and satellite tiles come through it
+// (ADR 0010); for those the server is asked, and kept running while a satellite map renders.
+const mapStyle = resolveMapStyle(project, etappe.id).value;
+const satellite = mapStyle.base === 'satellite' || mapStyle.base === 'satellite-hybrid';
+let themes: Record<string, Theme> | undefined;
+if (mapStyle.themeId && !isBuiltInTheme(mapStyle.themeId)) {
+  await ensureServer();
+  const response = await fetch(
+    `${values.server}/api/themes/${encodeURIComponent(mapStyle.themeId)}`,
+  );
+  if (response.ok) {
+    const theme = ThemeSchema.parse(await response.json());
+    themes = { [theme.id]: theme };
+  } else {
+    console.warn(`The own theme "${mapStyle.themeId}" is missing; the map uses the default theme.`);
+  }
+}
+if (satellite) await ensureServer();
+// Otherwise the render needs no server; only the routes did.
+if (!satellite) stopStartedServer();
 const issues = checkRenderReadiness(project, [etappe.id]);
 if (issues.length > 0) fail(`"${etappe.name}" cannot be rendered yet:\n${describeIssues(issues)}`);
 
@@ -198,7 +221,14 @@ const startedAt = performance.now();
 let lastReported = -1;
 const video = await renderEtappe({
   serveUrl,
-  props: { project, etappeId: etappe.id, output, assetUrls },
+  props: {
+    project,
+    etappeId: etappe.id,
+    output,
+    assetUrls,
+    ...(themes && { themes }),
+    ...(satellite && { serverUrl: values.server }),
+  },
   outputLocation,
   gl,
   onFormat: ({ width, height, fps, durationInFrames }) =>
@@ -214,6 +244,7 @@ const video = await renderEtappe({
     }
   },
 });
+stopStartedServer();
 const seconds = (performance.now() - startedAt) / 1000;
 console.log(
   `\nDone in ${seconds.toFixed(1)} s: ${video.outputLocation}\n` +

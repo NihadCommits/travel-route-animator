@@ -1,12 +1,15 @@
 import { editGroup, renameItem, type Group, type ItemLocation } from '@travel-route-animator/core';
 import { de } from '@/i18n/de';
+import { selectProject, useEditor } from '@/state/editorStore';
 import { ColorField } from './fields/ColorField';
 import { TextField } from './fields/TextField';
+import { MapStyleSection } from './MapStyleSection';
 import { FormHeading, LaterNote } from './parts';
 import { useEdit } from './useEdit';
 
 export function GroupForm({ group, location }: { group: Group; location: ItemLocation }) {
   const edit = useEdit(location);
+  const project = useEditor(selectProject);
 
   return (
     <>
@@ -31,6 +34,7 @@ export function GroupForm({ group, location }: { group: Group; location: ItemLoc
           )
         }
       />
+      <MapStyleSection project={project} level={{ kind: 'group', group }} edit={edit} />
       <LaterNote text={de.inspector.group.later} />
     </>
   );

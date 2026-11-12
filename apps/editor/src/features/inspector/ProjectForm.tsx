@@ -2,6 +2,7 @@ import { renameItem, type OutputSettings, type Project } from '@travel-route-ani
 import { de } from '@/i18n/de';
 import { SelectField } from './fields/SelectField';
 import { TextField } from './fields/TextField';
+import { MapStyleSection } from './MapStyleSection';
 import { FormHeading, LaterNote, optionsOf, Row, Section } from './parts';
 import { useEdit } from './useEdit';
 
@@ -51,6 +52,8 @@ export function ProjectForm({ project }: { project: Project }) {
           />
         </Row>
       </Section>
+
+      <MapStyleSection project={project} level={{ kind: 'project' }} edit={edit} />
 
       <LaterNote text={de.inspector.project.later} />
     </>

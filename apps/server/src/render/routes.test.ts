@@ -8,6 +8,7 @@ import {
   type RenderJob,
   type VideoInfo,
 } from '@travel-route-animator/core';
+import { resolveTheme } from '@travel-route-animator/styles';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildApp } from '../app';
 import type { StageRenderer, StageRenderJob } from './renderer';
@@ -119,6 +120,24 @@ describe('POST /api/render', () => {
     expect(renders[0]!.job.props.assetUrls).toEqual({
       [asset.id]: `data:image/gif;base64,${gif.toString('base64')}`,
     });
+  });
+
+  it('hands an own theme and its own address to the render', async () => {
+    const theme = { ...resolveTheme('night').theme, id: 'my-night', name: 'Meine Nacht' };
+    await app.inject({ method: 'PUT', url: '/api/themes/my-night', payload: theme });
+    const project = (
+      await app.inject({ method: 'GET', url: '/api/projects/p_portugal26' })
+    ).json<Project>();
+    const themed: Project = {
+      ...project,
+      defaults: { ...project.defaults, mapStyle: { base: 'vector', themeId: 'my-night' } },
+    };
+    await app.inject({ method: 'PUT', url: '/api/projects/p_portugal26', payload: themed });
+
+    expect((await startRender(wienPorto)).statusCode).toBe(202);
+    await settle();
+    expect(renders[0]!.job.props.themes).toEqual({ 'my-night': theme });
+    expect(renders[0]!.job.props.serverUrl).toMatch(/^http:\/\//);
   });
 
   it('refuses a stage whose road route is not there yet', async () => {

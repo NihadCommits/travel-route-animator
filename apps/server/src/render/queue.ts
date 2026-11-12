@@ -4,6 +4,7 @@ import {
   type OutputSettings,
   type Project,
   type RenderJob,
+  type Theme,
 } from '@travel-route-animator/core';
 import type { EtappeProps } from '@travel-route-animator/scene/render';
 import { pickOutputPath } from './outputFiles';
@@ -31,6 +32,10 @@ export interface NewRenderJob {
   name: string;
   /** The stage's images as data: URLs, by asset ID (ADR 0009). */
   assetUrls?: Record<string, string>;
+  /** The own theme the stage's style names (ADR 0010). */
+  themes?: Record<string, Theme>;
+  /** This server, for satellite tiles. */
+  serverUrl?: string;
 }
 
 interface Entry {
@@ -159,6 +164,8 @@ export function createRenderQueue({
             etappeId: input.etappe.id,
             output: input.overrides,
             ...(input.assetUrls && { assetUrls: input.assetUrls }),
+            ...(input.themes && { themes: input.themes }),
+            ...(input.serverUrl && { serverUrl: input.serverUrl }),
           },
           abort: new AbortController(),
           lastPublished: 0,

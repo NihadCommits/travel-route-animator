@@ -2,6 +2,7 @@ import { join } from 'node:path';
 import { readAssetUrls } from '@travel-route-animator/scene/render/assets';
 import {
   assetsOfEtappe,
+  resolveMapStyle,
   checkRenderReadiness,
   cleanVideoName,
   describeIssues,
@@ -16,6 +17,9 @@ import {
   type RenderJob,
 } from '@travel-route-animator/core';
 import type { FastifyInstance } from 'fastify';
+import { isBuiltInTheme } from '@travel-route-animator/styles';
+import { ownUrl } from '../themes/routes';
+import type { ThemeStore } from '../themes/themeStore';
 import {
   ProjectFileInvalidError,
   ProjectNotFoundError,
@@ -27,6 +31,7 @@ import type { RevealFile } from './reveal';
 export interface RenderRouteOptions {
   queue: RenderQueue;
   store: ProjectStore;
+  themes: ThemeStore;
   outputDir: string;
   now: () => Date;
   revealFile: RevealFile;
@@ -42,7 +47,7 @@ const HEARTBEAT_MS = 15_000;
 
 export function registerRenderRoutes(
   app: FastifyInstance,
-  { queue, store, outputDir, now, revealFile }: RenderRouteOptions,
+  { queue, store, themes, outputDir, now, revealFile }: RenderRouteOptions,
 ): void {
   void app.register((routes, _options, done) => {
     routes.setErrorHandler((error, _request, reply) => {
@@ -116,6 +121,12 @@ export function registerRenderRoutes(
       }
 
       const assets = assetsOfEtappe(project, etappeId);
+      // An own theme goes along; a missing one is drawn as the default (ADR 0010).
+      const { themeId } = resolveMapStyle(project, etappeId).value;
+      const ownTheme =
+        themeId && !isBuiltInTheme(themeId)
+          ? await themes.get(themeId).catch(() => undefined)
+          : undefined;
       const job = await queue.add({
         project,
         etappe,
@@ -126,6 +137,8 @@ export function registerRenderRoutes(
         ...(assets.length > 0 && {
           assetUrls: await readAssetUrls(await store.assetsDir(projectId), assets),
         }),
+        ...(ownTheme && { themes: { [ownTheme.id]: ownTheme } }),
+        serverUrl: ownUrl(request),
       });
       return reply.code(202).send(job);
     });

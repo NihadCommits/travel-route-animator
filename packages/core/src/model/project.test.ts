@@ -297,7 +297,7 @@ describe('validateProject (always checked, "storable")', () => {
     });
 
     it('rejects a schema version this app does not know', () => {
-      const project = { ...sampleProject(), schemaVersion: 4 };
+      const project = { ...sampleProject(), schemaVersion: 5 };
       expect(issuesOf(project).map((i) => i.path)).toContain('schemaVersion');
     });
 

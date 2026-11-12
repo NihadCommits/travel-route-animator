@@ -7,6 +7,7 @@ import {
   type RenderJob,
   type RenderRequest,
   type RouteRequest,
+  type Theme,
 } from '@travel-route-animator/core';
 import { vi } from 'vitest';
 
@@ -43,6 +44,8 @@ export interface FakeSearch {
   render?: (request: RenderRequest) => { status: number; body: unknown };
   /** Answers POST /api/render/:id/reveal; undefined stands for Windows (204). */
   revealStatus?: number;
+  /** Whether satellite maps are on (/api/capabilities); off by default, as without a key. */
+  satellite?: boolean;
   /** Answers POST /api/projects/:id/assets; undefined accepts the image (fakeImageAsset). */
   upload?: (name: string) => { status: number; body: unknown };
 }
@@ -68,6 +71,7 @@ export function fakeImageAsset(name: string, id = 'a_image'): ImageAsset {
 export function installFakeServer(initial: Project[] = [], search: FakeSearch = {}) {
   const projects = new Map(initial.map((project) => [project.id, project]));
   const renders: RenderJob[] = [];
+  const themes = new Map<string, Theme>();
   const calls: { method: string; path: string; body?: unknown }[] = [];
   let failAll = false;
 
@@ -134,6 +138,20 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
       return Promise.resolve(json(answer.status, answer.body));
     }
 
+    if (searchUrl.pathname === '/capabilities') {
+      return Promise.resolve(json(200, { satellite: search.satellite ?? false }));
+    }
+    if (searchUrl.pathname === '/themes') return Promise.resolve(json(200, [...themes.values()]));
+    const themeId = /^\/themes\/([^/]+)$/.exec(searchUrl.pathname)?.[1];
+    if (themeId && method === 'PUT') {
+      themes.set(themeId, body as Theme);
+      return Promise.resolve(json(200, body));
+    }
+    if (themeId && method === 'DELETE') {
+      themes.delete(themeId);
+      return Promise.resolve(new Response(null, { status: 204 }));
+    }
+
     const upload = /^\/projects\/([^/]+)\/assets$/.exec(searchUrl.pathname);
     if (upload && method === 'POST') {
       const name = searchUrl.searchParams.get('name') ?? 'image';
@@ -177,6 +195,7 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
   return {
     projects,
     renders,
+    themes,
     calls,
     fetchMock,
     /** Simulates a stopped server. */

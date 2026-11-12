@@ -3,6 +3,8 @@ import { useMemo, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'remotion';
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
+import { MapFinish } from '../overlays/MapFinish';
+import { mapLookOf } from '../stage/mapLook';
 import { MapStage } from '../stage/MapStage';
 import { stageImages } from '../vehicles/images';
 import type { EtappeProps } from './etappeProps';
@@ -24,7 +26,7 @@ export const calculateEtappeMetadata: CalculateMetadataFunction<EtappeProps> = (
 };
 
 export const EtappeComposition: FC<EtappeProps> = (props) => {
-  const { project, etappeId, output, previewScale, guides, assetUrls } = props;
+  const { project, etappeId, output, previewScale, guides, assetUrls, themes, serverUrl } = props;
   const frame = useCurrentFrame();
   // Worked out once per props; every frame is then a pure function of it (Determinismus).
   const timeline = useMemo(
@@ -32,15 +34,21 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
     [project, etappeId, output, previewScale],
   );
   const state = useMemo(() => computeFrameState(timeline, frame), [timeline, frame]);
+  const look = useMemo(
+    () => mapLookOf(timeline, { themes, serverUrl }),
+    [timeline, themes, serverUrl],
+  );
   const images = useMemo(
     () => stageImages(project, etappeId, assetUrls),
     [project, etappeId, assetUrls],
   );
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#dfe7ee' }}>
-      <MapStage timeline={timeline} state={state} images={images} />
-      <Overlays timeline={timeline} state={state} />
+    <AbsoluteFill style={{ backgroundColor: look.background }}>
+      {/* A new style is a new map: a diff would drop our own sources and layers (ADR 0010). */}
+      <MapStage key={look.key} timeline={timeline} state={state} images={images} look={look} />
+      <MapFinish extras={look.extras} />
+      <Overlays timeline={timeline} state={state} credits={look.credits} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>
   );
