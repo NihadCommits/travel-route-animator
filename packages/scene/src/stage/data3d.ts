@@ -1,12 +1,16 @@
 import {
+  carTypeOf,
   metersPerPixel,
   planeTypeOf,
+  type CarType,
   type FrameState,
   type LineDash,
   type LngLat,
   type PlaneType,
   type Timeline,
+  type TrackPlan,
 } from '@travel-route-animator/core';
+import { carSizeFactor } from '../vehicles/carShapes';
 import { ICON_SIZE_PX } from '../vehicles/icons';
 import { planeSizeFactor } from '../vehicles/planeShapes';
 
@@ -24,7 +28,7 @@ export interface AheadArc extends ArcLine {
   dash: LineDash;
 }
 
-export interface FlightDrawing {
+export interface FlightArc {
   trackId: string;
   color: string;
   widthPx: number;
@@ -34,56 +38,97 @@ export interface FlightDrawing {
   arc: ArcLine;
   /** Undefined when the track hides its route ahead. */
   ahead: AheadArc | undefined;
-  head: { lngLat: LngLat; altitudeM: number; bearingDeg: number; climbDeg: number };
-  planeType: PlaneType;
-  /**
-   * The model's length in metres: about as long on screen as the flat icon, a little more for
-   * large aircraft and less for small ones.
-   */
-  modelLengthM: number;
   /** Ground metres per reference pixel at this zoom, for dash lengths along the arc. */
   metersPerPx: number;
 }
 
-/** The 3D plane is a little longer than the flat icon; wings make it look thinner. */
-const MODEL_SCALE = 1.25;
+/** Which model stands for a vehicle in 3D. */
+export type ModelKind = { kind: 'plane'; type: PlaneType } | { kind: 'car'; type: CarType };
 
-export function flightDrawings(timeline: Timeline, state: FrameState): FlightDrawing[] {
-  if (state.flightStyle !== 'arc-3d') return [];
+export interface ModelDrawing {
+  trackId: string;
+  color: string;
+  model: ModelKind;
+  head: { lngLat: LngLat; altitudeM: number; bearingDeg: number; climbDeg: number };
+  /**
+   * The model's length in metres: about as long on screen as the flat icon, a little more for
+   * large types and less for small ones.
+   */
+  lengthM: number;
+}
+
+export interface Drawings3d {
+  arcs: FlightArc[];
+  models: ModelDrawing[];
+}
+
+/** The 3D plane is a little longer than the flat icon; wings make it look thinner. */
+const PLANE_SCALE = 1.25;
+/** The flat car fills about 0.85 of its icon; the model matches it with a little extra. */
+const CAR_SCALE = 0.95;
+
+/** The model a vehicle has in 3D; vehicles without one stay flat icons in every view. */
+export function modelOf(plan: TrackPlan): ModelKind | undefined {
+  if (plan.vehicle === 'plane') return { kind: 'plane', type: planeTypeOf(plan.variant) };
+  if (plan.vehicle === 'car') return { kind: 'car', type: carTypeOf(plan.variant) };
+  return undefined;
+}
+
+/**
+ * Whether models are drawn in 3D at all: from the same tilt on as flights (ADR 0007). Looking
+ * straight down, a model shows little more than its roof, and the flat icon reads better.
+ */
+export function drawsModels(state: FrameState): boolean {
+  return state.flightStyle === 'arc-3d';
+}
+
+function sizeFactor(model: ModelKind): number {
+  return model.kind === 'plane'
+    ? PLANE_SCALE * planeSizeFactor(model.type)
+    : CAR_SCALE * carSizeFactor(model.type);
+}
+
+export function drawings3d(timeline: Timeline, state: FrameState): Drawings3d {
+  if (!drawsModels(state)) return { arcs: [], models: [] };
   const plans = new Map(timeline.tracks.map((plan) => [plan.trackId, plan]));
-  return state.tracks.flatMap((track) => {
+  const arcs: FlightArc[] = [];
+  const models: ModelDrawing[] = [];
+  for (const track of state.tracks) {
     const plan = plans.get(track.trackId);
+    if (!plan || !track.visible) continue;
     const { flight, head } = track;
-    if (!plan || !flight || !track.visible) return [];
     const metersPerPx = metersPerPixel(state.camera.zoom, head.lngLat[1]);
-    const planeType = planeTypeOf(plan.variant);
-    return [
-      {
+    const { style } = plan;
+    if (flight) {
+      arcs.push({
         trackId: track.trackId,
-        color: plan.style.lineColor,
-        widthPx: plan.style.lineWidthPx,
-        dash: plan.style.lineDash,
-        glow: plan.style.glow,
+        color: style.lineColor,
+        widthPx: style.lineWidthPx,
+        dash: style.lineDash,
+        glow: style.glow,
         arc: { points: track.revealed, altitudesM: flight.revealedAltitudesM },
         ahead:
           track.ahead && flight.aheadAltitudesM
             ? {
                 points: track.ahead,
                 altitudesM: flight.aheadAltitudesM,
-                opacity: plan.style.ahead.opacity,
-                dash: plan.style.ahead.dash,
+                opacity: style.ahead.opacity,
+                dash: style.ahead.dash,
               }
             : undefined,
-        head: { ...head, climbDeg: flight.climbDeg },
-        planeType,
-        modelLengthM:
-          ICON_SIZE_PX *
-          plan.style.vehicleScale *
-          MODEL_SCALE *
-          planeSizeFactor(planeType) *
-          metersPerPx,
         metersPerPx,
-      },
-    ];
-  });
+      });
+    }
+    const model = modelOf(plan);
+    if (model) {
+      models.push({
+        trackId: track.trackId,
+        color: style.lineColor,
+        model,
+        head: { ...head, climbDeg: flight?.climbDeg ?? 0 },
+        lengthM: ICON_SIZE_PX * style.vehicleScale * sizeFactor(model) * metersPerPx,
+      });
+    }
+  }
+  return { arcs, models };
 }

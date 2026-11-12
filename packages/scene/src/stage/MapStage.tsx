@@ -3,9 +3,9 @@ import { OPENFREEMAP_LIBERTY_STYLE_URL } from '@travel-route-animator/styles';
 import type { Map as MapLibreMap, SkySpecification } from 'maplibre-gl';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useBufferState, useDelayRender, useRemotionEnvironment } from 'remotion';
+import { drawings3d, modelOf } from './data3d';
 import { sceneFeatures } from './features';
-import { flightDrawings } from './flightData';
-import type { FlightLayer } from './flightLayer';
+import type { Layer3d } from './layer3d';
 import { addSceneLayers, loadVehicleIcons, setSceneFeatures } from './layers';
 import { createRenderMap } from './renderMap';
 
@@ -21,26 +21,26 @@ function applyProjection(map: MapLibreMap, projection: FrameState['projection'])
   map.setSky(projection === 'globe' ? GLOBE_SKY : { 'atmosphere-blend': 0 });
 }
 
-/** Whether the stage shows a flight in a tilted view, which the 3D layer draws (ADR 0007). */
-function needsFlightLayer(timeline: Timeline): boolean {
+/**
+ * Whether the stage is tilted and has a flight or a vehicle with a model, which the 3D layer
+ * draws (ADR 0007).
+ */
+function needsLayer3d(timeline: Timeline): boolean {
   return (
-    timeline.tracks.some((plan) => plan.flight) &&
+    timeline.tracks.some((plan) => plan.flight || modelOf(plan)) &&
     flightStyleFor(timeline.view.pitchDeg) === 'arc-3d'
   );
 }
 
 /**
- * Adds the 3D layer for flights once a stage needs it. It is loaded on demand: three.js is
- * by far the largest part of it, and most stages have no flight.
+ * Adds the 3D layer once a stage needs it. It is loaded on demand: three.js is by far the
+ * largest part of it, and stages seen from straight above never use it.
  */
-async function ensureFlightLayer(
-  map: MapLibreMap,
-  layer: { current: FlightLayer | null },
-): Promise<void> {
+async function ensureLayer3d(map: MapLibreMap, layer: { current: Layer3d | null }): Promise<void> {
   if (layer.current) return;
-  const { createFlightLayer } = await import('./flightLayer');
+  const { createLayer3d } = await import('./layer3d');
   if (layer.current) return;
-  layer.current = createFlightLayer();
+  layer.current = createLayer3d();
   map.addLayer(layer.current);
 }
 
@@ -75,7 +75,7 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
   const loadPending = useRef(true);
   // What the map is created with; later changes arrive through the effects below.
   const initial = useRef({ timeline, state });
-  const flightLayer = useRef<FlightLayer | null>(null);
+  const layer3d = useRef<Layer3d | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -96,10 +96,8 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
     instance.on('style.load', () => applyProjection(instance, firstState.projection));
     instance.on('load', () => {
       addSceneLayers(instance);
-      const flights = needsFlightLayer(first)
-        ? ensureFlightLayer(instance, flightLayer)
-        : Promise.resolve();
-      Promise.all([flights, loadVehicleIcons(instance, initial.current.timeline)])
+      const models = needsLayer3d(first) ? ensureLayer3d(instance, layer3d) : Promise.resolve();
+      Promise.all([models, loadVehicleIcons(instance, initial.current.timeline)])
         .then(() => {
           setMap(instance);
           playback.unblock();
@@ -120,12 +118,12 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
   }, [buffer, cancelRender, isRendering]);
 
   // New vehicles or colours in the editor need their icons; already loaded ones are skipped.
-  // The same for the 3D layer, once the stage gets a flight in a tilted view.
+  // The same for the 3D layer, once the stage gets tilted or a vehicle with a model.
   useEffect(() => {
     if (!map) return;
     loadVehicleIcons(map, timeline).catch((error: unknown) => cancelRender(error));
-    if (needsFlightLayer(timeline)) {
-      ensureFlightLayer(map, flightLayer)
+    if (needsLayer3d(timeline)) {
+      ensureLayer3d(map, layer3d)
         .then(() => map.triggerRepaint())
         .catch((error: unknown) => cancelRender(error));
     }
@@ -151,7 +149,7 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
       pitch: camera.pitchDeg,
       bearing: camera.bearingDeg,
     });
-    flightLayer.current?.setDrawings(flightDrawings(timeline, state));
+    layer3d.current?.setDrawings(drawings3d(timeline, state));
     const drawn = setSceneFeatures(map, sceneFeatures(timeline, state));
     if (!isRendering) {
       drawn.catch((error: unknown) => cancelRender(error));

@@ -9,6 +9,7 @@ import {
   type TrackPlan,
 } from '@travel-route-animator/core';
 import { iconId, ROTATES } from '../vehicles/icons';
+import { drawsModels, modelOf } from './data3d';
 
 // What the map draws in one frame, as GeoJSON: plain functions of the timeline and the frame
 // state, so they can be tested without WebGL and are the same for preview and export.
@@ -111,6 +112,10 @@ export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatu
   const visible = state.tracks.filter((track) => track.visible && plans.has(track.trackId));
   // Flights in a tilted view are drawn by the 3D layer; everything else by the flat layers.
   const flat = visible.filter((track) => !track.flight || state.flightStyle === 'fake-3d');
+  // Planes and cars with a model stand in the 3D layer, too; their lines stay here.
+  const icons = drawsModels(state)
+    ? flat.filter((track) => !modelOf(plans.get(track.trackId)!))
+    : flat;
   const flights = visible.filter((track) => track.flight?.showShadow);
   const up = state.camera.bearingDeg;
 
@@ -167,7 +172,7 @@ export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatu
       })),
     ),
     vehicles: collection(
-      flat.map((track) => {
+      icons.map((track) => {
         const plan = plans.get(track.trackId)!;
         const { flight, head } = track;
         const height = flight && flight.peakM > 0 ? head.altitudeM / flight.peakM : 0;
