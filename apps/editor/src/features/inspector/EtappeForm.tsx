@@ -4,6 +4,8 @@ import {
   editEtappe,
   presentAsOptions,
   renameItem,
+  resolveMapStyle,
+  routingCredits,
   setCameraMode,
   setViewMode,
   ViewModeSchema,
@@ -14,14 +16,18 @@ import {
   type ReadinessIssue,
   type ViewSettings,
 } from '@travel-route-animator/core';
-import { useMemo } from 'react';
+import { resolveTheme, styleCredits } from '@travel-route-animator/styles';
+import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { de } from '@/i18n/de';
 import { translateIssue } from '@/i18n/issues';
+import { selectProject, useEditor } from '@/state/editorStore';
 import { NumberField } from './fields/NumberField';
 import { SelectField } from './fields/SelectField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
+import { MapStyleSection } from './MapStyleSection';
+import { useOwnThemes } from './mapStyles';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
 import { useEdit } from './useEdit';
 
@@ -29,7 +35,21 @@ const TRACK_PATH = /^tracks\[(\d+)\]/;
 
 export function EtappeForm({ etappe, location }: { etappe: Etappe; location: ItemLocation }) {
   const edit = useEdit(location);
+  const project = useEditor(selectProject);
+  const ownThemes = useOwnThemes();
+  const [creditsCopied, setCreditsCopied] = useState(false);
+  const group = project.groups.find((g) => g.etappen.some((e) => e.id === etappe.id));
   const { view, overlays } = etappe;
+
+  // Everything the video credits, as one line for the video's description.
+  const copyCredits = () => {
+    const style = resolveMapStyle(project, etappe.id).value;
+    const credits = [
+      ...styleCredits(style, resolveTheme(style.themeId, ownThemes).theme),
+      ...routingCredits(etappe.tracks.map((track) => track.computed?.provider)),
+    ];
+    void navigator.clipboard.writeText(credits.join(' · ')).then(() => setCreditsCopied(true));
+  };
   const { camera } = view;
   const issues = useMemo(() => checkEtappeReadiness(etappe), [etappe]);
 
@@ -161,7 +181,15 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
           checked={overlays.attribution}
           onCommit={(on) => setOverlay('attribution', on)}
         />
+        <Button variant="outline" size="sm" className="w-full" onClick={copyCredits}>
+          {creditsCopied ? de.inspector.etappe.creditsCopied : de.inspector.etappe.copyCredits}
+        </Button>
+        <p className="text-muted-foreground text-xs">{de.inspector.etappe.creditsHint}</p>
       </Section>
+
+      {group && (
+        <MapStyleSection project={project} level={{ kind: 'etappe', etappe, group }} edit={edit} />
+      )}
 
       {etappe.tracks.length >= 2 && (
         <Section title={de.inspector.etappe.options}>

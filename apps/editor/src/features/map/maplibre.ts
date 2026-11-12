@@ -2,7 +2,13 @@
 // library (about 1 MB) does not slow down the project overview, and tests can replace it.
 import 'maplibre-gl/dist/maplibre-gl.css';
 import './maplibreWorker';
-import { Map as MapLibreMap, Marker, NavigationControl, type GeoJSONSource } from 'maplibre-gl';
+import {
+  Map as MapLibreMap,
+  Marker,
+  NavigationControl,
+  type GeoJSONSource,
+  type StyleSpecification,
+} from 'maplibre-gl';
 import { OPENFREEMAP_LIBERTY_STYLE_URL } from '@travel-route-animator/styles';
 import type { LngLat } from '@travel-route-animator/core';
 import type { EditablePoint, MapScene } from './mapData';
@@ -39,6 +45,21 @@ export function createEditMap(
   });
   map.addControl(new NavigationControl({ showCompass: false }), 'top-right');
   return map;
+}
+
+/** A small map for the theme editor: the theme's style alone, movable, no editing. */
+export function createThemePreviewMap(
+  container: HTMLElement,
+  style: StyleSpecification,
+  center: LngLat,
+): MapLibreMap {
+  return new MapLibreMap({
+    container,
+    style,
+    center,
+    zoom: 10,
+    attributionControl: { compact: true },
+  });
 }
 
 /** Our own sources and layers on top of the base map; call once the style has loaded. */

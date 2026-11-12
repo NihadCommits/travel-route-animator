@@ -257,6 +257,60 @@ describe('Inspector', () => {
     expect(server.calls.filter((call) => call.method === 'PUT')).toEqual([]);
   });
 
+  it('gives a stage a map style of its own and takes it back', async () => {
+    const { user } = await renderEditor(trip().project);
+    await selectRow('Wien – Porto');
+    const style = within(inspector().getByRole('region', { name: 'Kartenstil' }));
+    expect(style.getByText(/Geerbt vom Projekt/)).toBeInTheDocument();
+    const theme = style.getByLabelText('Theme');
+    expect(theme).toHaveDisplayValue('Clean Hell');
+    // Without a MapTiler key the satellite maps cannot be chosen.
+    expect(style.getByRole('option', { name: 'Satellit' })).toBeDisabled();
+
+    await user.selectOptions(theme, 'Nacht');
+    expect(style.getByText('Eigener Stil für diese Ebene.')).toBeInTheDocument();
+    await user.click(style.getByRole('button', { name: 'Auf den geerbten Stil zurücksetzen' }));
+    expect(theme).toHaveDisplayValue('Clean Hell');
+    expect(style.getByText(/Geerbt vom Projekt/)).toBeInTheDocument();
+  });
+
+  it('switches all map labels off for a clean map, and one kind back on', async () => {
+    const { user } = await renderEditor(trip().project);
+    await selectRow('Wien – Porto');
+    const style = within(inspector().getByRole('region', { name: 'Kartenstil' }));
+    const clean = style.getByRole('switch', { name: 'Saubere Karte' });
+    const cities = style.getByRole('switch', { name: 'Städte' });
+    expect(clean).not.toBeChecked();
+    expect(cities).toBeChecked();
+
+    await user.click(clean);
+    expect(clean).toBeChecked();
+    expect(cities).not.toBeChecked();
+    await user.click(cities);
+    expect(cities).toBeChecked();
+    expect(clean).not.toBeChecked();
+    expect(style.getByRole('switch', { name: 'Länder' })).not.toBeChecked();
+  });
+
+  it('saves an edited theme as an own one and uses it for the project', async () => {
+    const { server, user } = await renderEditor(createProject('Trip'));
+    const style = within(inspector().getByRole('region', { name: 'Kartenstil' }));
+    await user.click(style.getByRole('button', { name: 'Theme bearbeiten …' }));
+    const dialog = within(await screen.findByRole('dialog'));
+    expect(dialog.getByLabelText('Name')).toHaveValue('Clean Hell (eigenes)');
+    await typeInto(user, dialog.getByLabelText('Wasser'), '#123456');
+    await user.keyboard('{Enter}');
+    await typeInto(user, dialog.getByLabelText('Name'), 'Meeresblau');
+    await user.keyboard('{Enter}');
+    await user.click(dialog.getByRole('button', { name: 'Als eigenes Theme speichern' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const [saved] = [...server.themes.values()];
+    expect(saved).toMatchObject({ name: 'Meeresblau', tokens: { water: '#123456' } });
+    expect(await style.findByRole('option', { name: 'Meeresblau' })).toBeInTheDocument();
+    expect(style.getByLabelText('Theme')).toHaveDisplayValue('Meeresblau');
+  });
+
   it('sets how the route ahead looks', async () => {
     const { user } = await renderEditor(trip({ withCar: true }).project);
     await selectRow('Auto');

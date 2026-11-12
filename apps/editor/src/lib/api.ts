@@ -12,6 +12,7 @@ import {
   type RenderJob,
   type RenderRequest,
   type RouteRequest,
+  type Theme,
   type ValidationIssue,
 } from '@travel-route-animator/core';
 
@@ -118,6 +119,17 @@ export const api = {
   cancelRender: (id: string) =>
     request<RenderJob | undefined>(renderPath(id), { method: 'DELETE' }),
   revealRender: (id: string) => request<undefined>(`${renderPath(id)}/reveal`, { method: 'POST' }),
+  // Own map themes live with the server, outside every project (ADR 0010).
+  listThemes: () => request<Theme[]>('/themes'),
+  saveTheme: (theme: Theme) =>
+    request<Theme>(`/themes/${encodeURIComponent(theme.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(theme),
+    }),
+  deleteTheme: (id: string) =>
+    request<undefined>(`/themes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  /** What the server can offer, e.g. satellite maps only with a MapTiler key. */
+  capabilities: () => request<{ satellite: boolean }>('/capabilities'),
   /**
    * Stores an image in the project's folder. The bytes go as they are; the server reads what
    * they are itself. The project learns of the image only when the editor saves its use.
