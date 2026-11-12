@@ -4,6 +4,7 @@ import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'r
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
 import { MapStage } from '../stage/MapStage';
+import { stageImages } from '../vehicles/images';
 import type { EtappeProps } from './etappeProps';
 
 export type { EtappeProps } from './etappeProps';
@@ -23,7 +24,7 @@ export const calculateEtappeMetadata: CalculateMetadataFunction<EtappeProps> = (
 };
 
 export const EtappeComposition: FC<EtappeProps> = (props) => {
-  const { project, etappeId, output, previewScale, guides } = props;
+  const { project, etappeId, output, previewScale, guides, assetUrls } = props;
   const frame = useCurrentFrame();
   // Worked out once per props; every frame is then a pure function of it (Determinismus).
   const timeline = useMemo(
@@ -31,10 +32,14 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
     [project, etappeId, output, previewScale],
   );
   const state = useMemo(() => computeFrameState(timeline, frame), [timeline, frame]);
+  const images = useMemo(
+    () => stageImages(project, etappeId, assetUrls),
+    [project, etappeId, assetUrls],
+  );
 
   return (
     <AbsoluteFill style={{ backgroundColor: '#dfe7ee' }}>
-      <MapStage timeline={timeline} state={state} />
+      <MapStage timeline={timeline} state={state} images={images} />
       <Overlays timeline={timeline} state={state} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>

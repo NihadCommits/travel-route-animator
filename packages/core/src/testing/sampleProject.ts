@@ -21,6 +21,7 @@ function track(id: string, overrides: Partial<Track> & Pick<Track, 'vehicle' | '
       ahead: { opacity: 0.35, dash: 'solid' },
       glow: false,
       vehicleScale: 1,
+      icon: { kind: 'catalog' },
     },
     ...overrides,
   };
@@ -60,7 +61,7 @@ function etappe(
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',
@@ -153,6 +154,7 @@ export function sampleProject(): Project {
         ],
       },
     ],
+    assets: [],
   };
 }
 

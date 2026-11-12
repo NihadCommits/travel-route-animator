@@ -5,12 +5,15 @@ import {
   type Map as MapLibreMap,
 } from 'maplibre-gl';
 import * as THREE from 'three';
+import { buildCar } from '../vehicles/carModel';
+import type { DecodedImage } from '../vehicles/images';
 import { buildPlane } from '../vehicles/planeModel';
-import type { ArcLine, FlightDrawing } from './flightData';
+import type { ArcLine, Drawings3d, FlightArc, ModelDrawing } from './data3d';
 
-// The 3D layer for flights in tilted views (ADR 0007). Loaded only when a stage needs it, as it
-// brings three.js along. MapLibre calls render() for every frame it draws; everything drawn
-// comes from the drawings handed over for the current frame, nothing is kept between frames.
+// The 3D layer of tilted views: flight arcs, and the models of planes and cars (ADR 0007).
+// Loaded only when a stage needs it, as it brings three.js along. MapLibre calls render() for
+// every frame it draws; everything drawn comes from the drawings handed over for the current
+// frame. Between frames only the built models are kept, for reuse; their pose is set anew.
 //
 // Every point is given twice, on MapLibre's unit globe and in Mercator, and the shader mixes
 // the two like MapLibre's own shaders do. That keeps the arc right on the globe, on the flat
@@ -165,10 +168,10 @@ function ribbon(line: ArcLine): Float32Array {
 }
 
 /**
- * Where the plane sits: east-north-up at its point, from metres to the space of the map's
+ * Where a model sits: east-north-up at its point, from metres to the space of the map's
  * matrix. Built for both projections; render() mixes them like the shader does.
  */
-function placement(head: FlightDrawing['head'], metres: number) {
+function placement(head: ModelDrawing['head'], metres: number) {
   const [lng, lat] = head.lngLat;
   const m = MercatorCoordinate.fromLngLat([lng, lat], head.altitudeM);
   const s = metres * m.meterInMercatorCoordinateUnits();
@@ -189,13 +192,39 @@ function placement(head: FlightDrawing['head'], metres: number) {
   return { merc, globe };
 }
 
-export interface FlightLayer extends CustomLayerInterface {
+export interface Layer3d extends CustomLayerInterface {
   /** What to draw in the coming frame. */
-  setDrawings(drawings: FlightDrawing[]): void;
+  setDrawings(drawings: Drawings3d): void;
+  /** The stage's own images, decoded; cards take their pictures from here (ADR 0009). */
+  setImages(images: ReadonlyMap<string, DecodedImage>): void;
 }
 
-export function createFlightLayer(): FlightLayer {
-  let drawings: FlightDrawing[] = [];
+interface Projection {
+  main: THREE.Matrix4;
+  fallback: THREE.Matrix4;
+  /** MapLibre's blend from the flat map (0) to the globe (1). */
+  t: number;
+}
+
+/** A picture as a texture; the canvas keeps three's colour handling the same as for files. */
+function pictureTexture(picture: ImageData): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = picture.width;
+  canvas.height = picture.height;
+  canvas.getContext('2d')!.putImageData(picture, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+function buildModel({ model, color }: ModelDrawing): THREE.Group {
+  return model.kind === 'plane' ? buildPlane(model.type, color) : buildCar(model.type, color);
+}
+
+export function createLayer3d(): Layer3d {
+  let drawings: Drawings3d = { arcs: [], models: [], cards: [] };
+  let images: ReadonlyMap<string, DecodedImage> = new Map();
+  const textures = new Map<string, THREE.Texture>();
   let map: MapLibreMap | undefined;
   let gl: WebGL2RenderingContext | undefined;
   let program: WebGLProgram | null = null;
@@ -206,16 +235,26 @@ export function createFlightLayer(): FlightLayer {
   let renderer: THREE.WebGLRenderer | undefined;
   const scene = new THREE.Scene();
   const camera = new THREE.Camera();
-  const planes = new Map<string, THREE.Group>();
+  const models = new Map<string, THREE.Group>();
+  // One card for every own image; its picture and size change with each drawing.
+  const cardMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), cardMaterial);
+  card.frustumCulled = false;
+  card.visible = false;
+  scene.add(card);
   scene.add(new THREE.HemisphereLight('#ffffff', '#94a3b8', 2.2));
   const sun = new THREE.DirectionalLight('#ffffff', 1.6);
-  // Light from above, a little from the south-east, in the plane's east-north-up space.
+  // Light from above, a little from the south-east, in the model's east-north-up space.
   sun.position.set(0.4, -0.6, 1);
   scene.add(sun);
 
   function drawLine(
     line: ArcLine,
-    drawing: FlightDrawing,
+    drawing: FlightArc,
     pass: { widthPx: number; color: string; alpha: number; soft?: boolean; dash: LineDash },
   ) {
     const g = gl!;
@@ -233,7 +272,7 @@ export function createFlightLayer(): FlightLayer {
   }
 
   function drawArcs() {
-    for (const drawing of drawings) {
+    for (const drawing of drawings.arcs) {
       const { widthPx, color, dash } = drawing;
       const { ahead } = drawing;
       if (ahead) {
@@ -261,45 +300,104 @@ export function createFlightLayer(): FlightLayer {
     }
   }
 
-  function drawPlanes(main: THREE.Matrix4, fallback: THREE.Matrix4, t: number) {
-    const g = gl!;
-    for (const drawing of drawings) {
-      const key = `${drawing.trackId}:${drawing.planeType}:${drawing.color}`;
-      let plane = planes.get(key);
-      if (!plane) {
-        plane = buildPlane(drawing.planeType, drawing.color);
-        planes.set(key, plane);
-        scene.add(plane);
+  /**
+   * Puts the camera at a drawing: the placement goes into the camera matrix, so three's world
+   * is east-north-up metres at the drawing and its lights need no projection at all.
+   */
+  function placeCamera(head: ModelDrawing['head'], metres: number, projection: Projection) {
+    const { main, fallback, t } = projection;
+    const placed = placement(head, metres);
+    const flat = fallback.clone().multiply(placed.merc);
+    const round = main.clone().multiply(placed.globe);
+    const blended = new THREE.Matrix4();
+    for (let i = 0; i < 16; i++) {
+      blended.elements[i] = flat.elements[i]! * (1 - t) + round.elements[i]! * t;
+    }
+    camera.projectionMatrix.copy(blended);
+    camera.projectionMatrixInverse.copy(blended).invert();
+  }
+
+  /** Shows one object of the scene and hides the others. */
+  function showOnly(shown: THREE.Object3D) {
+    for (const model of models.values()) model.visible = model === shown;
+    card.visible = card === shown;
+  }
+
+  function textureOf(assetId: string, frame: number): THREE.Texture | undefined {
+    const key = `${assetId}:${frame}`;
+    const known = textures.get(key);
+    if (known) return known;
+    const picture = images.get(assetId)?.frames[frame];
+    if (!picture) return undefined;
+    const texture = pictureTexture(picture);
+    textures.set(key, texture);
+    return texture;
+  }
+
+  function drawCards(projection: Projection) {
+    for (const drawing of drawings.cards) {
+      const picture = images.get(drawing.assetId)?.frames[drawing.frame];
+      const texture = textureOf(drawing.assetId, drawing.frame);
+      // Not decoded yet: the editor's preview catches up a moment later; a render waits.
+      if (!picture || !texture) continue;
+      if (cardMaterial.map !== texture) {
+        cardMaterial.map = texture;
+        cardMaterial.needsUpdate = true;
       }
-      for (const [id, other] of planes) other.visible = id === key;
-      // The placement goes into the camera matrix, so three's world is east-north-up metres at
-      // the plane and its lights need no projection at all.
-      const placed = placement(drawing.head, drawing.modelLengthM);
-      const flat = fallback.clone().multiply(placed.merc);
-      const round = main.clone().multiply(placed.globe);
-      const blended = new THREE.Matrix4();
-      for (let i = 0; i < 16; i++) {
-        blended.elements[i] = flat.elements[i]! * (1 - t) + round.elements[i]! * t;
+      const longer = Math.max(picture.width, picture.height);
+      const height = picture.height / longer;
+      card.scale.set(picture.width / longer, height, 1);
+      if (drawing.upright) {
+        // Stood up (top to the sky, face to the south), then turned to face a camera that
+        // looks along its bearing; it stands on the plane's point.
+        card.rotation.set(Math.PI / 2, 0, -toRad(drawing.bearingDeg), 'ZXY');
+        card.position.set(0, 0, height / 2);
+      } else {
+        // Level, its top along the heading, nose up while climbing like a model.
+        card.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.bearingDeg), 'ZXY');
+        card.position.set(0, 0, 0);
       }
-      camera.projectionMatrix.copy(blended);
-      camera.projectionMatrixInverse.copy(blended).invert();
-      // Pitch first (nose up), then turn to the heading, clockwise from north.
-      plane.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.head.bearingDeg), 'ZXY');
-      renderer!.resetState();
-      renderer!.setViewport(0, 0, g.drawingBufferWidth, g.drawingBufferHeight);
-      // Only the plane's own parts hide each other; the map's depth is not the plane's.
-      renderer!.clearDepth();
+      showOnly(card);
+      placeCamera(drawing.head, drawing.sizeM, projection);
       renderer!.render(scene, camera);
     }
+  }
+
+  function drawModels(projection: Projection) {
+    const g = gl!;
+    renderer!.resetState();
+    renderer!.setViewport(0, 0, g.drawingBufferWidth, g.drawingBufferHeight);
+    // The models hide each other, but the map's depth is not theirs. Cleared once: every
+    // model's camera below ends in the same clip space, so their depths compare.
+    renderer!.clearDepth();
+    for (const drawing of drawings.models) {
+      const { model } = drawing;
+      const key = `${drawing.trackId}:${model.kind}:${model.type}:${drawing.color}`;
+      let object = models.get(key);
+      if (!object) {
+        object = buildModel(drawing);
+        models.set(key, object);
+        scene.add(object);
+      }
+      showOnly(object);
+      placeCamera(drawing.head, drawing.lengthM, projection);
+      // Pitch first (nose up), then turn to the heading, clockwise from north.
+      object.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.head.bearingDeg), 'ZXY');
+      renderer!.render(scene, camera);
+    }
+    drawCards(projection);
     renderer!.resetState();
   }
 
   return {
-    id: 'tra-flights-3d',
+    id: 'tra-3d',
     type: 'custom',
     renderingMode: '3d',
     setDrawings(next) {
       drawings = next;
+    },
+    setImages(next) {
+      images = next;
     },
     onAdd(mapInstance, g) {
       map = mapInstance;
@@ -336,7 +434,7 @@ export function createFlightLayer(): FlightLayer {
       renderer.autoClear = false;
     },
     render(g, args) {
-      if (drawings.length === 0) return;
+      if (drawings.arcs.length + drawings.models.length + drawings.cards.length === 0) return;
       const { mainMatrix, fallbackMatrix, projectionTransition } = args.defaultProjectionData;
       const t = projectionTransition ?? 0;
 
@@ -356,13 +454,14 @@ export function createFlightLayer(): FlightLayer {
       drawArcs();
       g.bindVertexArray(null);
 
-      drawPlanes(
-        new THREE.Matrix4().fromArray(mainMatrix),
-        new THREE.Matrix4().fromArray(fallbackMatrix),
+      drawModels({
+        main: new THREE.Matrix4().fromArray(mainMatrix),
+        fallback: new THREE.Matrix4().fromArray(fallbackMatrix),
         t,
-      );
+      });
     },
     onRemove() {
+      for (const texture of textures.values()) texture.dispose();
       renderer?.dispose();
       gl?.deleteBuffer(buffer);
       gl?.deleteVertexArray(vao);

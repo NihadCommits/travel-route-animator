@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/public.ts",
     "./render": "./render/renderEtappe.ts",
-    "./render/gl": "./render/gl.ts"
+    "./render/gl": "./render/gl.ts",
+    "./render/assets": "./render/assets.ts"
   },
   "scripts": {
     "studio": "remotion studio src/index.ts",

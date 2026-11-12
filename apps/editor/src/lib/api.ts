@@ -1,6 +1,11 @@
 import {
+  assetFileName,
   ComputedRouteSchema,
+  ImageAssetSchema,
+  type Asset,
   type ComputedRoute,
+  type ImageAsset,
+  type ImageProblem,
   type LngLat,
   type Place,
   type Project,
@@ -22,6 +27,9 @@ interface ErrorBody {
   message: string;
   issues?: ValidationIssue[];
   file?: string;
+  /** An image the server refused, and the numbers for the message (ADR 0009). */
+  problem?: ImageProblem;
+  values?: Record<string, number>;
 }
 
 export class ApiError extends Error {
@@ -48,6 +56,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 const projectPath = (id: string) => `/projects/${encodeURIComponent(id)}`;
 const renderPath = (id: string) => `/render/${encodeURIComponent(id)}`;
+
+/** Where the preview and the inspector load a project's image from. */
+export const assetUrl = (projectId: string, asset: Pick<Asset, 'id' | 'mimeType'>) =>
+  `/api${projectPath(projectId)}/assets/${assetFileName(asset)}`;
 
 /** Server-sent events of one render job; opened with EventSource, not fetch. */
 export const renderEventsUrl = (id: string) => `/api${renderPath(id)}/events`;
@@ -106,4 +118,17 @@ export const api = {
   cancelRender: (id: string) =>
     request<RenderJob | undefined>(renderPath(id), { method: 'DELETE' }),
   revealRender: (id: string) => request<undefined>(`${renderPath(id)}/reveal`, { method: 'POST' }),
+  /**
+   * Stores an image in the project's folder. The bytes go as they are; the server reads what
+   * they are itself. The project learns of the image only when the editor saves its use.
+   */
+  uploadImage: async (projectId: string, file: Blob, name: string): Promise<ImageAsset> => {
+    const response = await fetch(
+      `/api${projectPath(projectId)}/assets?${new URLSearchParams({ name })}`,
+      { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file },
+    );
+    const body: unknown = await response.json().catch(() => undefined);
+    if (!response.ok) throw new ApiError(response.status, body as ErrorBody | undefined);
+    return ImageAssetSchema.parse(body);
+  },
 };

@@ -39,6 +39,7 @@ function project(): Project {
         ahead: { opacity: 0.35, dash: 'solid' as const },
         glow: false,
         vehicleScale: 1,
+        icon: { kind: 'catalog' as const },
       },
     })),
   });

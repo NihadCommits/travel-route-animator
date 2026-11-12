@@ -53,7 +53,7 @@ describe('translateIssue', () => {
 
   it('translates what core actually reports', () => {
     const project = {
-      schemaVersion: 2,
+      schemaVersion: 3,
       id: 'p',
       name: 'x',
       createdAt: '2026-10-21T00:00:00.000Z',
@@ -71,6 +71,7 @@ describe('translateIssue', () => {
         transition: { type: 'cut', durationSec: 0 },
       },
       groups: [],
+      assets: [],
     };
     const result = validateProject(project);
     expect(result.success).toBe(false);

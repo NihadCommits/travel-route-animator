@@ -1,4 +1,10 @@
-import type { PlaneType, RoadAvoid, VehicleType } from '@travel-route-animator/core';
+import type {
+  CarType,
+  PlaneType,
+  RoadAvoid,
+  VehicleIcon,
+  VehicleType,
+} from '@travel-route-animator/core';
 
 // All UI strings live here so that an English translation can be added later without touching components.
 export const de = {
@@ -235,6 +241,18 @@ export const de = {
     track: {
       label: 'Bezeichnung',
       vehicle: 'Fahrzeug',
+      carType: 'Fahrzeugtyp',
+      carTypes: {
+        'car-default': 'Limousine',
+        'car-compact': 'Kleinwagen',
+        'car-estate': 'Kombi',
+        'car-suv': 'SUV',
+        'car-van': 'Transporter',
+        'car-camper': 'Wohnmobil',
+      } satisfies Record<CarType, string>,
+      carType3d: 'Form des 3D-Autos, das die geneigte Ansicht zeigt.',
+      carTypeFlat:
+        'Form des 3D-Autos. Es erscheint ab 20° Neigung; von oben gesehen bleibt es beim Symbol.',
       routing: 'Routing',
       timing: 'Zeitablauf',
       start: 'Start',
@@ -253,7 +271,33 @@ export const de = {
           'Der Teil der Route, der noch vor dem Fahrzeug liegt. Bei 0 % ist er unsichtbar, sonst stehen auch die Ortsnamen voraus von Anfang an da.',
         dash: 'Linienart',
       },
-      later: 'Eigene Icons und das 3D-Auto kommen mit dem letzten Teil von M8.',
+      icon: {
+        title: 'Fahrzeug-Icon',
+        kind: 'Darstellung',
+        kinds: {
+          catalog: 'Standard',
+          image: 'Eigenes Bild',
+          none: 'Keins, nur die Linie',
+        } satisfies Record<VehicleIcon['kind'], string>,
+        catalogHint:
+          'Das Symbol des Fahrzeugtyps; Auto und Flugzeug zeigen ab 20° Neigung ihr 3D-Modell.',
+        noneHint: 'Es wird nur die Linie gezeichnet, ohne Fahrzeug.',
+        image: 'Bild',
+        add: 'Bild hinzufügen …',
+        uploading: 'Wird hochgeladen …',
+        noImageYet: 'Noch kein Bild gewählt. Bis dahin bleibt das Standard-Icon.',
+        size: (width: number, height: number, frames: number) =>
+          frames > 1
+            ? `${width} × ${height} px, animiert (${frames} Bilder)`
+            : `${width} × ${height} px`,
+        rotates: 'Mit dem Kurs drehen',
+        rotatesHint:
+          'An: liegt flach auf der Karte und dreht sich mit der Fahrtrichtung. Aus: steht aufrecht und schaut zum Betrachter, gut für Figuren. Ein GIF läuft nur, während das Fahrzeug fährt.',
+        rules:
+          'PNG oder GIF, höchstens 2 MB und 512 px pro Seite. Nur Bilder verwenden, an denen du die Rechte hast.',
+        uploadFailed: (reason: string) => `Das Bild konnte nicht hochgeladen werden: ${reason}`,
+      },
+      later: 'GPX-Dateien als Route kommen mit M14.',
       flight: {
         title: 'Flug',
         planeType: 'Flugzeugtyp',

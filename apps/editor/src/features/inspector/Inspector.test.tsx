@@ -173,10 +173,88 @@ describe('Inspector', () => {
     expect(planeType).toHaveDisplayValue('Airbus A380');
   });
 
-  it('shows no flight options for a car', async () => {
-    await renderEditor(trip({ withCar: true }).project);
+  it('gives a car a body type instead of flight options', async () => {
+    const { user } = await renderEditor(trip({ withCar: true }).project);
     await selectRow('Auto');
     expect(inspector().queryByLabelText('Bogenhöhe')).toBeNull();
+
+    const carType = inspector().getByLabelText('Fahrzeugtyp');
+    expect(carType).toHaveDisplayValue('Limousine');
+    expect(carType).toHaveAccessibleDescription(/3D-Autos/);
+    await user.selectOptions(carType, 'Wohnmobil');
+    expect(carType).toHaveDisplayValue('Wohnmobil');
+
+    // Another vehicle has no body types; a car again starts as the default.
+    await user.selectOptions(inspector().getByLabelText('Fahrzeug'), 'Bus');
+    expect(inspector().queryByLabelText('Fahrzeugtyp')).toBeNull();
+  });
+
+  it('draws a vehicle as an own image, upright or turning, or not at all', async () => {
+    const { project } = trip({ withCar: true });
+    const { server, user } = await renderEditor(project);
+    await selectRow('Auto');
+    const kind = inspector().getByLabelText('Darstellung');
+    expect(kind).toHaveDisplayValue('Standard');
+
+    // Without any image yet, the form waits for a file and the car keeps its icon.
+    await user.selectOptions(kind, 'Eigenes Bild');
+    expect(inspector().getByText(/Noch kein Bild gewählt/)).toBeInTheDocument();
+    const file = new File([new Uint8Array([0x47, 0x49, 0x46])], 'Läufer.gif', {
+      type: 'image/gif',
+    });
+    await user.upload(inspector().getByLabelText('Bild hinzufügen …'), file);
+
+    expect(await inspector().findByText('96 × 128 px, animiert (8 Bilder)')).toBeInTheDocument();
+    expect(inspector().getByRole('img', { name: 'Läufer.gif' })).toHaveAttribute(
+      'src',
+      expect.stringMatching(/^\/api\/projects\/.+\/assets\/a_\d+\.gif$/),
+    );
+    const upload = server.calls.find((call) => call.path.includes('/assets'));
+    expect(upload).toMatchObject({ method: 'POST' });
+    // New images stand upright; the switch lays them flat to turn with the heading.
+    const rotates = inspector().getByRole('switch', { name: 'Mit dem Kurs drehen' });
+    expect(rotates).not.toBeChecked();
+    await user.click(rotates);
+    expect(rotates).toBeChecked();
+
+    await user.selectOptions(kind, 'Keins, nur die Linie');
+    expect(kind).toHaveAccessibleDescription(/nur die Linie gezeichnet/);
+    // The image stays in the project and comes back with one choice.
+    await user.selectOptions(kind, 'Eigenes Bild');
+    expect(inspector().getByLabelText('Bild')).toHaveDisplayValue('Läufer.gif');
+  });
+
+  it('says why the server refused an image', async () => {
+    const { project } = trip({ withCar: true });
+    const server = installFakeServer([project], {
+      upload: () => ({
+        status: 422,
+        body: {
+          error: 'image_rejected',
+          message: 'no',
+          problem: 'image.tooWide',
+          values: { widthPx: 800, heightPx: 600, limit: 512 },
+        },
+      }),
+    });
+    render(
+      <AppProviders queryClient={createQueryClient()}>
+        <EditorScreen projectId={project.id} />
+      </AppProviders>,
+    );
+    await screen.findByRole('heading', { level: 1, name: project.name });
+    const user = userEvent.setup();
+    await selectRow('Auto');
+    await user.selectOptions(inspector().getByLabelText('Darstellung'), 'Eigenes Bild');
+    await user.upload(
+      inspector().getByLabelText('Bild hinzufügen …'),
+      new File([new Uint8Array([1])], 'panorama.png', { type: 'image/png' }),
+    );
+    expect(await inspector().findByRole('alert')).toHaveTextContent(
+      'Das Bild ist 800 × 600 px groß, erlaubt sind höchstens 512 px pro Seite.',
+    );
+    expect(inspector().getByLabelText('Darstellung')).toHaveDisplayValue('Eigenes Bild');
+    expect(server.calls.filter((call) => call.method === 'PUT')).toEqual([]);
   });
 
   it('sets how the route ahead looks', async () => {

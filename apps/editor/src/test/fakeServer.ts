@@ -1,6 +1,7 @@
 import {
   createProject,
   defaultOutput,
+  type ImageAsset,
   type Place,
   type Project,
   type RenderJob,
@@ -42,6 +43,22 @@ export interface FakeSearch {
   render?: (request: RenderRequest) => { status: number; body: unknown };
   /** Answers POST /api/render/:id/reveal; undefined stands for Windows (204). */
   revealStatus?: number;
+  /** Answers POST /api/projects/:id/assets; undefined accepts the image (fakeImageAsset). */
+  upload?: (name: string) => { status: number; body: unknown };
+}
+
+/** What the server answers an accepted image with: a GIF of 8 pictures or a PNG. */
+export function fakeImageAsset(name: string, id = 'a_image'): ImageAsset {
+  const gif = name.toLowerCase().endsWith('.gif');
+  return {
+    id,
+    kind: 'image',
+    name,
+    mimeType: gif ? 'image/gif' : 'image/png',
+    widthPx: 96,
+    heightPx: 128,
+    frameCount: gif ? 8 : 1,
+  };
 }
 
 /**
@@ -114,6 +131,15 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
       const answer = search.route
         ? search.route(body as RouteRequest)
         : { status: 503, body: { error: 'no_key', message: 'ORS_API_KEY is not set in .env' } };
+      return Promise.resolve(json(answer.status, answer.body));
+    }
+
+    const upload = /^\/projects\/([^/]+)\/assets$/.exec(searchUrl.pathname);
+    if (upload && method === 'POST') {
+      const name = searchUrl.searchParams.get('name') ?? 'image';
+      const answer = search.upload
+        ? search.upload(name)
+        : { status: 201, body: fakeImageAsset(name, `a_${calls.length}`) };
       return Promise.resolve(json(answer.status, answer.body));
     }
 

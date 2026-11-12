@@ -29,6 +29,8 @@ export interface NewRenderJob {
   /** The folder and the cleaned file name; the queue picks a free file in it. */
   dir: string;
   name: string;
+  /** The stage's images as data: URLs, by asset ID (ADR 0009). */
+  assetUrls?: Record<string, string>;
 }
 
 interface Entry {
@@ -152,7 +154,12 @@ export function createRenderQueue({
         };
         const entry: Entry = {
           job,
-          props: { project: input.project, etappeId: input.etappe.id, output: input.overrides },
+          props: {
+            project: input.project,
+            etappeId: input.etappe.id,
+            output: input.overrides,
+            ...(input.assetUrls && { assetUrls: input.assetUrls }),
+          },
           abort: new AbortController(),
           lastPublished: 0,
         };

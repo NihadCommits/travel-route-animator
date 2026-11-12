@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "id": "p_portugal26",
   "name": "Portugal 2026",
   "createdAt": "2026-10-21T00:00:00.000Z",
@@ -82,7 +82,8 @@
                 "lineDash": "solid",
                 "ahead": { "opacity": 0.35, "dash": "solid" },
                 "glow": false,
-                "vehicleScale": 1
+                "vehicleScale": 1,
+                "icon": { "kind": "catalog" }
               }
             }
           ]
@@ -149,7 +150,8 @@
                 "lineDash": "solid",
                 "ahead": { "opacity": 0, "dash": "solid" },
                 "glow": true,
-                "vehicleScale": 1.2
+                "vehicleScale": 1.2,
+                "icon": { "kind": "catalog" }
               },
               "flight": {
                 "arcHeightFactor": 0.15,
@@ -227,7 +229,8 @@
                 "lineDash": "solid",
                 "ahead": { "opacity": 0.35, "dash": "solid" },
                 "glow": false,
-                "vehicleScale": 1
+                "vehicleScale": 1,
+                "icon": { "kind": "catalog" }
               }
             }
           ]
@@ -319,7 +322,8 @@
                 "lineDash": "solid",
                 "ahead": { "opacity": 0.35, "dash": "solid" },
                 "glow": false,
-                "vehicleScale": 1
+                "vehicleScale": 1,
+                "icon": { "kind": "catalog" }
               }
             }
           ]
@@ -355,7 +359,7 @@
             {
               "id": "t_option_a",
               "label": "Option A",
-              "vehicle": { "type": "car", "variant": "car-default" },
+              "vehicle": { "type": "car", "variant": "car-compact" },
               "routing": { "mode": "road" },
               "waypoints": [
                 {
@@ -384,13 +388,14 @@
                 "lineDash": "dashed",
                 "ahead": { "opacity": 0, "dash": "dashed" },
                 "glow": false,
-                "vehicleScale": 1
+                "vehicleScale": 1,
+                "icon": { "kind": "catalog" }
               }
             },
             {
               "id": "t_option_b",
               "label": "Option B",
-              "vehicle": { "type": "car", "variant": "car-default" },
+              "vehicle": { "type": "car", "variant": "car-suv" },
               "routing": { "mode": "road" },
               "waypoints": [
                 {
@@ -419,13 +424,14 @@
                 "lineDash": "dashed",
                 "ahead": { "opacity": 0, "dash": "dashed" },
                 "glow": false,
-                "vehicleScale": 1
+                "vehicleScale": 1,
+                "icon": { "kind": "catalog" }
               }
             },
             {
               "id": "t_option_c",
               "label": "Option C",
-              "vehicle": { "type": "car", "variant": "car-default" },
+              "vehicle": { "type": "car", "variant": "car-camper" },
               "routing": { "mode": "road" },
               "waypoints": [
                 {
@@ -454,12 +460,14 @@
                 "lineDash": "dashed",
                 "ahead": { "opacity": 0, "dash": "dashed" },
                 "glow": false,
-                "vehicleScale": 1
+                "vehicleScale": 1,
+                "icon": { "kind": "catalog" }
               }
             }
           ]
         }
       ]
     }
-  ]
+  ],
+  "assets": []
 }

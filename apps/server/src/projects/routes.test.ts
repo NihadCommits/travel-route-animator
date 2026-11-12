@@ -5,7 +5,10 @@ import {
   createEtappe,
   createTrack,
   createWaypoint,
+  IMAGE_LIMITS,
+  setImageIcon,
   validateProject,
+  type ImageAsset,
   type Project,
 } from '@travel-route-animator/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -85,7 +88,7 @@ describe('project API', () => {
 
     it('starts empty and skips folders without a valid project', async () => {
       await mkdir(join(dataDir, 'projects', 'broken'), { recursive: true });
-      await writeFile(projectFile('broken'), '{ "schemaVersion": 2, "name": ');
+      await writeFile(projectFile('broken'), '{ "schemaVersion": 3, "name": ');
       await mkdir(join(dataDir, 'projects', 'empty-folder'));
 
       const response = await app.inject({ method: 'GET', url: '/api/projects' });
@@ -231,7 +234,7 @@ describe('project API', () => {
     it('says why it cannot be opened instead of claiming it does not exist', async () => {
       const project = await createViaApi('Portugal 2026');
       await breakFile('portugal-2026', (text) =>
-        text.replace('"schemaVersion": 2', '"schemaVersion": 2, "colour": "red"'),
+        text.replace('"schemaVersion": 3', '"schemaVersion": 3, "colour": "red"'),
       );
 
       const response = await app.inject({ method: 'GET', url: `/api/projects/${project.id}` });
@@ -287,6 +290,114 @@ describe('project API', () => {
       const response = await app.inject({ method: 'DELETE', url: `/api/projects/${project.id}` });
       expect(response.statusCode).toBe(204);
       expect(await readdir(join(dataDir, 'projects'))).toEqual([]);
+    });
+  });
+
+  describe('images for vehicles', () => {
+    /** A PNG header is all the server reads; the pixels do not matter here. */
+    function png(width: number, height: number, size = 64): Buffer {
+      const bytes = Buffer.alloc(size);
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]).copy(bytes);
+      bytes.write('IHDR', 12, 'ascii');
+      bytes.writeUInt32BE(width, 16);
+      bytes.writeUInt32BE(height, 20);
+      return bytes;
+    }
+
+    function stageWithCar() {
+      const car = createTrack({
+        vehicleType: 'car',
+        waypoints: [
+          createWaypoint({ name: 'Porto', lngLat: [-8.61, 41.15] }),
+          createWaypoint({ name: 'Lisboa', lngLat: [-9.14, 38.72] }),
+        ],
+      });
+      return createEtappe({ name: 'Porto – Lisboa', tracks: [{ ...car, id: 't_car' }] });
+    }
+
+    const upload = (id: string, payload: Buffer, name = 'Läufer.png', type = 'image/png') =>
+      app.inject({
+        method: 'POST',
+        url: `/api/projects/${id}/assets?name=${encodeURIComponent(name)}`,
+        headers: { 'content-type': type },
+        payload,
+      });
+
+    it('stores an image in the project folder and serves it back', async () => {
+      const project = await createViaApi('Trip');
+      const bytes = png(120, 160);
+      const response = await upload(project.id, bytes, 'C:\\Bilder\\Läufer.png');
+      expect(response.statusCode).toBe(201);
+      const asset = response.json<ImageAsset>();
+      expect(asset.id).toMatch(/^a_.{12}$/);
+      expect(asset).toEqual({
+        id: asset.id,
+        kind: 'image',
+        name: 'Läufer.png',
+        mimeType: 'image/png',
+        widthPx: 120,
+        heightPx: 160,
+        frameCount: 1,
+      });
+      const file = join(dataDir, 'projects', 'trip', 'assets', `${asset.id}.png`);
+      expect(await readFile(file)).toEqual(bytes);
+      // The project only learns of it when the editor saves the image together with its use.
+      expect((await readProjectFile('trip')).assets).toEqual([]);
+
+      const served = await app.inject({
+        method: 'GET',
+        url: `/api/projects/${project.id}/assets/${asset.id}.png`,
+      });
+      expect(served.statusCode).toBe(200);
+      expect(served.headers['content-type']).toBe('image/png');
+      expect(served.headers['cache-control']).toContain('immutable');
+      expect(served.rawPayload).toEqual(bytes);
+
+      const used = setImageIcon(
+        { ...project, groups: [{ id: 'g', name: 'G', etappen: [stageWithCar()] }] },
+        't_car',
+        asset,
+      );
+      const saved = await app.inject({
+        method: 'PUT',
+        url: `/api/projects/${project.id}`,
+        payload: used,
+      });
+      expect(saved.statusCode).toBe(200);
+      expect((await readProjectFile('trip')).assets).toEqual([asset]);
+    });
+
+    it('says why an image cannot be used', async () => {
+      const project = await createViaApi('Trip');
+      const problem = async (pending: ReturnType<typeof upload>) => {
+        const response = await pending;
+        return [response.statusCode, response.json<{ problem: string }>().problem];
+      };
+      expect(await problem(upload(project.id, Buffer.from('<svg/>')))).toEqual([
+        422,
+        'image.unsupported',
+      ]);
+      expect(await problem(upload(project.id, png(600, 100)))).toEqual([422, 'image.tooWide']);
+      expect(await problem(upload(project.id, png(10, 10, IMAGE_LIMITS.bytes + 1)))).toEqual([
+        413,
+        'image.tooLarge',
+      ]);
+      expect(await problem(upload(project.id, png(10, 10), 'x.jpg', 'image/jpeg'))).toEqual([
+        415,
+        'image.unsupported',
+      ]);
+      expect((await upload('p_nope', png(10, 10))).statusCode).toBe(404);
+      expect(await readdir(join(dataDir, 'projects', 'trip'))).toEqual(['project.json']);
+    });
+
+    it('serves nothing but the files it stored', async () => {
+      const project = await createViaApi('Trip');
+      const get = (file: string) =>
+        app.inject({ method: 'GET', url: `/api/projects/${project.id}/assets/${file}` });
+      expect((await get('a_missing.png')).statusCode).toBe(404);
+      expect((await get('..%2Fproject.json')).statusCode).toBe(404);
+      expect((await get('..%5Cproject.json')).statusCode).toBe(404);
+      expect((await get('project.json')).statusCode).toBe(404);
     });
   });
 

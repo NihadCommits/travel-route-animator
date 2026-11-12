@@ -3,16 +3,20 @@ import { sampleProject } from '../testing/sampleProject';
 import { parseProjectFile } from './migrations';
 import { v1ToV2 } from './v1-to-v2';
 
-/** The sample project as file format 1 wrote it: `futureRoute` instead of `ahead`. */
+/**
+ * The sample project as file format 1 wrote it: `futureRoute` instead of `ahead`, and neither
+ * vehicle icons nor assets (format 3).
+ */
 function versionOneFile(futureRoutes: string[]) {
-  const project = JSON.parse(JSON.stringify(sampleProject())) as {
+  const { assets: _assets, ...current } = JSON.parse(JSON.stringify(sampleProject())) as {
     schemaVersion: number;
+    assets?: unknown;
     groups: { etappen: { tracks: { style: Record<string, unknown> }[] }[] }[];
   };
-  project.schemaVersion = 1;
+  const project = { ...current, schemaVersion: 1 };
   const tracks = project.groups.flatMap((group) => group.etappen.flatMap((e) => e.tracks));
   tracks.forEach((track, i) => {
-    const { ahead: _ahead, ...style } = track.style;
+    const { ahead: _ahead, icon: _icon, ...style } = track.style;
     track.style = { ...style, futureRoute: futureRoutes[i % futureRoutes.length] };
   });
   return { project, tracks };
@@ -27,7 +31,7 @@ describe('migration 1 → 2', () => {
     const styles = result.data.groups
       .flatMap((g) => g.etappen.flatMap((e) => e.tracks))
       .map((track) => track.style);
-    expect(result.data.schemaVersion).toBe(2);
+    expect(result.data.schemaVersion).toBe(3);
     expect(styles[0]!.ahead).toEqual({ opacity: 0, dash: 'solid' });
     // Format 1 drew the faint route in the line's own dash, so the look stays the same.
     expect(styles[1]!.ahead).toEqual({ opacity: 0.35, dash: 'dotted' });

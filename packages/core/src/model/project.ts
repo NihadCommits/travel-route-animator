@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AssetSchema } from './assets';
 import { EtappeSchema } from './etappe';
 import { reportIssue } from './issues';
 import { OutputSettingsSchema } from './output';
@@ -6,7 +7,7 @@ import { HexColorSchema, IdSchema, IsoDateTimeSchema } from './primitives';
 import { MapStyleRefSchema, TransitionSettingsSchema } from './style';
 
 /** Bump together with a new migration in migrations/migrations.ts. */
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export const ProjectDefaultsSchema = z.strictObject({
   /** Default look, overridable per group and stage. */
@@ -37,6 +38,8 @@ export const ProjectSchema = z
     updatedAt: IsoDateTimeSchema,
     defaults: ProjectDefaultsSchema,
     groups: z.array(GroupSchema),
+    /** Files in the project's folder, such as images for vehicles (ADR 0009). */
+    assets: z.array(AssetSchema),
   })
   .superRefine((project, ctx) => {
     // IDs must be unique across the whole project, not just among siblings: the editor selects,
@@ -59,18 +62,31 @@ export const ProjectSchema = z
     };
 
     check(project.id, []);
+    const assetIds = new Set(project.assets.map((asset) => asset.id));
     project.groups.forEach((group, g) => {
       check(group.id, ['groups', g]);
       group.etappen.forEach((etappe, e) => {
         check(etappe.id, ['groups', g, 'etappen', e]);
         etappe.tracks.forEach((track, t) => {
           check(track.id, ['groups', g, 'etappen', e, 'tracks', t]);
+          const { icon } = track.style;
+          if (icon.kind === 'image' && !assetIds.has(icon.assetId)) {
+            reportIssue(ctx, {
+              path: ['groups', g, 'etappen', e, 'tracks', t, 'style', 'icon', 'assetId'],
+              input: icon.assetId,
+              code: 'track.iconAssetMissing',
+              message: `The icon's image "${icon.assetId}" is not among the project's assets`,
+              values: { assetId: icon.assetId },
+            });
+          }
           track.waypoints.forEach((waypoint, w) => {
             check(waypoint.id, ['groups', g, 'etappen', e, 'tracks', t, 'waypoints', w]);
           });
         });
       });
     });
+    // Last, as they are listed last in the file: a clash is reported at the asset.
+    project.assets.forEach((asset, a) => check(asset.id, ['assets', a]));
   });
 export type Project = z.infer<typeof ProjectSchema>;
 

@@ -58,6 +58,7 @@ export function defaultTrackStyle(colorIndex = 0): TrackStyle {
     ahead: { opacity: AHEAD_OPACITY, dash: 'solid' },
     glow: false,
     vehicleScale: 1,
+    icon: { kind: 'catalog' },
   };
 }
 

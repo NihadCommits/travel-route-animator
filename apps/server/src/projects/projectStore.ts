@@ -1,6 +1,8 @@
 import { mkdir, readdir, readFile, rename } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
+  assetFileName,
+  checkImage,
   createProject,
   defaultFactoryContext,
   describeIssues,
@@ -8,6 +10,8 @@ import {
   slugify,
   uniqueSlug,
   validateProject,
+  type ImageAsset,
+  type ImageProblem,
   type Project,
   type ValidationIssue,
 } from '@travel-route-animator/core';
@@ -33,6 +37,27 @@ export class ProjectValidationError extends Error {
     super(describeIssues(issues));
   }
 }
+
+/** An image that cannot become a vehicle icon: not a PNG or GIF, broken, or too large. */
+export class ImageRejectedError extends Error {
+  override name = 'ImageRejectedError';
+  constructor(
+    readonly problem: ImageProblem,
+    readonly values: Record<string, number>,
+  ) {
+    super(`The image cannot be used: ${problem}`);
+  }
+}
+
+export class AssetNotFoundError extends Error {
+  override name = 'AssetNotFoundError';
+  constructor(file: string) {
+    super(`The project has no file "${file}"`);
+  }
+}
+
+/** Asset files are named <id>.png or <id>.gif (ADR 0009); nothing else is ever served. */
+const ASSET_FILE = /^[A-Za-z0-9_-]{1,64}\.(png|gif)$/;
 
 /** The project exists on disk, but its file is broken (hand-edited, older app, …). */
 export class ProjectFileInvalidError extends Error {
@@ -67,6 +92,7 @@ export interface ProjectStoreOptions {
 }
 
 const PROJECT_FILE = 'project.json';
+const ASSETS_DIR = 'assets';
 
 /**
  * Projects as files: data/projects/<slug>/project.json. The slug comes from the name at
@@ -186,6 +212,45 @@ export function createProjectStore({
         await write(slug, project);
         return project;
       });
+    },
+
+    /**
+     * Stores an image in the project's assets folder, after checking its bytes (ADR 0009). The
+     * project itself is not changed: the editor adds the image along with its use, as one step
+     * to undo.
+     */
+    async addImage(id: string, bytes: Uint8Array, name: string): Promise<ImageAsset> {
+      const checked = checkImage(bytes);
+      if (!checked.ok) throw new ImageRejectedError(checked.problem, checked.values);
+      const { slug } = await findOrThrow(id);
+      const asset: ImageAsset = {
+        id: defaultFactoryContext.createId('a'),
+        kind: 'image',
+        name,
+        ...checked.info,
+      };
+      const dir = join(projectsDir, slug, ASSETS_DIR);
+      await mkdir(dir, { recursive: true });
+      await writeFileAtomic(join(dir, assetFileName(asset)), bytes);
+      return asset;
+    },
+
+    /** An asset file, by its file name; only names the store itself gives out are read. */
+    async readAsset(id: string, file: string): Promise<{ bytes: Buffer; mimeType: string }> {
+      const match = ASSET_FILE.exec(file);
+      if (!match) throw new AssetNotFoundError(file);
+      const path = join(projectsDir, (await findOrThrow(id)).slug, ASSETS_DIR, file);
+      try {
+        return { bytes: await readFile(path), mimeType: `image/${match[1]}` };
+      } catch (error) {
+        if (isNotFound(error)) throw new AssetNotFoundError(file);
+        throw error;
+      }
+    },
+
+    /** The folder with the project's own files; render jobs read their images from it. */
+    async assetsDir(id: string): Promise<string> {
+      return join(projectsDir, (await findOrThrow(id)).slug, ASSETS_DIR);
     },
 
     /** Also works for a broken file, so it can be cleared away without touching the folder by hand. */

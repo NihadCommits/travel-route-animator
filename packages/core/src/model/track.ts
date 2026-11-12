@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { AssetIdSchema } from './assets';
 import {
   EasingSchema,
   LineDashSchema,
@@ -77,6 +78,21 @@ export const RouteAheadSchema = z.strictObject({
 });
 export type RouteAhead = z.infer<typeof RouteAheadSchema>;
 
+/** What stands for the vehicle on the map (ADR 0009). */
+export const VehicleIconSchema = z.discriminatedUnion('kind', [
+  /** The vehicle type's own icon; cars and planes show their 3D model in tilted views. */
+  z.strictObject({ kind: z.literal('catalog') }),
+  z.strictObject({
+    kind: z.literal('image'),
+    assetId: AssetIdSchema,
+    /** Lies flat and turns with the heading; otherwise it stands upright, facing the viewer. */
+    rotates: z.boolean(),
+  }),
+  /** No vehicle at all, only the line. */
+  z.strictObject({ kind: z.literal('none') }),
+]);
+export type VehicleIcon = z.infer<typeof VehicleIconSchema>;
+
 export const TrackStyleSchema = z.strictObject({
   lineColor: HexColorSchema,
   lineWidthPx: z.number().positive(),
@@ -85,6 +101,7 @@ export const TrackStyleSchema = z.strictObject({
   ahead: RouteAheadSchema,
   glow: z.boolean(),
   vehicleScale: z.number().positive(),
+  icon: VehicleIconSchema,
 });
 export type TrackStyle = z.infer<typeof TrackStyleSchema>;
 

@@ -6,18 +6,27 @@ import {
   createTrack,
   createWaypoint,
   VEHICLE_TYPES,
+  type Etappe,
   type Project,
   type Track,
+  type VehicleIcon,
 } from '@travel-route-animator/core';
 import { describe, expect, it } from 'vitest';
 import { iconId, iconSvg, ROTATES } from '../vehicles/icons';
 import { sceneFeatures } from './features';
 
-function stage(tracks: Track[]): { project: Project; etappeId: string } {
+type View = Pick<Etappe['view'], 'mode' | 'pitchDeg'>;
+
+/** A stage of these tracks; without a view, it is seen from straight above. */
+function stage(
+  tracks: Track[],
+  view: View = { mode: '2d', pitchDeg: 0 },
+): { project: Project; etappeId: string } {
   const etappe = createEtappe({ name: 'Test', tracks, durationSec: 10 });
   const project = createProject('Trip');
+  const seen = { ...etappe, view: { ...etappe.view, ...view } };
   return {
-    project: { ...project, groups: [{ id: 'g', name: 'G', etappen: [etappe] }] },
+    project: { ...project, groups: [{ id: 'g', name: 'G', etappen: [seen] }] },
     etappeId: etappe.id,
   };
 }
@@ -33,8 +42,8 @@ function track(vehicleType: Track['vehicle']['type'], style: Partial<Track['styl
   return { ...base, routing: { mode: 'straight' }, style: { ...base.style, ...style } };
 }
 
-function featuresAt(tracks: Track[], frame: number) {
-  const { project, etappeId } = stage(tracks);
+function featuresAt(tracks: Track[], frame: number, view?: View) {
+  const { project, etappeId } = stage(tracks, view);
   const timeline = compileTimeline(project, etappeId);
   return sceneFeatures(timeline, computeFrameState(timeline, frame));
 }
@@ -83,10 +92,54 @@ describe('sceneFeatures', () => {
       ['Lisboa', 1],
     ]);
   });
+
+  it('stands an own image upright and runs its pictures only while the vehicle moves', () => {
+    const icon = { kind: 'image', assetId: 'a_run', rotates: false } as const;
+    // Walks for 5.3 s of the 10 s stage, then stands at the destination.
+    const walker = track('walk', { icon });
+    const tracks = [{ ...walker, timing: { ...walker.timing, durationSec: 5.3 } }];
+    // Ten pictures of 100 ms: one second for the whole walk cycle.
+    const timings = new Map([['a_run', Array.from({ length: 10 }, () => 100)]]);
+    const { project, etappeId } = stage(tracks);
+    const timeline = compileTimeline(project, etappeId);
+    const iconAt = (sec: number) => {
+      const state = computeFrameState(timeline, Math.round(sec * timeline.fps));
+      return sceneFeatures(timeline, state, timings).vehicles.features[0]!.properties;
+    };
+
+    expect(iconAt(1.25)).toEqual({ icon: 'asset:a_run:2', bearing: 0, size: 1, upright: true });
+    expect(iconAt(2.45).icon).toBe('asset:a_run:4');
+    // Arrived after 5.3 s: the time on the move stops, so does the picture.
+    expect(iconAt(7).icon).toBe('asset:a_run:3');
+    expect(iconAt(9).icon).toBe('asset:a_run:3');
+  });
+
+  it('turns an own image with the heading when asked, and draws no vehicle for "none"', () => {
+    const turning = { kind: 'image', assetId: 'a_car', rotates: true } as const;
+    const features = featuresAt(
+      [track('car', { icon: turning }), track('bus', { icon: { kind: 'none' } })],
+      100,
+    );
+    expect(features.routes.features).toHaveLength(2);
+    expect(features.vehicles.features).toHaveLength(1);
+    const [vehicle] = features.vehicles.features;
+    // An image not loaded yet shows its first picture.
+    expect(vehicle!.properties).toMatchObject({ icon: 'asset:a_car:0', upright: false });
+    expect(vehicle!.properties.bearing).toBeGreaterThan(180);
+  });
+
+  it('leaves a car in a tilted view to the 3D layer, but keeps its line and other icons', () => {
+    const tilted = { mode: '3d-tilted', pitchDeg: 45 } as const;
+    const features = featuresAt([track('car'), track('walk')], 100, tilted);
+    expect(features.routes.features).toHaveLength(2);
+    expect(features.vehicles.features.map((vehicle) => vehicle.properties.icon)).toEqual([
+      expect.stringMatching(/^vehicle:walk:/),
+    ]);
+  });
 });
 
 describe('flights', () => {
-  function flight(view: { mode: 'globe' | '2d'; pitchDeg: number }, showGroundShadow = true) {
+  function flight(view: View, showGroundShadow = true, icon: VehicleIcon = { kind: 'catalog' }) {
     const base = createTrack({
       vehicleType: 'plane',
       waypoints: [
@@ -98,16 +151,10 @@ describe('flights', () => {
       ...base,
       routing: { mode: 'great-circle' },
       flight: { ...base.flight!, showGroundShadow },
+      style: { ...base.style, icon },
     };
-    const { project, etappeId } = stage([plane]);
-    const etappe = project.groups[0]!.etappen[0]!;
-    const tilted = {
-      ...project,
-      groups: [
-        { ...project.groups[0]!, etappen: [{ ...etappe, view: { ...etappe.view, ...view } }] },
-      ],
-    };
-    const timeline = compileTimeline(tilted, etappeId);
+    const { project, etappeId } = stage([plane], view);
+    const timeline = compileTimeline(project, etappeId);
     const state = computeFrameState(timeline, Math.round(timeline.durationInFrames / 2));
     return { features: sceneFeatures(timeline, state), state };
   }
@@ -134,6 +181,21 @@ describe('flights', () => {
     expect(vehicle!.properties.size).toBeGreaterThan(1.4);
     // The first point is the airport, on the ground.
     expect(route!.geometry.coordinates[0]).toEqual([16.57, 48.11]);
+  });
+
+  it('casts the shadow of an own image, and none without a vehicle', () => {
+    const image = flight({ mode: '2d', pitchDeg: 0 }, true, {
+      kind: 'image',
+      assetId: 'a_balloon',
+      rotates: false,
+    });
+    expect(image.features.shadowIcons.features[0]!.properties).toMatchObject({
+      icon: 'asset-shadow:a_balloon',
+      bearing: 0,
+    });
+    const none = flight({ mode: '2d', pitchDeg: 0 }, true, { kind: 'none' });
+    expect(none.features.shadowIcons.features).toEqual([]);
+    expect(none.features.shadows.features).toHaveLength(1);
   });
 
   it('draws no shadow when the track turns it off', () => {

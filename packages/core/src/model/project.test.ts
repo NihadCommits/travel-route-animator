@@ -266,13 +266,38 @@ describe('validateProject (always checked, "storable")', () => {
       });
     });
 
+    it('needs the image of a vehicle icon among the assets, under a file-safe ID', () => {
+      const project = sampleProject();
+      trainTrack(project).style.icon = { kind: 'image', assetId: 'a_runner', rotates: false };
+      const issue = expectIssue(project, `${TRAIN_TRACK_PATH}.style.icon.assetId`, /a_runner/);
+      expect(issue).toMatchObject({
+        code: 'track.iconAssetMissing',
+        values: { assetId: 'a_runner' },
+      });
+
+      const runner = {
+        id: 'a_runner',
+        kind: 'image',
+        name: 'Läufer.gif',
+        mimeType: 'image/gif',
+        widthPx: 128,
+        heightPx: 160,
+        frameCount: 12,
+      } as const;
+      expect(validateProject({ ...project, assets: [runner] }).success).toBe(true);
+      // The ID names the file on disk; nothing may lead out of the assets folder.
+      expectIssue({ ...project, assets: [{ ...runner, id: '../x' }] }, 'assets[0].id', /letters/);
+      // Asset IDs share the project's ID space.
+      expectIssue({ ...project, assets: [{ ...runner, id: 't_train' }] }, 'assets[0].id', /used/);
+    });
+
     it('rejects unknown fields instead of silently dropping them', () => {
       const project = { ...sampleProject(), colour: 'red' };
       expect(issuesOf(project)[0]?.message).toMatch(/Unrecognized key: "colour"/);
     });
 
     it('rejects a schema version this app does not know', () => {
-      const project = { ...sampleProject(), schemaVersion: 3 };
+      const project = { ...sampleProject(), schemaVersion: 4 };
       expect(issuesOf(project).map((i) => i.path)).toContain('schemaVersion');
     });
 

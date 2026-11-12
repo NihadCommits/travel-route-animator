@@ -1,3 +1,4 @@
+import type { ImageAsset } from '../model/assets';
 import type { CameraMode, VehicleType, ViewMode } from '../model/enums';
 import type { Etappe } from '../model/etappe';
 import {
@@ -175,6 +176,24 @@ export function changeVehicleType(project: Project, trackId: Id, type: VehicleTy
       vehicle: { type, variant: `${type}-default` },
       routing: keepRouting ? track.routing : { mode: VEHICLE_CATALOG[type].defaultRouting },
       ...(type === 'plane' && { flight: track.flight ?? defaultFlightOptions() }),
+    };
+  });
+}
+
+/**
+ * Draws a track's vehicle as an image (ADR 0009). The image joins the project's assets unless
+ * it is there already, so adding a picture and using it is one step to undo. A new image
+ * stands upright; switching between images keeps the track's choice of turning.
+ */
+export function setImageIcon(project: Project, trackId: Id, asset: ImageAsset): Project {
+  const known = project.assets.some((existing) => existing.id === asset.id);
+  const withAsset = known ? project : { ...project, assets: [...project.assets, asset] };
+  return editTrack(withAsset, trackId, (track) => {
+    const { icon } = track.style;
+    const rotates = icon.kind === 'image' ? icon.rotates : false;
+    return {
+      ...track,
+      style: { ...track.style, icon: { kind: 'image', assetId: asset.id, rotates } },
     };
   });
 }
