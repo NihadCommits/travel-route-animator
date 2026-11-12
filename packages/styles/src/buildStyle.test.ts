@@ -91,6 +91,21 @@ describe('buildStyle', () => {
     );
   });
 
+  it('writes place names in the country language unless the style asks for German or English', () => {
+    const cityName = (style: MapStyleRef) => {
+      const city = buildStyle(style, clean).layers.find((layer) => layer.id === 'label-city');
+      return city?.type === 'symbol' ? city.layout?.['text-field'] : undefined;
+    };
+    expect(cityName(vector)).toEqual(['coalesce', ['get', 'name'], ['get', 'name:latin']]);
+    expect(cityName({ ...vector, language: 'de' })).toEqual([
+      'coalesce',
+      ['get', 'name:de'],
+      ['get', 'name:latin'],
+      ['get', 'name'],
+    ]);
+    expect(JSON.stringify(cityName({ ...vector, language: 'en' }))).toContain('name:en');
+  });
+
   it('follows the theme layers: no minor roads, buildings or relief on the old globe', () => {
     const oldGlobe = resolveTheme('old-globe').theme;
     const style = buildStyle(vector, oldGlobe);

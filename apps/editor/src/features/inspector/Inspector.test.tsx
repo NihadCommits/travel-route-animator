@@ -292,6 +292,17 @@ describe('Inspector', () => {
     expect(style.getByRole('switch', { name: 'Länder' })).not.toBeChecked();
   });
 
+  it('writes place names in the country language until another one is chosen', async () => {
+    const { user } = await renderEditor(trip().project);
+    await selectRow('Wien – Porto');
+    const style = within(inspector().getByRole('region', { name: 'Kartenstil' }));
+    const language = style.getByLabelText('Sprache der Ortsnamen');
+    expect(language).toHaveDisplayValue('Landessprache (Lisboa)');
+    await user.selectOptions(language, 'Deutsch (Lissabon)');
+    expect(language).toHaveDisplayValue('Deutsch (Lissabon)');
+    expect(style.getByText('Eigener Stil für diese Ebene.')).toBeInTheDocument();
+  });
+
   it('saves an edited theme as an own one and uses it for the project', async () => {
     const { server, user } = await renderEditor(createProject('Trip'));
     const style = within(inspector().getByRole('region', { name: 'Kartenstil' }));

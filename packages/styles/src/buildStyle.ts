@@ -1,4 +1,10 @@
-import type { LabelSettings, MapStyleRef, Theme, ThemeTokens } from '@travel-route-animator/core';
+import type {
+  LabelLanguage,
+  LabelSettings,
+  MapStyleRef,
+  Theme,
+  ThemeTokens,
+} from '@travel-route-animator/core';
 import type {
   ExpressionSpecification,
   LayerSpecification,
@@ -39,13 +45,15 @@ export function effectiveTokens(theme: Theme, style: MapStyleRef): ThemeTokens {
   return { ...theme.tokens, ...style.overrides };
 }
 
-// German names where the tiles have them (Lissabon, not Lisboa), else the Latin spelling.
-const NAME: ExpressionSpecification = [
-  'coalesce',
-  ['get', 'name:de'],
-  ['get', 'name:latin'],
-  ['get', 'name'],
-];
+/**
+ * The name in the chosen language where the tiles have it, else the Latin spelling, else the
+ * country's own. "local" is the name as written in the country (Lisboa, not Lissabon).
+ */
+export function nameIn(language: LabelLanguage = 'local'): ExpressionSpecification {
+  return language === 'local'
+    ? ['coalesce', ['get', 'name'], ['get', 'name:latin']]
+    : ['coalesce', ['get', `name:${language}`], ['get', 'name:latin'], ['get', 'name']];
+}
 
 const classIn = (...classes: string[]): ExpressionSpecification => [
   'match',
@@ -173,6 +181,7 @@ function labelPaint(t: ThemeTokens, opacity = 1) {
 
 function placeLabel(
   t: ThemeTokens,
+  name: ExpressionSpecification,
   id: string,
   classes: string[],
   options: {
@@ -193,7 +202,7 @@ function placeLabel(
     ...(options.maxzoom !== undefined && { maxzoom: options.maxzoom }),
     filter: classIn(...classes),
     layout: {
-      'text-field': NAME,
+      'text-field': name,
       'text-font': options.font ?? FONT.regular,
       'text-size': options.size,
       'text-max-width': 8,
@@ -205,7 +214,11 @@ function placeLabel(
   };
 }
 
-function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[] {
+function labelLayers(
+  t: ThemeTokens,
+  labels: LabelSettings,
+  name: ExpressionSpecification,
+): LayerSpecification[] {
   const layers: LayerSpecification[] = [];
   if (labels.roads) {
     layers.push({
@@ -216,7 +229,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
       minzoom: 12,
       layout: {
         'symbol-placement': 'line',
-        'text-field': NAME,
+        'text-field': name,
         'text-font': FONT.regular,
         'text-size': ['interpolate', ['linear'], ['zoom'], 12, 10, 16, 13],
       },
@@ -232,7 +245,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
         'source-layer': 'water_name',
         filter: ['==', ['geometry-type'], 'Point'],
         layout: {
-          'text-field': NAME,
+          'text-field': name,
           'text-font': FONT.italic,
           'text-size': ['match', ['get', 'class'], 'ocean', 16, 'sea', 13, 11],
           'text-max-width': 8,
@@ -248,7 +261,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
         minzoom: 12,
         layout: {
           'symbol-placement': 'line',
-          'text-field': NAME,
+          'text-field': name,
           'text-font': FONT.italic,
           'text-size': 11,
         },
@@ -265,7 +278,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
       minzoom: 15,
       filter: ['<=', ['coalesce', ['get', 'rank'], 99], 20],
       layout: {
-        'text-field': NAME,
+        'text-field': name,
         'text-font': FONT.regular,
         'text-size': 11,
         'text-max-width': 8,
@@ -275,7 +288,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
   }
   if (labels.villages) {
     layers.push(
-      placeLabel(t, 'label-village', ['village', 'hamlet', 'suburb', 'quarter'], {
+      placeLabel(t, name, 'label-village', ['village', 'hamlet', 'suburb', 'quarter'], {
         minzoom: 10,
         size: ['interpolate', ['linear'], ['zoom'], 10, 11, 15, 14],
       }),
@@ -283,7 +296,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
   }
   if (labels.towns) {
     layers.push(
-      placeLabel(t, 'label-town', ['town'], {
+      placeLabel(t, name, 'label-town', ['town'], {
         minzoom: 7,
         size: ['interpolate', ['linear'], ['zoom'], 7, 11, 12, 15],
       }),
@@ -291,7 +304,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
   }
   if (labels.cities) {
     layers.push(
-      placeLabel(t, 'label-city', ['city'], {
+      placeLabel(t, name, 'label-city', ['city'], {
         minzoom: 3,
         size: ['interpolate', ['linear'], ['zoom'], 3, 11, 8, 16, 12, 20],
         font: FONT.bold,
@@ -300,7 +313,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
   }
   if (labels.states) {
     layers.push(
-      placeLabel(t, 'label-state', ['state', 'province'], {
+      placeLabel(t, name, 'label-state', ['state', 'province'], {
         minzoom: 4,
         maxzoom: 9,
         size: ['interpolate', ['linear'], ['zoom'], 4, 9, 8, 12],
@@ -311,7 +324,7 @@ function labelLayers(t: ThemeTokens, labels: LabelSettings): LayerSpecification[
   }
   if (labels.countries) {
     layers.push(
-      placeLabel(t, 'label-country', ['country'], {
+      placeLabel(t, name, 'label-country', ['country'], {
         minzoom: 1,
         maxzoom: 9,
         size: ['interpolate', ['linear'], ['zoom'], 1, 10, 4, 14, 7, 18],
@@ -496,7 +509,7 @@ function vectorLayers(theme: Theme, style: MapStyleRef, options: BuildStyleOptio
       },
     );
   }
-  out.push(...labelLayers(t, effectiveLabels(theme, style)));
+  out.push(...labelLayers(t, effectiveLabels(theme, style), nameIn(style.language)));
   return out;
 }
 
@@ -536,7 +549,7 @@ function satelliteLayers(hybrid: boolean, style: MapStyleRef, theme: Theme): Lay
       filter: ['all', ['==', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]],
       paint: { 'line-color': t.boundary, 'line-width': 1.2, 'line-opacity': 0.7 },
     },
-    ...labelLayers(t, effectiveLabels(theme, style)),
+    ...labelLayers(t, effectiveLabels(theme, style), nameIn(style.language)),
   ];
 }
 
