@@ -100,7 +100,45 @@ describe('drawings3d', () => {
   });
 
   it('draws nothing in 3D when the view looks straight down', () => {
-    expect(flightAt(0).drawings).toEqual({ arcs: [], models: [] });
-    expect(drawingsOf([car('car-suv')], 0).drawings).toEqual({ arcs: [], models: [] });
+    const nothing = { arcs: [], models: [], cards: [] };
+    expect(flightAt(0).drawings).toEqual(nothing);
+    expect(drawingsOf([car('car-suv')], 0).drawings).toEqual(nothing);
+  });
+
+  it('shows the own image of a plane as a card instead of its model, but not that of a car', () => {
+    const runner = { kind: 'image', assetId: 'a_run', rotates: false } as const;
+    // The same flight with its model, for where the plane is and how large it is drawn.
+    const { drawings: flight, state } = flightAt(40);
+    const plane = flight.models[0]!;
+    const base = createTrack({
+      vehicleType: 'plane',
+      waypoints: [
+        createWaypoint({ name: 'Wien', lngLat: [16.57, 48.11] }),
+        createWaypoint({ name: 'Porto', lngLat: [-8.68, 41.25] }),
+      ],
+    });
+    const withImage = { ...base, style: { ...base.style, icon: runner } };
+    const { drawings } = drawingsOf([withImage], 40);
+    expect(drawings.arcs).toHaveLength(1);
+    expect(drawings.models).toEqual([]);
+    expect(drawings.cards).toEqual([
+      {
+        trackId: withImage.id,
+        assetId: 'a_run',
+        frame: 0,
+        upright: true,
+        head: plane.head,
+        sizeM: (plane.lengthM / 80 / planeSizeFactor('plane-default')) * 64,
+        // Standing, it faces the camera, whatever the plane's heading.
+        bearingDeg: state.camera.bearingDeg,
+      },
+    ]);
+
+    const carWithImage = {
+      ...car('car-default'),
+      style: { ...car('car-default').style, icon: runner },
+    };
+    const onRoad = drawingsOf([carWithImage], 45).drawings;
+    expect(onRoad).toEqual({ arcs: [], models: [], cards: [] });
   });
 });

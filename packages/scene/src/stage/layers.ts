@@ -1,6 +1,13 @@
 import type { Timeline } from '@travel-route-animator/core';
 import type { GeoJSONSource, LineLayerSpecification, Map as MapLibreMap } from 'maplibre-gl';
-import { ICON_SIZE_PX, iconId, iconSvg } from '../vehicles/icons';
+import { ICON_SIZE_PX, iconId, iconSvg, PLANE_SHADOW_ICON } from '../vehicles/icons';
+import {
+  IMAGE_PIXEL_RATIO,
+  imageFrameId,
+  imageShadowId,
+  silhouette,
+  type DecodedImage,
+} from '../vehicles/images';
 import type { SceneFeatures } from './features';
 
 const SOURCES = {
@@ -14,8 +21,6 @@ const SOURCES = {
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
-/** The plane as a dark silhouette, for its shadow on the ground. */
-const SHADOW_ICON = 'vehicle-shadow:plane';
 const SHADOW_COLOR = '#0f172a';
 
 // Dash lengths are in multiples of the line width; "dotted" is short dashes with round caps.
@@ -62,7 +67,7 @@ export function addSceneLayers(map: MapLibreMap): void {
     type: 'symbol',
     source: SOURCES.shadowIcons,
     layout: {
-      'icon-image': SHADOW_ICON,
+      'icon-image': ['get', 'icon'],
       'icon-size': ['get', 'size'],
       'icon-rotate': ['get', 'bearing'],
       'icon-rotation-alignment': 'map',
@@ -154,12 +159,30 @@ export function addSceneLayers(map: MapLibreMap): void {
     id: 'tra-vehicles',
     type: 'symbol',
     source: SOURCES.vehicles,
+    filter: ['!', ['get', 'upright']],
     layout: {
       'icon-image': ['get', 'icon'],
       'icon-size': ['get', 'size'],
       'icon-rotate': ['get', 'bearing'],
       'icon-rotation-alignment': 'map',
       'icon-pitch-alignment': 'map',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
+  });
+  // Own images that do not turn stand on their point and face the viewer, like a cut-out
+  // figure; pitch alignment is a layout property, so they need a layer of their own.
+  map.addLayer({
+    id: 'tra-vehicles-upright',
+    type: 'symbol',
+    source: SOURCES.vehicles,
+    filter: ['get', 'upright'],
+    layout: {
+      'icon-image': ['get', 'icon'],
+      'icon-size': ['get', 'size'],
+      'icon-anchor': 'bottom',
+      'icon-rotation-alignment': 'viewport',
+      'icon-pitch-alignment': 'viewport',
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
@@ -193,7 +216,7 @@ export async function loadVehicleIcons(map: MapLibreMap, timeline: Timeline): Pr
   if (timeline.tracks.some((plan) => plan.flight)) {
     // All of the shape dark, the white outline and glass included.
     const shadow = iconSvg('plane', SHADOW_COLOR, ICON_SIZE_PX * 2);
-    wanted.set(SHADOW_ICON, shadow.replaceAll('#ffffff', SHADOW_COLOR));
+    wanted.set(PLANE_SHADOW_ICON, shadow.replaceAll('#ffffff', SHADOW_COLOR));
   }
   await Promise.all(
     [...wanted].map(async ([id, svg]) => {
@@ -204,4 +227,21 @@ export async function loadVehicleIcons(map: MapLibreMap, timeline: Timeline): Pr
       if (!map.hasImage(id)) map.addImage(id, image, { pixelRatio: 2 });
     }),
   );
+}
+
+/**
+ * Hands every picture of the stage's own images to the map, and a dark silhouette of the first
+ * for a flight's shadow (ADR 0009). Images the map already has are skipped.
+ */
+export function addStageImages(map: MapLibreMap, images: ReadonlyMap<string, DecodedImage>) {
+  for (const [assetId, { frames }] of images) {
+    frames.forEach((frame, i) => {
+      const id = imageFrameId(assetId, i);
+      if (!map.hasImage(id)) map.addImage(id, frame, { pixelRatio: IMAGE_PIXEL_RATIO });
+    });
+    const shadow = imageShadowId(assetId);
+    if (frames[0] && !map.hasImage(shadow)) {
+      map.addImage(shadow, silhouette(frames[0], SHADOW_COLOR), { pixelRatio: IMAGE_PIXEL_RATIO });
+    }
+  }
 }

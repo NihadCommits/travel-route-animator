@@ -8,6 +8,9 @@ import type { VehicleType } from '@travel-route-animator/core';
 const GRID = 64;
 export const ICON_SIZE_PX = 64;
 
+/** The plane as a dark silhouette, for the shadow of a flight on the ground (ADR 0007). */
+export const PLANE_SHADOW_ICON = 'vehicle-shadow:plane';
+
 /** Whether the icon turns with the heading. */
 export const ROTATES: Record<VehicleType, boolean> = {
   car: true,

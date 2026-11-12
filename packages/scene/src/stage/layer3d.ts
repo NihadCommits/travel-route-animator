@@ -6,6 +6,7 @@ import {
 } from 'maplibre-gl';
 import * as THREE from 'three';
 import { buildCar } from '../vehicles/carModel';
+import type { DecodedImage } from '../vehicles/images';
 import { buildPlane } from '../vehicles/planeModel';
 import type { ArcLine, Drawings3d, FlightArc, ModelDrawing } from './data3d';
 
@@ -194,6 +195,26 @@ function placement(head: ModelDrawing['head'], metres: number) {
 export interface Layer3d extends CustomLayerInterface {
   /** What to draw in the coming frame. */
   setDrawings(drawings: Drawings3d): void;
+  /** The stage's own images, decoded; cards take their pictures from here (ADR 0009). */
+  setImages(images: ReadonlyMap<string, DecodedImage>): void;
+}
+
+interface Projection {
+  main: THREE.Matrix4;
+  fallback: THREE.Matrix4;
+  /** MapLibre's blend from the flat map (0) to the globe (1). */
+  t: number;
+}
+
+/** A picture as a texture; the canvas keeps three's colour handling the same as for files. */
+function pictureTexture(picture: ImageData): THREE.Texture {
+  const canvas = document.createElement('canvas');
+  canvas.width = picture.width;
+  canvas.height = picture.height;
+  canvas.getContext('2d')!.putImageData(picture, 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
 }
 
 function buildModel({ model, color }: ModelDrawing): THREE.Group {
@@ -201,7 +222,9 @@ function buildModel({ model, color }: ModelDrawing): THREE.Group {
 }
 
 export function createLayer3d(): Layer3d {
-  let drawings: Drawings3d = { arcs: [], models: [] };
+  let drawings: Drawings3d = { arcs: [], models: [], cards: [] };
+  let images: ReadonlyMap<string, DecodedImage> = new Map();
+  const textures = new Map<string, THREE.Texture>();
   let map: MapLibreMap | undefined;
   let gl: WebGL2RenderingContext | undefined;
   let program: WebGLProgram | null = null;
@@ -213,6 +236,16 @@ export function createLayer3d(): Layer3d {
   const scene = new THREE.Scene();
   const camera = new THREE.Camera();
   const models = new Map<string, THREE.Group>();
+  // One card for every own image; its picture and size change with each drawing.
+  const cardMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    side: THREE.DoubleSide,
+    depthWrite: false,
+  });
+  const card = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), cardMaterial);
+  card.frustumCulled = false;
+  card.visible = false;
+  scene.add(card);
   scene.add(new THREE.HemisphereLight('#ffffff', '#94a3b8', 2.2));
   const sun = new THREE.DirectionalLight('#ffffff', 1.6);
   // Light from above, a little from the south-east, in the model's east-north-up space.
@@ -267,7 +300,70 @@ export function createLayer3d(): Layer3d {
     }
   }
 
-  function drawModels(main: THREE.Matrix4, fallback: THREE.Matrix4, t: number) {
+  /**
+   * Puts the camera at a drawing: the placement goes into the camera matrix, so three's world
+   * is east-north-up metres at the drawing and its lights need no projection at all.
+   */
+  function placeCamera(head: ModelDrawing['head'], metres: number, projection: Projection) {
+    const { main, fallback, t } = projection;
+    const placed = placement(head, metres);
+    const flat = fallback.clone().multiply(placed.merc);
+    const round = main.clone().multiply(placed.globe);
+    const blended = new THREE.Matrix4();
+    for (let i = 0; i < 16; i++) {
+      blended.elements[i] = flat.elements[i]! * (1 - t) + round.elements[i]! * t;
+    }
+    camera.projectionMatrix.copy(blended);
+    camera.projectionMatrixInverse.copy(blended).invert();
+  }
+
+  /** Shows one object of the scene and hides the others. */
+  function showOnly(shown: THREE.Object3D) {
+    for (const model of models.values()) model.visible = model === shown;
+    card.visible = card === shown;
+  }
+
+  function textureOf(assetId: string, frame: number): THREE.Texture | undefined {
+    const key = `${assetId}:${frame}`;
+    const known = textures.get(key);
+    if (known) return known;
+    const picture = images.get(assetId)?.frames[frame];
+    if (!picture) return undefined;
+    const texture = pictureTexture(picture);
+    textures.set(key, texture);
+    return texture;
+  }
+
+  function drawCards(projection: Projection) {
+    for (const drawing of drawings.cards) {
+      const picture = images.get(drawing.assetId)?.frames[drawing.frame];
+      const texture = textureOf(drawing.assetId, drawing.frame);
+      // Not decoded yet: the editor's preview catches up a moment later; a render waits.
+      if (!picture || !texture) continue;
+      if (cardMaterial.map !== texture) {
+        cardMaterial.map = texture;
+        cardMaterial.needsUpdate = true;
+      }
+      const longer = Math.max(picture.width, picture.height);
+      const height = picture.height / longer;
+      card.scale.set(picture.width / longer, height, 1);
+      if (drawing.upright) {
+        // Stood up (top to the sky, face to the south), then turned to face a camera that
+        // looks along its bearing; it stands on the plane's point.
+        card.rotation.set(Math.PI / 2, 0, -toRad(drawing.bearingDeg), 'ZXY');
+        card.position.set(0, 0, height / 2);
+      } else {
+        // Level, its top along the heading, nose up while climbing like a model.
+        card.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.bearingDeg), 'ZXY');
+        card.position.set(0, 0, 0);
+      }
+      showOnly(card);
+      placeCamera(drawing.head, drawing.sizeM, projection);
+      renderer!.render(scene, camera);
+    }
+  }
+
+  function drawModels(projection: Projection) {
     const g = gl!;
     renderer!.resetState();
     renderer!.setViewport(0, 0, g.drawingBufferWidth, g.drawingBufferHeight);
@@ -283,22 +379,13 @@ export function createLayer3d(): Layer3d {
         models.set(key, object);
         scene.add(object);
       }
-      for (const [id, other] of models) other.visible = id === key;
-      // The placement goes into the camera matrix, so three's world is east-north-up metres at
-      // the model and its lights need no projection at all.
-      const placed = placement(drawing.head, drawing.lengthM);
-      const flat = fallback.clone().multiply(placed.merc);
-      const round = main.clone().multiply(placed.globe);
-      const blended = new THREE.Matrix4();
-      for (let i = 0; i < 16; i++) {
-        blended.elements[i] = flat.elements[i]! * (1 - t) + round.elements[i]! * t;
-      }
-      camera.projectionMatrix.copy(blended);
-      camera.projectionMatrixInverse.copy(blended).invert();
+      showOnly(object);
+      placeCamera(drawing.head, drawing.lengthM, projection);
       // Pitch first (nose up), then turn to the heading, clockwise from north.
       object.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.head.bearingDeg), 'ZXY');
       renderer!.render(scene, camera);
     }
+    drawCards(projection);
     renderer!.resetState();
   }
 
@@ -308,6 +395,9 @@ export function createLayer3d(): Layer3d {
     renderingMode: '3d',
     setDrawings(next) {
       drawings = next;
+    },
+    setImages(next) {
+      images = next;
     },
     onAdd(mapInstance, g) {
       map = mapInstance;
@@ -344,7 +434,7 @@ export function createLayer3d(): Layer3d {
       renderer.autoClear = false;
     },
     render(g, args) {
-      if (drawings.arcs.length === 0 && drawings.models.length === 0) return;
+      if (drawings.arcs.length + drawings.models.length + drawings.cards.length === 0) return;
       const { mainMatrix, fallbackMatrix, projectionTransition } = args.defaultProjectionData;
       const t = projectionTransition ?? 0;
 
@@ -364,13 +454,14 @@ export function createLayer3d(): Layer3d {
       drawArcs();
       g.bindVertexArray(null);
 
-      drawModels(
-        new THREE.Matrix4().fromArray(mainMatrix),
-        new THREE.Matrix4().fromArray(fallbackMatrix),
+      drawModels({
+        main: new THREE.Matrix4().fromArray(mainMatrix),
+        fallback: new THREE.Matrix4().fromArray(fallbackMatrix),
         t,
-      );
+      });
     },
     onRemove() {
+      for (const texture of textures.values()) texture.dispose();
       renderer?.dispose();
       gl?.deleteBuffer(buffer);
       gl?.deleteVertexArray(vao);

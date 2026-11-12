@@ -8,8 +8,8 @@ import {
   type TrackFrame,
   type TrackPlan,
 } from '@travel-route-animator/core';
-import { iconId, ROTATES } from '../vehicles/icons';
 import { drawsModels, modelOf } from './data3d';
+import { vehicleLook, type ImageTimings, type VehicleLook } from './look';
 
 // What the map draws in one frame, as GeoJSON: plain functions of the timeline and the frame
 // state, so they can be tested without WebGL and are the same for preview and export.
@@ -31,6 +31,8 @@ export interface VehicleProps {
   icon: string;
   bearing: number;
   size: number;
+  /** Stands facing the viewer: an own image that does not turn (ADR 0009). */
+  upright: boolean;
 }
 
 export interface StopProps {
@@ -40,6 +42,7 @@ export interface StopProps {
 }
 
 export interface ShadowIconProps {
+  icon: string;
   bearing: number;
   size: number;
 }
@@ -107,15 +110,28 @@ function liftedBearing(track: TrackFrame, up: number): number {
   return (Math.atan2(east, north) * 180) / Math.PI;
 }
 
-export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatures {
+/**
+ * @param timings how long each picture of the stage's images shows; an image that has not
+ * loaded yet shows its first picture.
+ */
+export function sceneFeatures(
+  timeline: Timeline,
+  state: FrameState,
+  timings: ImageTimings = new Map(),
+): SceneFeatures {
   const plans = new Map(timeline.tracks.map((plan) => [plan.trackId, plan]));
   const visible = state.tracks.filter((track) => track.visible && plans.has(track.trackId));
+  const looks = new Map(
+    visible.map((track) => [track.trackId, vehicleLook(plans.get(track.trackId)!, track, timings)]),
+  );
   // Flights in a tilted view are drawn by the 3D layer; everything else by the flat layers.
   const flat = visible.filter((track) => !track.flight || state.flightStyle === 'fake-3d');
   // Planes and cars with a model stand in the 3D layer, too; their lines stay here.
-  const icons = drawsModels(state)
-    ? flat.filter((track) => !modelOf(plans.get(track.trackId)!))
-    : flat;
+  const icons = flat.filter(
+    (track) =>
+      looks.get(track.trackId)!.kind !== 'none' &&
+      !(drawsModels(state) && modelOf(plans.get(track.trackId)!)),
+  );
   const flights = visible.filter((track) => track.flight?.showShadow);
   const up = state.camera.bearingDeg;
 
@@ -128,17 +144,22 @@ export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatu
       })),
     ),
     shadowIcons: collection(
-      flights.map((track) => {
+      flights.flatMap((track) => {
+        const look = looks.get(track.trackId)!;
+        if (look.kind === 'none') return [];
         const { flight, head } = track;
         const height = flight && flight.peakM > 0 ? head.altitudeM / flight.peakM : 0;
-        return {
-          type: 'Feature' as const,
-          geometry: { type: 'Point' as const, coordinates: head.lngLat },
-          properties: {
-            bearing: head.bearingDeg,
-            size: plans.get(track.trackId)!.style.vehicleScale * (1 - SHADOW_SHRINK * height),
+        return [
+          {
+            type: 'Feature' as const,
+            geometry: { type: 'Point' as const, coordinates: head.lngLat },
+            properties: {
+              icon: look.shadowIcon,
+              bearing: look.turns ? head.bearingDeg : 0,
+              size: plans.get(track.trackId)!.style.vehicleScale * (1 - SHADOW_SHRINK * height),
+            },
           },
-        };
+        ];
       }),
     ),
     ahead: collection(
@@ -174,6 +195,7 @@ export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatu
     vehicles: collection(
       icons.map((track) => {
         const plan = plans.get(track.trackId)!;
+        const look = looks.get(track.trackId) as Extract<VehicleLook, { icon: string }>;
         const { flight, head } = track;
         const height = flight && flight.peakM > 0 ? head.altitudeM / flight.peakM : 0;
         return {
@@ -185,14 +207,11 @@ export function sceneFeatures(timeline: Timeline, state: FrameState): SceneFeatu
               : head.lngLat,
           },
           properties: {
-            icon: iconId(plan.vehicle, plan.style.lineColor),
-            bearing: !ROTATES[plan.vehicle]
-              ? 0
-              : flight
-                ? liftedBearing(track, up)
-                : head.bearingDeg,
+            icon: look.icon,
+            bearing: !look.turns ? 0 : flight ? liftedBearing(track, up) : head.bearingDeg,
             // Icons are added at their full size; icon-size scales them by the track setting.
             size: plan.style.vehicleScale * (1 + FAKE_GROW * height),
+            upright: look.upright,
           },
         };
       }),

@@ -3,10 +3,12 @@ import { OPENFREEMAP_LIBERTY_STYLE_URL } from '@travel-route-animator/styles';
 import type { Map as MapLibreMap, SkySpecification } from 'maplibre-gl';
 import { useEffect, useRef, useState, type FC } from 'react';
 import { useBufferState, useDelayRender, useRemotionEnvironment } from 'remotion';
+import { decodeImage, type DecodedImage, type StageImage } from '../vehicles/images';
 import { drawings3d, modelOf } from './data3d';
 import { sceneFeatures } from './features';
 import type { Layer3d } from './layer3d';
-import { addSceneLayers, loadVehicleIcons, setSceneFeatures } from './layers';
+import { addSceneLayers, addStageImages, loadVehicleIcons, setSceneFeatures } from './layers';
+import type { ImageTimings } from './look';
 import { createRenderMap } from './renderMap';
 
 /** A thin atmosphere around the globe that fades out as the camera comes closer. */
@@ -36,18 +38,46 @@ function needsLayer3d(timeline: Timeline): boolean {
  * Adds the 3D layer once a stage needs it. It is loaded on demand: three.js is by far the
  * largest part of it, and stages seen from straight above never use it.
  */
-async function ensureLayer3d(map: MapLibreMap, layer: { current: Layer3d | null }): Promise<void> {
+async function ensureLayer3d(
+  map: MapLibreMap,
+  layer: { current: Layer3d | null },
+  images: ReadonlyMap<string, DecodedImage>,
+): Promise<void> {
   if (layer.current) return;
   const { createLayer3d } = await import('./layer3d');
   if (layer.current) return;
   layer.current = createLayer3d();
+  // The same map the images are decoded into, so the layer sees the ones still to come.
+  layer.current.setImages(images);
   map.addLayer(layer.current);
+}
+
+/**
+ * Decodes the stage's images the map does not have yet and adds their pictures to it
+ * (ADR 0009). Returns how long the pictures of every decoded image show.
+ */
+async function loadStageImages(
+  map: MapLibreMap,
+  images: readonly StageImage[],
+  decoded: Map<string, DecodedImage>,
+): Promise<ImageTimings> {
+  const missing = images.filter(({ asset }) => !decoded.has(asset.id));
+  const loaded = await Promise.all(
+    missing.map(async (image) => [image.asset.id, await decodeImage(image)] as const),
+  );
+  for (const [id, image] of loaded) decoded.set(id, image);
+  addStageImages(map, decoded);
+  return new Map([...decoded].map(([id, { durationsMs }]) => [id, durationsMs]));
 }
 
 export interface MapStageProps {
   timeline: Timeline;
   state: FrameState;
+  /** Own images of the stage's vehicles (ADR 0009). */
+  images?: readonly StageImage[];
 }
+
+const NO_IMAGES: readonly StageImage[] = [];
 
 /**
  * The one map of a composition (ARCHITEKTUR: Szene). It is created once; every frame then sets
@@ -64,7 +94,7 @@ export interface MapStageProps {
  * the same at every resolution, and a half-resolution preview only draws a quarter of the
  * pixels.
  */
-export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
+export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGES }) => {
   const { isRendering } = useRemotionEnvironment();
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   const buffer = useBufferState();
@@ -74,8 +104,11 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
   const [loadHandle] = useState(() => delayRender('Loading the map'));
   const loadPending = useRef(true);
   // What the map is created with; later changes arrive through the effects below.
-  const initial = useRef({ timeline, state });
+  const initial = useRef({ timeline, state, images });
   const layer3d = useRef<Layer3d | null>(null);
+  // Decoded once per image; the frame picks a picture by the timings (never by a clock).
+  const decoded = useRef(new Map<string, DecodedImage>());
+  const [timings, setTimings] = useState<ImageTimings>(() => new Map());
 
   useEffect(() => {
     const container = containerRef.current;
@@ -96,9 +129,16 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
     instance.on('style.load', () => applyProjection(instance, firstState.projection));
     instance.on('load', () => {
       addSceneLayers(instance);
-      const models = needsLayer3d(first) ? ensureLayer3d(instance, layer3d) : Promise.resolve();
-      Promise.all([models, loadVehicleIcons(instance, initial.current.timeline)])
-        .then(() => {
+      const models = needsLayer3d(first)
+        ? ensureLayer3d(instance, layer3d, decoded.current)
+        : Promise.resolve();
+      Promise.all([
+        models,
+        loadVehicleIcons(instance, first),
+        loadStageImages(instance, initial.current.images, decoded.current),
+      ])
+        .then(([, , imageTimings]) => {
+          setTimings(imageTimings);
           setMap(instance);
           playback.unblock();
         })
@@ -123,11 +163,19 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
     if (!map) return;
     loadVehicleIcons(map, timeline).catch((error: unknown) => cancelRender(error));
     if (needsLayer3d(timeline)) {
-      ensureLayer3d(map, layer3d)
+      ensureLayer3d(map, layer3d, decoded.current)
         .then(() => map.triggerRepaint())
         .catch((error: unknown) => cancelRender(error));
     }
   }, [map, timeline, cancelRender]);
+
+  // An image chosen in the editor is decoded once and then drawn from the next frame on.
+  useEffect(() => {
+    if (!map) return;
+    loadStageImages(map, images, decoded.current)
+      .then(setTimings)
+      .catch((error: unknown) => cancelRender(error));
+  }, [map, images, cancelRender]);
 
   // Switching the view between flat map and globe in the editor.
   const { projection } = state;
@@ -149,8 +197,8 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
       pitch: camera.pitchDeg,
       bearing: camera.bearingDeg,
     });
-    layer3d.current?.setDrawings(drawings3d(timeline, state));
-    const drawn = setSceneFeatures(map, sceneFeatures(timeline, state));
+    layer3d.current?.setDrawings(drawings3d(timeline, state, timings));
+    const drawn = setSceneFeatures(map, sceneFeatures(timeline, state, timings));
     if (!isRendering) {
       drawn.catch((error: unknown) => cancelRender(error));
       return;
@@ -171,7 +219,17 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state }) => {
         map.triggerRepaint();
       })
       .catch((error: unknown) => cancelRender(error));
-  }, [map, timeline, state, isRendering, loadHandle, delayRender, continueRender, cancelRender]);
+  }, [
+    map,
+    timeline,
+    state,
+    timings,
+    isRendering,
+    loadHandle,
+    delayRender,
+    continueRender,
+    cancelRender,
+  ]);
 
   // Outside rendering the load handle has no effect, but it must not stay open either.
   useEffect(() => {
