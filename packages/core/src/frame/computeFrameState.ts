@@ -2,6 +2,7 @@ import { lineAhead, lineUntil, pointAt } from '../geo/along';
 import type { LngLat } from '../geo/lngLat';
 import type { Id } from '../model/primitives';
 import type { Timeline, TrackPlan } from '../timeline/compileTimeline';
+import { movingSecAt } from './animation';
 import { cameraAt, metersPerPixel, type CameraState } from './camera';
 import {
   altitudeAt,
@@ -41,6 +42,8 @@ export interface TrackFrame {
   head: { lngLat: LngLat; bearingDeg: number; altitudeM: number };
   /** Share of the distance driven, 0 to 1. */
   progress: number;
+  /** Seconds on the move so far, without holds; animated icons follow it (ADR 0009). */
+  movingSec: number;
   visible: boolean;
   flight: FlightFrame | undefined;
 }
@@ -88,6 +91,7 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
   const aheadShown = plan.style.ahead.opacity > 0;
   const head = { lngLat, bearingDeg: headingAt(line, s, windowM), altitudeM: 0 };
   const progress = line.lengthM > 0 ? s / line.lengthM : 1;
+  const movingSec = movingSecAt(plan.phases, sec);
   const { flight } = plan;
   if (!flight) {
     return {
@@ -96,6 +100,7 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
       ahead: aheadShown ? lineAhead(line, s) : undefined,
       head,
       progress,
+      movingSec,
       visible: true,
       flight: undefined,
     };
@@ -108,6 +113,7 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
     ahead: ahead?.points,
     head: { ...head, altitudeM: altitudeAt(flight, s) },
     progress,
+    movingSec,
     visible: true,
     flight: {
       revealedAltitudesM: arc.altitudesM,
