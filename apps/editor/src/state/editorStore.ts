@@ -291,6 +291,14 @@ export const selectCanUndo = (state: EditorState) => canUndo(state.history);
 export const selectCanRedo = (state: EditorState) => canRedo(state.history);
 
 /** The stage the selection belongs to (the stage itself or a track's), for preview and timeline. */
+/** The group of the selection: the group itself, or the one its stage belongs to. */
+export function selectGroupId(state: EditorState): Id | null {
+  const project = state.history.present;
+  const location = state.selectedId === null ? undefined : locateItem(project, state.selectedId);
+  if (!location || location.kind === 'project') return null;
+  return project.groups[location.groupIndex]!.id;
+}
+
 export function selectEtappeId(state: EditorState): Id | null {
   const project = state.history.present;
   const location = state.selectedId === null ? undefined : locateItem(project, state.selectedId);

@@ -4,6 +4,7 @@ import { selectProject, useEditor } from '@/state/editorStore';
 import { ColorField } from './fields/ColorField';
 import { TextField } from './fields/TextField';
 import { MapStyleSection } from './MapStyleSection';
+import { TransitionSection } from './TransitionSection';
 import { FormHeading, LaterNote } from './parts';
 import { useEdit } from './useEdit';
 
@@ -35,6 +36,7 @@ export function GroupForm({ group, location }: { group: Group; location: ItemLoc
         }
       />
       <MapStyleSection project={project} level={{ kind: 'group', group }} edit={edit} />
+      <TransitionSection project={project} group={group} edit={edit} />
       <LaterNote text={de.inspector.group.later} />
     </>
   );

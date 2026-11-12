@@ -3,6 +3,7 @@ import { de } from '@/i18n/de';
 import { SelectField } from './fields/SelectField';
 import { TextField } from './fields/TextField';
 import { MapStyleSection } from './MapStyleSection';
+import { TransitionSection } from './TransitionSection';
 import { FormHeading, LaterNote, optionsOf, Row, Section } from './parts';
 import { useEdit } from './useEdit';
 
@@ -54,6 +55,7 @@ export function ProjectForm({ project }: { project: Project }) {
       </Section>
 
       <MapStyleSection project={project} level={{ kind: 'project' }} edit={edit} />
+      <TransitionSection project={project} edit={edit} />
 
       <LaterNote text={de.inspector.project.later} />
     </>

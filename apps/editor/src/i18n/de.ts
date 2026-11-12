@@ -69,7 +69,8 @@ export const de = {
     },
   },
   preview: {
-    pickEtappe: 'Wähle im Baum eine Etappe oder ein Fahrzeug, um die Vorschau zu sehen.',
+    pickEtappe:
+      'Wähle im Baum eine Etappe, ein Fahrzeug oder eine Gruppe mit Etappen, um die Vorschau zu sehen.',
     loading: 'Vorschau wird geladen …',
     failed: 'Die Vorschau konnte nicht gezeichnet werden:',
     controls: 'Wiedergabe',
@@ -102,12 +103,24 @@ export const de = {
   },
   render: {
     open: 'Rendern',
-    openHint: 'Diese Etappe als Video rendern',
-    pickEtappe: 'Wähle im Baum eine Etappe oder ein Fahrzeug, um sie zu rendern.',
+    openHint: 'Diese Etappe oder Gruppe als Video rendern',
+    pickEtappe: 'Wähle im Baum eine Etappe, ein Fahrzeug oder eine Gruppe, um sie zu rendern.',
     title: 'Rendern',
     what: 'Was',
     etappe: (name: string) => `Etappe „${name}“`,
-    laterTargets: 'Ganze Gruppen und Auswahlen kommen in M10.',
+    group: (name: string, count: number) => `Gruppe „${name}“ mit ${count} Etappen`,
+    target: 'Was gerendert wird',
+    targets: {
+      etappe: 'Nur diese Etappe',
+      chained: 'Ganze Gruppe als ein Video',
+      separate: 'Etappen der Gruppe einzeln',
+    },
+    targetHints: {
+      etappe: 'Ein Video dieser Etappe.',
+      chained: 'Alle Etappen nacheinander in einem Video, mit dem Übergang der Gruppe dazwischen.',
+      separate: 'Eine Datei pro Etappe, benannt nach der Etappe.',
+    },
+    separateNames: (count: number) => `${count} Dateien, je nach ihrer Etappe benannt.`,
     format: 'Format',
     codec: 'H.264 (MP4). ProRes und Transparenz kommen in M13.',
     onlyThisRender: 'Gilt nur für diesen Render, die Standards des Projekts bleiben.',
@@ -211,11 +224,12 @@ export const de = {
       aspect: 'Seitenverhältnis',
       resolution: 'Auflösung',
       fps: 'Bildrate',
-      later: 'Übergänge (M10) und Codec (M13) kommen mit ihren Modulen dazu.',
+      later: 'Codec (M13) kommt mit seinem Modul dazu.',
     },
     group: {
       color: 'Farbe im Projektbaum',
-      later: 'Der Übergang je Gruppe kommt mit M10 dazu.',
+      later:
+        'Gruppen rendern: Gruppe wählen, dann „Rendern“. Die Vorschau zeigt sie als ein Video.',
     },
     etappe: {
       duration: 'Dauer der Fahrt',
@@ -244,6 +258,16 @@ export const de = {
       presentAsOptionsHint:
         'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
       later: 'Intro und Outro (M11), Gelände (M12) und Zähler (M5) kommen mit ihren Modulen dazu.',
+    },
+    transition: {
+      title: 'Übergang zwischen Etappen',
+      fromProject: 'Geerbt vom Projekt. Eine Änderung gilt nur für diese Gruppe.',
+      own: 'Eigener Übergang für diese Gruppe.',
+      reset: 'Auf den geerbten Übergang zurücksetzen',
+      type: 'Art',
+      types: { cut: 'Schnitt', 'camera-fly': 'Kameraflug', fade: 'Abblenden' },
+      duration: 'Dauer',
+      hint: 'Gilt, wenn Etappen als ein Video laufen: beim Ankommen in einer Etappe dieser Gruppe.',
     },
     mapStyle: {
       title: 'Kartenstil',
