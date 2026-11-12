@@ -61,7 +61,7 @@ function etappe(
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',

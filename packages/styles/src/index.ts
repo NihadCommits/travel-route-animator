@@ -1,8 +1,9 @@
 /**
- * OpenFreeMap's ready-made "Liberty" style (OpenMapTiles schema, no API key).
- * Stand-in until our own themes are generated from tokens.
+ * OpenFreeMap's ready-made "Liberty" style (OpenMapTiles schema, no API key). The editing map
+ * keeps it; videos are drawn with our own themes (buildStyle, ADR 0010).
  */
 export const OPENFREEMAP_LIBERTY_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
-/** Credits OpenFreeMap asks for wherever its tiles are shown, including rendered videos. */
-export const OPENFREEMAP_ATTRIBUTION = 'OpenFreeMap © OpenMapTiles Data from OpenStreetMap';
+export * from './buildStyle';
+export * from './credits';
+export * from './themes';

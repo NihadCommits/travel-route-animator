@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CURRENT_SCHEMA_VERSION } from '../model/project';
 import { sampleProject } from '../testing/sampleProject';
 import { parseProjectFile } from './migrations';
 import { v1ToV2 } from './v1-to-v2';
@@ -31,7 +32,7 @@ describe('migration 1 → 2', () => {
     const styles = result.data.groups
       .flatMap((g) => g.etappen.flatMap((e) => e.tracks))
       .map((track) => track.style);
-    expect(result.data.schemaVersion).toBe(3);
+    expect(result.data.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(styles[0]!.ahead).toEqual({ opacity: 0, dash: 'solid' });
     // Format 1 drew the faint route in the line's own dash, so the look stays the same.
     expect(styles[1]!.ahead).toEqual({ opacity: 0.35, dash: 'dotted' });

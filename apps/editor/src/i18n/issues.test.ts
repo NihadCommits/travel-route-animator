@@ -53,7 +53,7 @@ describe('translateIssue', () => {
 
   it('translates what core actually reports', () => {
     const project = {
-      schemaVersion: 3,
+      schemaVersion: 4,
       id: 'p',
       name: 'x',
       createdAt: '2026-10-21T00:00:00.000Z',

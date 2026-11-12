@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { CURRENT_SCHEMA_VERSION } from '../model/project';
 import { sampleProject } from '../testing/sampleProject';
 import { parseProjectFile } from './migrations';
 import { v2ToV3 } from './v2-to-v3';
@@ -27,7 +28,7 @@ describe('migration 2 → 3', () => {
     expect(tracks.length).toBeGreaterThan(1);
     const result = parseProjectFile(project);
     if (!result.success) throw new Error(JSON.stringify(result.issues));
-    expect(result.data.schemaVersion).toBe(3);
+    expect(result.data.schemaVersion).toBe(CURRENT_SCHEMA_VERSION);
     expect(result.data.assets).toEqual([]);
     const icons = result.data.groups.flatMap((g) =>
       g.etappen.flatMap((e) => e.tracks.map((track) => track.style.icon)),
