@@ -26,6 +26,7 @@ import { NumberField } from './fields/NumberField';
 import { SelectField } from './fields/SelectField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
+import { EndsSection } from './EndsSection';
 import { MapStyleSection } from './MapStyleSection';
 import { useOwnThemes } from './mapStyles';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
@@ -154,6 +155,8 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
           onCommit={(on) => setCamera('endWithOverview', on)}
         />
       </Section>
+
+      <EndsSection etappe={etappe} edit={edit} />
 
       <Section title={de.inspector.etappe.overlays}>
         <TextField
