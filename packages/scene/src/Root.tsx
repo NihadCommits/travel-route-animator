@@ -2,6 +2,11 @@ import { validateProject, type Project } from '@travel-route-animator/core';
 import type { FC } from 'react';
 import { Composition } from 'remotion';
 import example from '../../../examples/portugal-2026/project.json';
+import {
+  CAR_TYPES_COMPOSITION_ID,
+  CAR_TYPES_SIZE,
+  CarTypesComposition,
+} from './compositions/CarTypes';
 import { calculateEtappeMetadata, EtappeComposition } from './compositions/EtappeComposition';
 import { ETAPPE_COMPOSITION_ID, type EtappeProps } from './compositions/etappeProps';
 import {
@@ -38,6 +43,13 @@ export const RemotionRoot: FC = () => (
       durationInFrames={1}
       fps={25}
       {...PLANE_TYPES_SIZE}
+    />
+    <Composition
+      id={CAR_TYPES_COMPOSITION_ID}
+      component={CarTypesComposition}
+      durationInFrames={1}
+      fps={25}
+      {...CAR_TYPES_SIZE}
     />
   </>
 );
