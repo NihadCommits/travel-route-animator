@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { de } from '@/i18n/de';
-import { selectEtappeId, useEditor } from '@/state/editorStore';
+import { selectEtappeId, selectGroupId, selectProject, useEditor } from '@/state/editorStore';
 import { RenderDialog } from './RenderDialog';
 import { RenderList } from './RenderList';
 import { useRenderJobStream, useRenderJobs } from './renderJobs';
@@ -13,6 +13,11 @@ import { useRenderJobStream, useRenderJobs } from './renderJobs';
 /** "Rendern" and the render list in the header (UI-Konzept). */
 export function RenderControls() {
   const etappeId = useEditor(selectEtappeId);
+  const groupId = useEditor(selectGroupId);
+  const hasStages = useEditor((state) =>
+    selectProject(state).groups.some((g) => g.id === groupId && g.etappen.length > 0),
+  );
+  const canRender = groupId !== null && hasStages;
   const [dialogOpen, setDialogOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const { data: jobs = [] } = useRenderJobs();
@@ -28,14 +33,12 @@ export function RenderControls() {
         <TooltipTrigger asChild>
           {/* The span keeps the tooltip working on a disabled button. */}
           <span>
-            <Button size="sm" disabled={etappeId === null} onClick={() => setDialogOpen(true)}>
+            <Button size="sm" disabled={!canRender} onClick={() => setDialogOpen(true)}>
               <Clapperboard /> {de.render.open}
             </Button>
           </span>
         </TooltipTrigger>
-        <TooltipContent>
-          {etappeId === null ? de.render.pickEtappe : de.render.openHint}
-        </TooltipContent>
+        <TooltipContent>{canRender ? de.render.openHint : de.render.pickEtappe}</TooltipContent>
       </Tooltip>
       <Popover open={listOpen} onOpenChange={setListOpen}>
         <PopoverTrigger asChild>
@@ -61,11 +64,12 @@ export function RenderControls() {
           <RenderList jobs={jobs} />
         </PopoverContent>
       </Popover>
-      {etappeId !== null && (
+      {canRender && (
         <RenderDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
           etappeId={etappeId}
+          groupId={groupId}
           onStarted={() => setListOpen(true)}
         />
       )}

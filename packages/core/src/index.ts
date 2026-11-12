@@ -45,6 +45,7 @@ export * from './geo/bounds';
 export * from './timeline/easing';
 export * from './timeline/outputSize';
 export * from './timeline/compileTimeline';
+export * from './timeline/sequence';
 export * from './frame/position';
 export * from './frame/heading';
 export * from './frame/camera';

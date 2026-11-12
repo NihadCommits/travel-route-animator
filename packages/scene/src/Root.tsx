@@ -8,7 +8,13 @@ import {
   CarTypesComposition,
 } from './compositions/CarTypes';
 import { calculateEtappeMetadata, EtappeComposition } from './compositions/EtappeComposition';
-import { ETAPPE_COMPOSITION_ID, type EtappeProps } from './compositions/etappeProps';
+import {
+  ETAPPE_COMPOSITION_ID,
+  SEQUENCE_COMPOSITION_ID,
+  type EtappeProps,
+  type SequenceProps,
+} from './compositions/etappeProps';
+import { calculateSequenceMetadata, SequenceComposition } from './compositions/SequenceComposition';
 import {
   PLANE_TYPES_COMPOSITION_ID,
   PLANE_TYPES_SIZE,
@@ -23,6 +29,11 @@ if (!checked.success) throw new Error('examples/portugal-2026/project.json is no
 const exampleProject: Project = checked.data;
 
 const defaultProps: EtappeProps = { project: exampleProject, etappeId: 'e_sbg_wien' };
+// The example's outward journey: train, flight, taxi as one video.
+const sequenceProps: SequenceProps = {
+  project: exampleProject,
+  etappeIds: exampleProject.groups[0]!.etappen.map((etappe) => etappe.id),
+};
 
 export const RemotionRoot: FC = () => (
   <>
@@ -32,6 +43,16 @@ export const RemotionRoot: FC = () => (
       defaultProps={defaultProps}
       calculateMetadata={calculateEtappeMetadata}
       // Overwritten by calculateMetadata; Remotion wants them anyway.
+      durationInFrames={1}
+      fps={25}
+      width={1920}
+      height={1080}
+    />
+    <Composition
+      id={SEQUENCE_COMPOSITION_ID}
+      component={SequenceComposition}
+      defaultProps={sequenceProps}
+      calculateMetadata={calculateSequenceMetadata}
       durationInFrames={1}
       fps={25}
       width={1920}

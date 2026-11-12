@@ -1,7 +1,14 @@
 import '@/features/map/maplibreWorker';
 import { Player, type PlayerRef } from '@remotion/player';
 import type { Id, Project } from '@travel-route-animator/core';
-import { EtappeComposition, timelineOf, type EtappeProps } from '@travel-route-animator/scene';
+import {
+  EtappeComposition,
+  SequenceComposition,
+  sequenceOf,
+  timelineOf,
+  type EtappeProps,
+  type SequenceProps,
+} from '@travel-route-animator/scene';
 import { Pause, Play, Repeat, SquareDashed, StepBack, StepForward } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { SegmentedControl, type SegmentOption } from '@/components/SegmentedControl';
@@ -26,8 +33,21 @@ const QUALITY_OPTIONS: SegmentOption<PreviewSettings['quality']>[] = [
  * Every edit changes the props and shows up at once, without reloading and without jumping
  * back to the start.
  */
-export function PreviewPlayer({ etappeId }: { etappeId: Id }) {
+/** One stage, or a whole group played as one video. */
+export type PreviewTarget = { kind: 'etappe'; id: Id } | { kind: 'group'; id: Id };
+
+export function PreviewPlayer({ target }: { target: PreviewTarget }) {
+  // The bridge keeps the frame per stage or group; the IDs never clash.
+  const etappeId = target.id;
   const project = useEditor(selectProject);
+  const groupStages = useMemo(
+    () =>
+      target.kind === 'group'
+        ? (project.groups.find((g) => g.id === target.id)?.etappen.map((e) => e.id) ?? [])
+        : [],
+    [project, target],
+  );
+  const stageKey = groupStages.join(',');
   const quality = useEditor((state) => state.preview.quality);
   const loop = useEditor((state) => state.preview.loop);
   const bridge = usePlayerBridge();
@@ -41,20 +61,27 @@ export function PreviewPlayer({ etappeId }: { etappeId: Id }) {
   );
   // Own themes come from the server; satellite tiles too, through the editor's own origin.
   const themes = useOwnThemes();
-  const inputProps = useMemo<EtappeProps>(
+  const common = useMemo(
     () => ({
       project,
-      etappeId,
       previewScale: PREVIEW_SCALE[quality],
       guides: project.defaults.output.safeAreaGuides,
       assetUrls,
       themes: { ...themes },
       serverUrl: window.location.origin,
     }),
-    [project, etappeId, quality, assetUrls, themes],
+    [project, quality, assetUrls, themes],
+  );
+  const etappeProps = useMemo<EtappeProps>(() => ({ ...common, etappeId }), [common, etappeId]);
+  const sequenceProps = useMemo<SequenceProps>(
+    () => ({ ...common, etappeIds: stageKey ? stageKey.split(',') : [] }),
+    [common, stageKey],
   );
   // Length, frame rate and size the same way the export works them out (calculateMetadata).
-  const timeline = useMemo(() => timelineOf(inputProps), [inputProps]);
+  const timeline = useMemo(
+    () => (target.kind === 'group' ? sequenceOf(sequenceProps) : timelineOf(etappeProps)),
+    [target.kind, sequenceProps, etappeProps],
+  );
   const { fps, durationInFrames } = timeline;
   // Where this stage's preview was left; the player owns the frame from then on.
   const [initialFrame] = useState(() =>
@@ -66,34 +93,48 @@ export function PreviewPlayer({ etappeId }: { etappeId: Id }) {
     return bridge.attach({ etappeId, player, fps, durationInFrames });
   }, [bridge, player, etappeId, fps, durationInFrames]);
 
+  // The same player for a stage and for a group; only the composition and its props differ.
+  const playerProps = {
+    durationInFrames,
+    fps,
+    compositionWidth: timeline.width,
+    compositionHeight: timeline.height,
+    initialFrame,
+    loop,
+    clickToPlay: true,
+    doubleClickToFullscreen: false,
+    // Our own shortcuts handle the space bar, also when the focus is elsewhere.
+    spaceKeyToPlayOrPause: false,
+    // Without the loop the last frame stays, the arrival is what one wants to judge.
+    moveToBeginningWhenEnded: false,
+    // Free for individuals (remotion.dev/license); silences the reminder in the console.
+    acknowledgeRemotionLicense: true,
+    errorFallback: ({ error }: { error: Error }) => (
+      <div className="text-destructive flex h-full items-center justify-center p-4 text-center">
+        {de.preview.failed} {error.message}
+      </div>
+    ),
+    style: { width: '100%', height: '100%' },
+  };
+
   return (
     <div className="flex h-full flex-col">
       <div className="bg-muted min-h-0 flex-1">
-        <Player
-          ref={setPlayer}
-          component={EtappeComposition}
-          inputProps={inputProps}
-          durationInFrames={durationInFrames}
-          fps={fps}
-          compositionWidth={timeline.width}
-          compositionHeight={timeline.height}
-          initialFrame={initialFrame}
-          loop={loop}
-          clickToPlay
-          doubleClickToFullscreen={false}
-          // Our own shortcuts handle the space bar, also when the focus is elsewhere.
-          spaceKeyToPlayOrPause={false}
-          // Without the loop the last frame stays, the arrival is what one wants to judge.
-          moveToBeginningWhenEnded={false}
-          // Free for individuals (remotion.dev/license); silences the reminder in the console.
-          acknowledgeRemotionLicense
-          errorFallback={({ error }) => (
-            <div className="text-destructive flex h-full items-center justify-center p-4 text-center">
-              {de.preview.failed} {error.message}
-            </div>
-          )}
-          style={{ width: '100%', height: '100%' }}
-        />
+        {target.kind === 'group' ? (
+          <Player
+            ref={setPlayer}
+            component={SequenceComposition}
+            inputProps={sequenceProps}
+            {...playerProps}
+          />
+        ) : (
+          <Player
+            ref={setPlayer}
+            component={EtappeComposition}
+            inputProps={etappeProps}
+            {...playerProps}
+          />
+        )}
       </div>
       <Controls etappeId={etappeId} fps={fps} lastFrame={durationInFrames - 1} />
     </div>

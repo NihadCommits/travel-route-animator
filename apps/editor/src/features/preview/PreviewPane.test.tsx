@@ -25,7 +25,7 @@ async function renderEditor() {
     </AppProviders>,
   );
   await screen.findByRole('heading', { level: 1, name: 'Trip' });
-  return { etappeId: stage.id, user: userEvent.setup() };
+  return { etappeId: stage.id, groupId: outward.id, user: userEvent.setup() };
 }
 
 const switchButton = (name: string) => screen.getByRole('button', { name: new RegExp(`^${name}`) });
@@ -54,11 +54,11 @@ describe('Preview', () => {
     expect(screen.queryByText(/Vorschau-Player/)).not.toBeInTheDocument();
   });
 
-  it('switches with the buttons in the header and asks for a stage on a group', async () => {
-    const { user } = await renderEditor();
+  it('switches with the buttons in the header and plays a whole group', async () => {
+    const { groupId, user } = await renderEditor();
     await focusRow(/Hinreise/);
     await user.click(switchButton('Vorschau'));
-    expect(screen.getByText(/um die Vorschau zu sehen/)).toBeInTheDocument();
+    expect(await screen.findByText(`Vorschau-Player für ${groupId}`)).toBeInTheDocument();
   });
 
   it('leaves the letters to a text field', async () => {

@@ -91,13 +91,64 @@ afterEach(() => {
 });
 
 describe('render dialog', () => {
-  it('needs a stage or a vehicle to render', async () => {
+  it('needs a stage, a vehicle or a group with stages to render', async () => {
     const { project } = trip();
-    await renderEditor(project);
-    await selectRow(/Hinreise/);
+    const empty = addGroup(project, 'Rückreise').project;
+    await renderEditor(empty);
     expect(renderButton()).toBeDisabled();
+    await selectRow(/Rückreise/);
+    expect(renderButton()).toBeDisabled();
+    await selectRow(/Hinreise/);
+    expect(renderButton()).toBeEnabled();
     await selectRow(/Flug/);
     expect(renderButton()).toBeEnabled();
+  });
+
+  it('renders a whole group as one video, or its stages one by one', async () => {
+    // A second stage: the same flight back.
+    const { project } = trip();
+    const group = project.groups[0]!;
+    const second = addEtappe(project, group.id, 'Porto – Wien');
+    const added = addTrack(second.project, second.id, 'plane', { label: 'Rückflug' });
+    const both = editTrack(added.project, added.id, (track) => ({
+      ...track,
+      waypoints: [
+        createWaypoint({ name: 'Porto', lngLat: [-8.68, 41.25] }),
+        createWaypoint({ name: 'Wien', lngLat: [16.57, 48.11] }),
+      ],
+    }));
+    const { server, user } = await renderEditor(both);
+    await selectRow(/Hinreise/);
+    await user.click(renderButton());
+    expect(dialog().getByText('Gruppe „Hinreise“ mit 2 Etappen')).toBeInTheDocument();
+    const target = dialog().getByLabelText('Was gerendert wird');
+    expect(target).toHaveDisplayValue('Ganze Gruppe als ein Video');
+    // No stage is selected, so "only this stage" is not on offer.
+    expect(within(target).getByRole('option', { name: 'Nur diese Etappe' })).toBeDisabled();
+    expect(dialog().getByLabelText<HTMLInputElement>('Dateiname').value).toMatch(
+      /^hinreise_16x9_1080p_/,
+    );
+    await user.click(dialog().getByRole('button', { name: 'Rendern' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Rendern' })).toBeNull());
+    const posts = () =>
+      server.calls.filter((call) => call.method === 'POST' && call.path === '/render');
+    expect(posts().map((call) => call.body)).toEqual([
+      expect.objectContaining({ etappeIds: [group.etappen[0]!.id, second.id] }),
+    ]);
+
+    await user.click(renderButton());
+    await user.selectOptions(
+      dialog().getByLabelText('Was gerendert wird'),
+      'Etappen der Gruppe einzeln',
+    );
+    expect(dialog().queryByLabelText('Dateiname')).toBeNull();
+    await user.click(dialog().getByRole('button', { name: 'Rendern' }));
+    await waitFor(() => expect(posts()).toHaveLength(3));
+    expect(
+      posts()
+        .slice(1)
+        .map((call) => (call.body as RenderRequest).etappeId),
+    ).toEqual([group.etappen[0]!.id, second.id]);
   });
 
   it('saves first, then asks the server with this render’s format and file name', async () => {

@@ -13,11 +13,12 @@ import { vi } from 'vitest';
 
 /** The job the fake server answers a render request with, as the real one would queue it. */
 export function fakeRenderJob(request: RenderRequest, patch: Partial<RenderJob> = {}): RenderJob {
+  const etappeId = request.etappeId ?? request.etappeIds?.join('+') ?? '';
   return {
-    id: `job_${request.etappeId}`,
+    id: `job_${etappeId}`,
     projectId: request.projectId,
     projectName: 'Portugal 2026',
-    etappeId: request.etappeId,
+    etappeId,
     etappeName: 'Wien – Porto',
     output: { ...defaultOutput(), ...request.output },
     outputPath: `C:\\videos\\portugal-2026\\${request.fileName ?? 'video'}.mp4`,

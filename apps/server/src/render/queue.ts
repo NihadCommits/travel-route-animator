@@ -6,7 +6,7 @@ import {
   type RenderJob,
   type Theme,
 } from '@travel-route-animator/core';
-import type { EtappeProps } from '@travel-route-animator/scene/render';
+import type { StageProps } from '@travel-route-animator/scene/render';
 import { pickOutputPath } from './outputFiles';
 import type { StageRenderer } from './renderer';
 
@@ -30,6 +30,8 @@ export interface NewRenderJob {
   /** The folder and the cleaned file name; the queue picks a free file in it. */
   dir: string;
   name: string;
+  /** Several stages as one video (ADR 0011); `etappe` then names the whole of it. */
+  etappeIds?: string[];
   /** The stage's images as data: URLs, by asset ID (ADR 0009). */
   assetUrls?: Record<string, string>;
   /** The own theme the stage's style names (ADR 0010). */
@@ -40,7 +42,7 @@ export interface NewRenderJob {
 
 interface Entry {
   job: RenderJob;
-  props: EtappeProps;
+  props: StageProps;
   abort: AbortController;
   lastPublished: number;
 }
@@ -161,7 +163,7 @@ export function createRenderQueue({
           job,
           props: {
             project: input.project,
-            etappeId: input.etappe.id,
+            ...(input.etappeIds ? { etappeIds: input.etappeIds } : { etappeId: input.etappe.id }),
             output: input.overrides,
             ...(input.assetUrls && { assetUrls: input.assetUrls }),
             ...(input.themes && { themes: input.themes }),

@@ -11,7 +11,7 @@ import {
 } from '@travel-route-animator/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle } from 'lucide-react';
-import { useId, useMemo, useState, type FormEvent } from 'react';
+import { useId, useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -34,12 +34,18 @@ import { storeRenderJob } from './renderJobs';
 interface RenderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  etappeId: Id;
+  /** The selected stage; null when a group itself is selected. */
+  etappeId: Id | null;
+  /** The group of the selection, for rendering all of its stages (ADR 0011). */
+  groupId: Id;
   /** After the server took the job, e.g. to show the render list. */
   onStarted: () => void;
 }
 
-/** "Rendern" (UI-Konzept: Render-Dialog): one stage, its format and the file name. */
+/** What gets rendered: the selected stage, the group as one video, or its stages one by one. */
+type Scope = 'etappe' | 'chained' | 'separate';
+
+/** "Rendern" (UI-Konzept: Render-Dialog): stage or group, the format and the file name. */
 export function RenderDialog({ open, onOpenChange, ...props }: RenderDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,6 +63,7 @@ function etappeOf(project: Project, etappeId: Id) {
 
 function RenderForm({
   etappeId,
+  groupId,
   onStarted,
   onDone,
 }: Omit<RenderDialogProps, 'open' | 'onOpenChange'> & { onDone: () => void }) {
@@ -77,15 +84,23 @@ function RenderForm({
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
 
-  const etappe = etappeOf(project, etappeId);
-  const issues = useMemo(() => checkRenderReadiness(project, [etappeId]), [project, etappeId]);
-  if (!etappe) return null;
+  const group = project.groups.find((candidate) => candidate.id === groupId);
+  // A group of one stage is just that stage.
+  const etappe =
+    (etappeId !== null ? etappeOf(project, etappeId) : undefined) ??
+    (group?.etappen.length === 1 ? group.etappen[0] : undefined);
+  const [scope, setScope] = useState<Scope>(etappe ? 'etappe' : 'chained');
+  const etappen = scope === 'etappe' ? (etappe ? [etappe] : []) : (group?.etappen ?? []);
+  const etappeIds = etappen.map((e) => e.id);
+  const issues = checkRenderReadiness(project, etappeIds);
+  if (!group || etappen.length === 0) return null;
 
-  const name = typedName ?? suggestVideoName(etappe.name, { aspect, resolution }, openedAt);
-  const fileName = cleanVideoName(name);
+  const title = scope === 'etappe' ? etappen[0]!.name : group.name;
+  const name = typedName ?? suggestVideoName(title, { aspect, resolution }, openedAt);
+  const fileName = scope === 'separate' ? '' : cleanVideoName(name);
   // The editor computes road routes after every edit (routeSync); a render has to wait for
   // them, or the server would refuse the stage.
-  const awaiting = tracksAwaitingRoute(etappe);
+  const awaiting = etappen.flatMap((e) => tracksAwaitingRoute(e));
   const computing = awaiting.filter((track) => routeJobs[track.id]?.state !== 'failed');
   const missing = awaiting.filter((track) => routeJobs[track.id]?.state === 'failed');
   const canStart = !busy && issues.length === 0 && awaiting.length === 0 && fileName !== null;
@@ -103,13 +118,16 @@ function RenderForm({
       return;
     }
     try {
-      const job = await api.startRender({
-        projectId: project.id,
-        etappeId,
-        output: { aspect, resolution, fps },
-        ...(fileName !== null && { fileName }),
-      });
-      storeRenderJob(queryClient, job);
+      const output = { aspect, resolution, fps };
+      const named = fileName !== null && fileName !== '' ? { fileName } : {};
+      // One by one: a job per stage, each named after its stage by the server.
+      const requests =
+        scope === 'separate'
+          ? etappeIds.map((id) => ({ projectId: project.id, etappeId: id, output }))
+          : scope === 'chained'
+            ? [{ projectId: project.id, etappeIds, output, ...named }]
+            : [{ projectId: project.id, etappeId: etappeIds[0]!, output, ...named }];
+      for (const request of requests) storeRenderJob(queryClient, await api.startRender(request));
       onStarted();
       onDone();
     } catch (reason) {
@@ -137,9 +155,25 @@ function RenderForm({
       <form onSubmit={(event) => void handleSubmit(event)} className="grid gap-4" noValidate>
         <DialogHeader>
           <DialogTitle>{de.render.title}</DialogTitle>
-          <DialogDescription>{de.render.etappe(etappe.name)}</DialogDescription>
+          <DialogDescription>
+            {scope === 'etappe'
+              ? de.render.etappe(title)
+              : de.render.group(group.name, group.etappen.length)}
+          </DialogDescription>
         </DialogHeader>
-        <p className="text-muted-foreground -mt-2 text-xs">{de.render.laterTargets}</p>
+        {group.etappen.length > 1 && (
+          <SelectField
+            label={de.render.target}
+            value={scope}
+            options={optionsOf(
+              ['etappe', 'chained', 'separate'] as const,
+              de.render.targets,
+              (s) => (s === 'etappe' ? !etappe : false),
+            )}
+            hint={de.render.targetHints[scope]}
+            onCommit={keep(setScope)}
+          />
+        )}
 
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-medium">{de.render.format}</legend>
@@ -168,29 +202,36 @@ function RenderForm({
           </p>
         </fieldset>
 
-        <div className="grid gap-1.5">
-          <label htmlFor={nameId} className="text-muted-foreground text-xs">
-            {de.render.fileName}
-          </label>
-          <Input
-            id={nameId}
-            value={name}
-            spellCheck={false}
-            aria-invalid={fileName === null}
-            aria-describedby={`${nameId}-hint`}
-            onChange={(event) => setTypedName(event.target.value)}
-          />
-          <p
-            id={`${nameId}-hint`}
-            className={
-              fileName === null ? 'text-destructive text-xs' : 'text-muted-foreground text-xs'
-            }
-          >
-            {fileName === null
-              ? de.render.fileNameInvalid
-              : de.render.fileNameHint(slugify(project.name))}
+        {scope === 'separate' ? (
+          <p className="text-muted-foreground text-xs">
+            {de.render.separateNames(etappen.length)}{' '}
+            {de.render.fileNameHint(slugify(project.name))}
           </p>
-        </div>
+        ) : (
+          <div className="grid gap-1.5">
+            <label htmlFor={nameId} className="text-muted-foreground text-xs">
+              {de.render.fileName}
+            </label>
+            <Input
+              id={nameId}
+              value={name}
+              spellCheck={false}
+              aria-invalid={fileName === null}
+              aria-describedby={`${nameId}-hint`}
+              onChange={(event) => setTypedName(event.target.value)}
+            />
+            <p
+              id={`${nameId}-hint`}
+              className={
+                fileName === null ? 'text-destructive text-xs' : 'text-muted-foreground text-xs'
+              }
+            >
+              {fileName === null
+                ? de.render.fileNameInvalid
+                : de.render.fileNameHint(slugify(project.name))}
+            </p>
+          </div>
+        )}
 
         {issues.length > 0 && <ReadinessNote issues={issues} />}
         {computing.length > 0 && (

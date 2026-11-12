@@ -44,5 +44,5 @@ vi.mock('@/features/map/maplibre', () => ({
 // The preview's player needs WebGL as well. The stand-in keeps the rest of the preview pane
 // (stage choice, loading) testable and says which stage it would play.
 vi.mock('@/features/preview/PreviewPlayer', () => ({
-  PreviewPlayer: ({ etappeId }: { etappeId: string }) => `Vorschau-Player für ${etappeId}`,
+  PreviewPlayer: ({ target }: { target: { id: string } }) => `Vorschau-Player für ${target.id}`,
 }));

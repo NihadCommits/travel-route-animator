@@ -257,6 +257,24 @@ describe('Inspector', () => {
     expect(server.calls.filter((call) => call.method === 'PUT')).toEqual([]);
   });
 
+  it('gives a group a transition of its own and takes it back', async () => {
+    const { user } = await renderEditor(trip().project);
+    await selectRow('Hinreise');
+    const section = within(inspector().getByRole('region', { name: 'Übergang zwischen Etappen' }));
+    expect(section.getByText(/Geerbt vom Projekt/)).toBeInTheDocument();
+    const type = section.getByLabelText('Art');
+    expect(type).toHaveDisplayValue('Kameraflug');
+
+    await user.selectOptions(type, 'Schnitt');
+    expect(section.getByText('Eigener Übergang für diese Gruppe.')).toBeInTheDocument();
+    // A cut takes no time.
+    expect(section.getByLabelText('Dauer')).toBeDisabled();
+    await user.click(
+      section.getByRole('button', { name: 'Auf den geerbten Übergang zurücksetzen' }),
+    );
+    expect(type).toHaveDisplayValue('Kameraflug');
+  });
+
   it('gives a stage a map style of its own and takes it back', async () => {
     const { user } = await renderEditor(trip().project);
     await selectRow('Wien – Porto');
