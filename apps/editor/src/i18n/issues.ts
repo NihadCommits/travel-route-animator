@@ -1,5 +1,6 @@
 import type {
   BuiltInCheck,
+  ImageProblem,
   IssueCode,
   IssueValues,
   ValidationIssue,
@@ -87,4 +88,21 @@ function translateCheck(check: BuiltInCheck): string {
 export function translateIssue(issue: ValidationIssue): string {
   if (issue.code) return ISSUE_TEXTS[issue.code](issue.values ?? {});
   return issue.check ? translateCheck(issue.check) : issue.message;
+}
+
+const megabytes = (bytes: string | number | undefined) => num(Math.round(Number(bytes) / 1048576));
+
+const IMAGE_TEXTS: Record<ImageProblem, Translate> = {
+  'image.unsupported': () => 'Nur PNG- und GIF-Bilder gehen.',
+  'image.broken': () => 'Die Datei ist beschädigt oder kein vollständiges Bild.',
+  'image.tooLarge': (v) => `Das Bild ist größer als ${megabytes(v.limit)} MB.`,
+  'image.tooWide': (v) =>
+    `Das Bild ist ${num(v.widthPx)} × ${num(v.heightPx)} px groß, erlaubt sind höchstens ${num(v.limit)} px pro Seite.`,
+  'image.tooManyFrames': (v) =>
+    `Das GIF hat ${num(v.frames)} Bilder, erlaubt sind höchstens ${num(v.limit)}.`,
+};
+
+/** Why the server refused an image, in German (ADR 0009). */
+export function translateImageProblem(problem: ImageProblem, values: IssueValues = {}): string {
+  return IMAGE_TEXTS[problem](values);
 }

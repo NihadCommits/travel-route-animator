@@ -34,6 +34,7 @@ import { TextField } from './fields/TextField';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
 import { RouteStatus } from './RouteStatus';
 import { useEdit } from './useEdit';
+import { VehicleIconSection } from './VehicleIconSection';
 import { WaypointList } from './waypoints/WaypointList';
 
 const LINE_DASHES = LineDashSchema.options;
@@ -259,6 +260,8 @@ export function TrackForm({
           onCommit={(dash) => setAhead('dash', dash, false)}
         />
       </Section>
+
+      <VehicleIconSection key={track.id} track={track} edit={edit} />
 
       {track.flight && (
         <Section title={de.inspector.track.flight.title}>

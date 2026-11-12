@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatSec } from '@/features/timeline/scale';
 import { de } from '@/i18n/de';
+import { assetUrl } from '@/lib/api';
 import { selectProject, useEditor, type PreviewSettings } from '@/state/editorStore';
 import { usePlayerBridge, usePreviewFrame, usePreviewPlaying } from './playerBridge';
 
@@ -31,14 +32,21 @@ export function PreviewPlayer({ etappeId }: { etappeId: Id }) {
   const bridge = usePlayerBridge();
   const [player, setPlayer] = useState<PlayerRef | null>(null);
 
+  // The preview loads the project's images from the server; a render gets them inside its props.
+  const { assets } = project;
+  const assetUrls = useMemo(
+    () => Object.fromEntries(assets.map((asset) => [asset.id, assetUrl(project.id, asset)])),
+    [assets, project.id],
+  );
   const inputProps = useMemo<EtappeProps>(
     () => ({
       project,
       etappeId,
       previewScale: PREVIEW_SCALE[quality],
       guides: project.defaults.output.safeAreaGuides,
+      assetUrls,
     }),
-    [project, etappeId, quality],
+    [project, etappeId, quality, assetUrls],
   );
   // Length, frame rate and size the same way the export works them out (calculateMetadata).
   const timeline = useMemo(() => timelineOf(inputProps), [inputProps]);
