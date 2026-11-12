@@ -9,19 +9,26 @@ import { IdSchema } from '../model/primitives';
  * A render request. The server loads the project itself, as saved; the editor saves before
  * it asks. The output settings override the project's defaults for this render only.
  */
-export const RenderRequestSchema = z.strictObject({
-  projectId: IdSchema,
-  etappeId: IdSchema,
-  output: z
-    .strictObject({
-      aspect: AspectSchema.optional(),
-      resolution: ResolutionSchema.optional(),
-      fps: FpsSchema.optional(),
-    })
-    .default({}),
-  /** Without extension; checked with cleanVideoName. Missing: suggestVideoName. */
-  fileName: z.string().max(300).optional(),
-});
+export const RenderRequestSchema = z
+  .strictObject({
+    projectId: IdSchema,
+    /** One stage. */
+    etappeId: IdSchema.optional(),
+    /** Several stages as one video, in this order (ADR 0011). */
+    etappeIds: z.array(IdSchema).min(1).optional(),
+    output: z
+      .strictObject({
+        aspect: AspectSchema.optional(),
+        resolution: ResolutionSchema.optional(),
+        fps: FpsSchema.optional(),
+      })
+      .default({}),
+    /** Without extension; checked with cleanVideoName. Missing: suggestVideoName. */
+    fileName: z.string().max(300).optional(),
+  })
+  .refine((request) => (request.etappeId === undefined) !== (request.etappeIds === undefined), {
+    message: 'Give either etappeId or etappeIds',
+  });
 export type RenderRequest = z.input<typeof RenderRequestSchema>;
 
 export type RenderJobState = 'queued' | 'preparing' | 'rendering' | 'done' | 'failed' | 'cancelled';

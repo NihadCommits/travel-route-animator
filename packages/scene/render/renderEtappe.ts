@@ -13,10 +13,15 @@ import {
   type OpenGlRenderer,
 } from '@remotion/renderer';
 import { ALL_FORMATS, FilePathSource, Input } from 'mediabunny';
-import { ETAPPE_COMPOSITION_ID, type EtappeProps } from '../src/compositions/etappeProps';
+import {
+  compositionIdOf,
+  type EtappeProps,
+  type SequenceProps,
+  type StageProps,
+} from '../src/compositions/etappeProps';
 import { webpackOverride } from '../webpack-override';
 
-export type { EtappeProps };
+export type { EtappeProps, SequenceProps, StageProps };
 export type { CancelSignal, OpenGlRenderer };
 export { makeCancelSignal } from '@remotion/renderer';
 export { GL_RENDERERS } from './gl';
@@ -125,7 +130,8 @@ export interface VideoFormat {
 export interface RenderEtappeOptions {
   /** From bundleScene(); bundling once and rendering many times saves the most time. */
   serveUrl: string;
-  props: EtappeProps;
+  /** One stage, or several as one video (etappeIds, ADR 0011). */
+  props: StageProps;
   /** Where the finished video goes; it appears there only when complete (partialPathOf). */
   outputLocation: string;
   gl?: OpenGlRenderer;
@@ -171,7 +177,7 @@ export async function renderEtappe({
   await ensureBrowser(browserExecutable ? { browserExecutable } : {});
   const composition = await selectComposition({
     serveUrl,
-    id: ETAPPE_COMPOSITION_ID,
+    id: compositionIdOf(props),
     inputProps: props,
     chromiumOptions,
     ...binaries,

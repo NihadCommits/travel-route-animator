@@ -5,6 +5,8 @@ import type { OutputSettings, Project, Theme } from '@travel-route-animator/core
 
 /** The id the stage composition is registered under (Root.tsx) and rendered by. */
 export const ETAPPE_COMPOSITION_ID = 'Etappe';
+/** The id of the composition that plays several stages as one video (ADR 0011). */
+export const SEQUENCE_COMPOSITION_ID = 'Sequence';
 
 /**
  * The props of a stage video: the whole project (inheritance needs it) and which stage. The
@@ -29,3 +31,13 @@ export type EtappeProps = {
   /** Preview only: safe-area guides on top. Never set for an export. */
   guides?: boolean;
 };
+
+/** Several stages as one video: the same props, with the stages in the order they play. */
+export type SequenceProps = Omit<EtappeProps, 'etappeId'> & { etappeIds: string[] };
+
+/** What the render function and the server hand over: one stage or a sequence. */
+export type StageProps = EtappeProps | SequenceProps;
+
+export function compositionIdOf(props: StageProps): string {
+  return 'etappeIds' in props ? SEQUENCE_COMPOSITION_ID : ETAPPE_COMPOSITION_ID;
+}

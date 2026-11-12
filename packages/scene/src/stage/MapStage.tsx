@@ -82,6 +82,11 @@ export interface MapStageProps {
   images?: readonly StageImage[];
   /** The style and its sky; a new look needs a new MapStage (give it the look's key). */
   look: MapLook;
+  /**
+   * Every stage this map will show (a sequence, ADR 0011): their icons and 3D layer are loaded
+   * before the first frame. Missing: only `timeline`.
+   */
+  preload?: readonly Timeline[];
 }
 
 const NO_IMAGES: readonly StageImage[] = [];
@@ -101,7 +106,13 @@ const NO_IMAGES: readonly StageImage[] = [];
  * the same at every resolution, and a half-resolution preview only draws a quarter of the
  * pixels.
  */
-export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGES, look }) => {
+export const MapStage: FC<MapStageProps> = ({
+  timeline,
+  state,
+  images = NO_IMAGES,
+  look,
+  preload,
+}) => {
   const { isRendering } = useRemotionEnvironment();
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   const buffer = useBufferState();
@@ -111,7 +122,7 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGE
   const [loadHandle] = useState(() => delayRender('Loading the map'));
   const loadPending = useRef(true);
   // What the map is created with; later changes arrive through the effects below.
-  const initial = useRef({ timeline, state, images, look });
+  const initial = useRef({ timeline, state, images, look, preload: preload ?? [timeline] });
   const layer3d = useRef<Layer3d | null>(null);
   // Decoded once per image; the frame picks a picture by the timings (never by a clock).
   const decoded = useRef(new Map<string, DecodedImage>());
@@ -138,12 +149,13 @@ export const MapStage: FC<MapStageProps> = ({ timeline, state, images = NO_IMAGE
     );
     instance.on('load', () => {
       addSceneLayers(instance);
-      const models = needsLayer3d(first)
+      const all = initial.current.preload;
+      const models = all.some(needsLayer3d)
         ? ensureLayer3d(instance, layer3d, decoded.current)
         : Promise.resolve();
       Promise.all([
         models,
-        loadVehicleIcons(instance, first),
+        Promise.all(all.map((each) => loadVehicleIcons(instance, each))),
         loadStageImages(instance, initial.current.images, decoded.current),
       ])
         .then(([, , imageTimings]) => {

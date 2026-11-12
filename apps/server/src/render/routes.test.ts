@@ -140,6 +140,32 @@ describe('POST /api/render', () => {
     expect(renders[0]!.job.props.serverUrl).toMatch(/^http:\/\//);
   });
 
+  it('renders several stages as one video and names it after them', async () => {
+    const response = await startRender({
+      projectId: 'p_portugal26',
+      etappeIds: ['e_sbg_wien', 'e_wien_porto'],
+    });
+    expect(response.statusCode).toBe(202);
+    const job = response.json<RenderJob>();
+    expect(job.etappeName).toBe('SBG – Wien bis Wien – Porto');
+    expect(job.outputPath).toContain('sbg-wien-bis-wien-porto_16x9_1080p');
+    await settle();
+    expect(renders[0]!.job.props).toMatchObject({ etappeIds: ['e_sbg_wien', 'e_wien_porto'] });
+    expect(renders[0]!.job.props).not.toHaveProperty('etappeId');
+
+    // The whole outward journey waits for the taxi's road route, and the group is named.
+    const group = await startRender({
+      projectId: 'p_portugal26',
+      etappeIds: ['e_sbg_wien', 'e_wien_porto', 'e_flughafen_hotel'],
+    });
+    expect(group.statusCode).toBe(409);
+    expect(group.json<{ message: string }>().message).toContain('"Hinreise"');
+    expect(
+      (await startRender({ projectId: 'p_portugal26', etappeId: 'e_sbg_wien', etappeIds: ['x'] }))
+        .statusCode,
+    ).toBe(400);
+  });
+
   it('refuses a stage whose road route is not there yet', async () => {
     const response = await startRender({ ...wienPorto, etappeId: 'e_lissabon_algarve' });
     expect(response.statusCode).toBe(409);

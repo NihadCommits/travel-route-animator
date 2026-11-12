@@ -1,10 +1,10 @@
 import type { VideoInfo } from '@travel-route-animator/core';
-import type { EtappeProps } from '@travel-route-animator/scene/render';
+import type { StageProps } from '@travel-route-animator/scene/render';
 
 export interface StageRenderJob {
   /** What prepare() returned: Remotion's bundle of the scene. */
   serveUrl: string;
-  props: EtappeProps;
+  props: StageProps;
   outputLocation: string;
   signal: AbortSignal;
   onProgress: (progress: number, remainingMs: number) => void;

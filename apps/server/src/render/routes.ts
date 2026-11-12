@@ -14,6 +14,8 @@ import {
   suggestVideoName,
   toValidationIssues,
   tracksAwaitingRoute,
+  type Etappe,
+  type Project,
   type RenderJob,
 } from '@travel-route-animator/core';
 import type { FastifyInstance } from 'fastify';
@@ -45,6 +47,19 @@ interface IdParams {
 // a long render's event stream open.
 const HEARTBEAT_MS = 15_000;
 
+/**
+ * What a video is called: the stage, or for several the group they make up when they are the
+ * whole of it in order, else the first and the last stage.
+ */
+function videoTitle(project: Project, etappen: readonly Etappe[]): string {
+  if (etappen.length === 1) return etappen[0]!.name;
+  const group = project.groups.find(
+    (g) =>
+      g.etappen.length === etappen.length && g.etappen.every((e, i) => e.id === etappen[i]!.id),
+  );
+  return group?.name ?? `${etappen[0]!.name} bis ${etappen.at(-1)!.name}`;
+}
+
 export function registerRenderRoutes(
   app: FastifyInstance,
   { queue, store, themes, outputDir, now, revealFile }: RenderRouteOptions,
@@ -72,37 +87,40 @@ export function registerRenderRoutes(
       if (!body.success) {
         return reply.code(400).send({
           error: 'invalid_request',
-          message: 'Expected {"projectId", "etappeId", "output", "fileName"}',
+          message: 'Expected {"projectId", "etappeId" or "etappeIds", "output", "fileName"}',
           issues: toValidationIssues(body.error),
         });
       }
-      const { projectId, etappeId, output: overrides, fileName } = body.data;
+      const { projectId, output: overrides, fileName } = body.data;
+      const etappeIds = body.data.etappeIds ?? [body.data.etappeId!];
 
       // As saved; the editor saves before it asks. Local routes are computed here, as the
       // editor does after every edit, in case the file was written by something else.
       const saved = await store.get(projectId);
       const project = refreshLocalRoutes(saved, saved.updatedAt);
-      const etappe = project.groups
-        .flatMap((group) => group.etappen)
-        .find((candidate) => candidate.id === etappeId);
-      if (!etappe) {
+      const all = project.groups.flatMap((group) => group.etappen);
+      const etappen = etappeIds.map((id) => all.find((candidate) => candidate.id === id));
+      const missing = etappeIds.find((_id, i) => !etappen[i]);
+      if (missing !== undefined) {
         return reply.code(404).send({
           error: 'not_found',
-          message: `Stage "${etappeId}" does not exist in project "${projectId}"`,
+          message: `Stage "${missing}" does not exist in project "${projectId}"`,
         });
       }
+      const found = etappen as NonNullable<(typeof etappen)[number]>[];
 
       // The renderer never asks a router itself (ARCHITEKTUR: Render-Pipeline): a road route
       // that is missing or stale would come out as a straight line.
-      const issues = checkRenderReadiness(project, [etappeId]);
-      const awaitingRoute = tracksAwaitingRoute(etappe).map((track) => track.id);
+      const issues = checkRenderReadiness(project, etappeIds);
+      const awaitingRoute = found.flatMap((e) => tracksAwaitingRoute(e).map((track) => track.id));
+      const title = videoTitle(project, found);
       if (issues.length > 0 || awaitingRoute.length > 0) {
         return reply.code(409).send({
           error: 'not_ready',
           message:
             issues.length > 0
-              ? `"${etappe.name}" cannot be rendered yet:\n${describeIssues(issues)}`
-              : `"${etappe.name}" still waits for ${awaitingRoute.length} route(s)`,
+              ? `"${title}" cannot be rendered yet:\n${describeIssues(issues)}`
+              : `"${title}" still waits for ${awaitingRoute.length} route(s)`,
           issues,
           awaitingRoute,
         });
@@ -110,9 +128,7 @@ export function registerRenderRoutes(
 
       const output = resolveOutput(project, overrides);
       const name =
-        fileName === undefined
-          ? suggestVideoName(etappe.name, output, now())
-          : cleanVideoName(fileName);
+        fileName === undefined ? suggestVideoName(title, output, now()) : cleanVideoName(fileName);
       if (name === null) {
         return reply.code(400).send({
           error: 'invalid_file_name',
@@ -120,16 +136,22 @@ export function registerRenderRoutes(
         });
       }
 
-      const assets = assetsOfEtappe(project, etappeId);
-      // An own theme goes along; a missing one is drawn as the default (ADR 0010).
-      const { themeId } = resolveMapStyle(project, etappeId).value;
-      const ownTheme =
-        themeId && !isBuiltInTheme(themeId)
-          ? await themes.get(themeId).catch(() => undefined)
-          : undefined;
+      const assets = [
+        ...new Map(
+          etappeIds.flatMap((id) => assetsOfEtappe(project, id)).map((a) => [a.id, a]),
+        ).values(),
+      ];
+      // Own themes go along; a missing one is drawn as the default (ADR 0010).
+      const ownThemes = await Promise.all(
+        [...new Set(etappeIds.map((id) => resolveMapStyle(project, id).value.themeId))]
+          .filter((id): id is string => id !== undefined && !isBuiltInTheme(id))
+          .map((id) => themes.get(id).catch(() => undefined)),
+      );
+      const usedThemes = ownThemes.filter((theme) => theme !== undefined);
       const job = await queue.add({
         project,
-        etappe,
+        etappe: { id: etappeIds[0]!, name: title },
+        ...(body.data.etappeIds && { etappeIds }),
         overrides,
         output,
         dir: join(outputDir, slugify(project.name)),
@@ -137,7 +159,9 @@ export function registerRenderRoutes(
         ...(assets.length > 0 && {
           assetUrls: await readAssetUrls(await store.assetsDir(projectId), assets),
         }),
-        ...(ownTheme && { themes: { [ownTheme.id]: ownTheme } }),
+        ...(usedThemes.length > 0 && {
+          themes: Object.fromEntries(usedThemes.map((theme) => [theme.id, theme])),
+        }),
         serverUrl: ownUrl(request),
       });
       return reply.code(202).send(job);
