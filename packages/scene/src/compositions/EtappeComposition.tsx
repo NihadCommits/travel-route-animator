@@ -27,7 +27,17 @@ export const calculateEtappeMetadata: CalculateMetadataFunction<EtappeProps> = (
 };
 
 export const EtappeComposition: FC<EtappeProps> = (props) => {
-  const { project, etappeId, output, previewScale, guides, assetUrls, themes, serverUrl } = props;
+  const {
+    project,
+    etappeId,
+    output,
+    previewScale,
+    guides,
+    assetUrls,
+    themes,
+    serverUrl,
+    motionData,
+  } = props;
   const frame = useCurrentFrame();
   // Worked out once per props; every frame is then a pure function of it (Determinismus).
   const timeline = useMemo(
@@ -54,7 +64,14 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
       }
     >
       {/* A new style is a new map: a diff would drop our own sources and layers (ADR 0010). */}
-      <MapStage key={look.key} timeline={timeline} state={state} images={images} look={look} />
+      <MapStage
+        key={look.key}
+        timeline={timeline}
+        state={state}
+        images={images}
+        look={look}
+        reportMotion={motionData ?? false}
+      />
       {!look.transparent && <MapFinish extras={look.extras} />}
       <Overlays timeline={timeline} state={state} credits={look.credits} />
       <EffectsOverlay effects={state.effects} transparent={look.transparent} />

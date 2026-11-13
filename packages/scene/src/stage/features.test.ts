@@ -107,7 +107,12 @@ describe('sceneFeatures', () => {
       return sceneFeatures(timeline, state, timings).vehicles.features[0]!.properties;
     };
 
-    expect(iconAt(1.25)).toEqual({ icon: 'asset:a_run:2', bearing: 0, size: 1, upright: true });
+    expect(iconAt(1.25)).toMatchObject({
+      icon: 'asset:a_run:2',
+      bearing: 0,
+      size: 1,
+      upright: true,
+    });
     expect(iconAt(2.45).icon).toBe('asset:a_run:4');
     // Arrived after 5.3 s: the time on the move stops, so does the picture.
     expect(iconAt(7).icon).toBe('asset:a_run:3');

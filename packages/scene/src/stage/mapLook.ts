@@ -2,11 +2,9 @@ import type { Theme, ThemeExtras, Timeline } from '@travel-route-animator/core';
 import {
   backgroundOf,
   buildStyle,
-  MAPTILER_ATTRIBUTION,
+  mapCreditsOf,
   resolveTheme,
   skyOf,
-  styleCredits,
-  TERRAIN_ATTRIBUTION,
 } from '@travel-route-animator/styles';
 import type { SkySpecification, StyleSpecification } from 'maplibre-gl';
 import { contourTilesUrl } from './contours';
@@ -37,7 +35,7 @@ export interface MapLookOptions {
 export function mapLookOf(timeline: Timeline, { themes, serverUrl }: MapLookOptions): MapLook {
   const { mapStyle, mapOptions } = timeline;
   const { theme, missing } = resolveTheme(mapStyle.themeId, themes);
-  const satelliteMix = mapOptions.satelliteMix && serverUrl !== undefined;
+  const credits = mapCreditsOf(mapStyle, mapOptions, theme, serverUrl !== undefined);
   const style = buildStyle(mapStyle, theme, {
     serverUrl,
     buildings3d: mapOptions.buildings3d,
@@ -52,25 +50,18 @@ export function mapLookOf(timeline: Timeline, { themes, serverUrl }: MapLookOpti
       style,
       sky: { 'sky-color': 'rgba(0, 0, 0, 0)', 'horizon-color': 'rgba(0, 0, 0, 0)' },
       background: 'transparent',
-      // No map is shown; the terrain still shapes the lines when it is on.
-      credits: mapOptions.terrain ? [TERRAIN_ATTRIBUTION] : [],
+      credits,
       extras: { texture: 'none', vignette: 0 },
       themeMissing: false,
       transparent: true,
       key: JSON.stringify(style),
     };
   }
-  const credits = [
-    ...styleCredits(mapStyle, theme),
-    // A dive-in that ends on satellite shows MapTiler's pictures too, 3D terrain the DEM.
-    ...(satelliteMix ? [MAPTILER_ATTRIBUTION] : []),
-    ...(mapOptions.terrain ? [TERRAIN_ATTRIBUTION] : []),
-  ];
   return {
     style,
     sky: skyOf(mapStyle, theme),
     background: backgroundOf(mapStyle, theme),
-    credits: [...new Set(credits)],
+    credits,
     // Satellite pictures need no paper grain or vignette from a vector theme.
     extras:
       mapStyle.base === 'vector' || mapStyle.base === 'terrain'

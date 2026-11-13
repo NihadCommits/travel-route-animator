@@ -27,7 +27,17 @@ export const calculateSequenceMetadata: CalculateMetadataFunction<SequenceProps>
 };
 
 export const SequenceComposition: FC<SequenceProps> = (props) => {
-  const { project, etappeIds, output, previewScale, guides, assetUrls, themes, serverUrl } = props;
+  const {
+    project,
+    etappeIds,
+    output,
+    previewScale,
+    guides,
+    assetUrls,
+    themes,
+    serverUrl,
+    motionData,
+  } = props;
   const frame = useCurrentFrame();
   const sequence = useMemo(
     () => sequenceOf({ project, etappeIds, output, previewScale }),
@@ -68,6 +78,7 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
         state={state}
         images={images}
         look={look}
+        reportMotion={motionData ?? false}
         preload={timelines}
       />
       {!look.transparent && <MapFinish extras={look.extras} />}

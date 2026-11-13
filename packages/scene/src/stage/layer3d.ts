@@ -192,9 +192,19 @@ function placement(head: ModelDrawing['head'], metres: number) {
   return { merc, globe };
 }
 
+/** Where the 3D layer last drew a vehicle, in CSS pixels of the map (M13: motion data). */
+export interface ScreenPoint {
+  x: number;
+  y: number;
+  /** Clockwise from straight up, as its nose points on screen. */
+  rotationDeg: number;
+}
+
 export interface Layer3d extends CustomLayerInterface {
   /** What to draw in the coming frame. */
   setDrawings(drawings: Drawings3d): void;
+  /** The vehicles of the last drawn frame by track, as the models and cards stand. */
+  screenPoints(): ReadonlyMap<string, ScreenPoint>;
   /** The stage's own images, decoded; cards take their pictures from here (ADR 0009). */
   setImages(images: ReadonlyMap<string, DecodedImage>): void;
 }
@@ -236,6 +246,34 @@ export function createLayer3d(): Layer3d {
   const scene = new THREE.Scene();
   const camera = new THREE.Camera();
   const models = new Map<string, THREE.Group>();
+  const screen = new Map<string, ScreenPoint>();
+
+  /**
+   * Where the drawing just placed (placeCamera) appears: its origin and a point ahead along
+   * its heading, through the same matrix the GPU uses. Exact also on the globe and in the air.
+   */
+  function recordScreenPoint(trackId: string, headingDeg: number, climbDeg: number) {
+    const canvas = map!.getCanvas();
+    const toPixels = (local: THREE.Vector4) => {
+      const clip = local.applyMatrix4(camera.projectionMatrix);
+      if (clip.w <= 0) return undefined;
+      return {
+        x: ((clip.x / clip.w + 1) / 2) * canvas.clientWidth,
+        y: ((1 - clip.y / clip.w) / 2) * canvas.clientHeight,
+      };
+    };
+    // Along the nose: the heading over the ground, tilted up by the climb like the model.
+    const heading = toRad(headingDeg);
+    const climb = toRad(climbDeg);
+    const level = Math.cos(climb);
+    const origin = toPixels(new THREE.Vector4(0, 0, 0, 1));
+    const ahead = toPixels(
+      new THREE.Vector4(Math.sin(heading) * level, Math.cos(heading) * level, Math.sin(climb), 1),
+    );
+    if (!origin || !ahead) return;
+    const rotationDeg = (Math.atan2(ahead.x - origin.x, origin.y - ahead.y) * 180) / Math.PI;
+    screen.set(trackId, { ...origin, rotationDeg: (rotationDeg + 360) % 360 });
+  }
   // One card for every own image; its picture and size change with each drawing.
   const cardMaterial = new THREE.MeshBasicMaterial({
     transparent: true,
@@ -359,6 +397,7 @@ export function createLayer3d(): Layer3d {
       }
       showOnly(card);
       placeCamera(drawing.head, drawing.sizeM, projection);
+      recordScreenPoint(drawing.trackId, drawing.head.bearingDeg, drawing.head.climbDeg);
       renderer!.render(scene, camera);
     }
   }
@@ -388,6 +427,7 @@ export function createLayer3d(): Layer3d {
         drawing.lengthM,
         projection,
       );
+      recordScreenPoint(drawing.trackId, drawing.head.bearingDeg, drawing.head.climbDeg);
       // Pitch first (nose up), then turn to the heading, clockwise from north.
       object.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.head.bearingDeg), 'ZXY');
       renderer!.render(scene, camera);
@@ -403,6 +443,7 @@ export function createLayer3d(): Layer3d {
     setDrawings(next) {
       drawings = next;
     },
+    screenPoints: () => screen,
     setImages(next) {
       images = next;
     },
@@ -441,6 +482,7 @@ export function createLayer3d(): Layer3d {
       renderer.autoClear = false;
     },
     render(g, args) {
+      screen.clear();
       if (drawings.arcs.length + drawings.models.length + drawings.cards.length === 0) return;
       const { mainMatrix, fallbackMatrix, projectionTransition } = args.defaultProjectionData;
       const t = projectionTransition ?? 0;

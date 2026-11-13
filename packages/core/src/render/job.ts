@@ -33,6 +33,11 @@ export const RenderRequestSchema = z
       .default({}),
     /** Without extension; checked with cleanVideoName. Missing: suggestVideoName. */
     fileName: z.string().max(300).optional(),
+    /**
+     * Also write where each vehicle is in the picture, frame by frame (M13): JSON, CSV, After
+     * Effects keyframes and a Final Cut Pro 7 XML next to the video.
+     */
+    motionData: z.boolean().optional(),
   })
   .refine((request) => (request.etappeId === undefined) !== (request.etappeIds === undefined), {
     message: 'Give either etappeId or etappeIds',
