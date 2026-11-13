@@ -61,17 +61,22 @@ function hasActiveRenders(): boolean {
 
 let stopRendersConfirmed = false;
 
-/** Asks once before a quit cancels a running render, from the window or from the menu. */
+/**
+ * Asks once before a quit stops a running render, from the window or from the menu. The jobs
+ * stay in the queue and render again after the next start (M13).
+ */
 function mayStopRenders(): boolean {
   if (stopRendersConfirmed || !hasActiveRenders()) return true;
   const question = {
     type: 'warning' as const,
-    buttons: ['Render abbrechen und beenden', 'Weiter rendern'],
+    buttons: ['Anhalten und beenden', 'Weiter rendern'],
     defaultId: 1,
     cancelId: 1,
     title: APP_NAME,
     message: 'Ein Video wird gerade gerendert.',
-    detail: 'Beim Beenden wird es abgebrochen; eine halbe Datei bleibt nicht liegen.',
+    detail:
+      'Beim Beenden wird es angehalten; eine halbe Datei bleibt nicht liegen. ' +
+      'Beim nächsten Start rendert die App es von vorn, wartende Videos danach.',
   };
   const choice = window
     ? dialog.showMessageBoxSync(window, question)

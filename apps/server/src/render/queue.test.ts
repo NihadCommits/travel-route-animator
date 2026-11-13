@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -9,6 +9,7 @@ import {
   type VideoInfo,
 } from '@travel-route-animator/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createFileJobStore } from './jobStore';
 import { createRenderQueue, type NewRenderJob } from './queue';
 import type { StageRenderer, StageRenderJob } from './renderer';
 
@@ -188,5 +189,82 @@ describe('createRenderQueue', () => {
     expect(queue.list().map(({ id }) => id)).toEqual([second.id]);
     expect(queue.remove(second.id)).toBe(true);
     expect(queue.list()).toEqual([]);
+  });
+});
+
+describe('the queue on disk', () => {
+  const settle = () => new Promise((done) => setTimeout(done, 0));
+
+  function persistent(dir: string) {
+    const fake = fakeRenderer();
+    let ids = 0;
+    const queue = createRenderQueue({
+      renderer: fake.renderer,
+      now: () => new Date((clock += 1000)),
+      createId: () => `job-${dir.length}-${(ids += 1)}`,
+      store: createFileJobStore(dir, () => undefined),
+    });
+    return { ...fake, queue };
+  }
+
+  it('takes up waiting and interrupted jobs after a restart, and runs them through', async () => {
+    const dir = join(outputDir, 'render-queue');
+    const before = persistent(dir);
+    for (let i = 1; i <= 5; i++) await before.queue.add(job(`etappe-${i}`));
+    await settle();
+    before.renders[0]!.finish();
+    await settle();
+    // The second one is running when the server stops.
+    expect(before.queue.list().map((j) => j.state)).toEqual([
+      'done',
+      'rendering',
+      'queued',
+      'queued',
+      'queued',
+    ]);
+    await before.queue.suspend();
+    expect(before.renders[1]!.job.signal.aborted).toBe(true);
+    // Stopped, not cancelled: nothing changed for the list.
+    expect(before.queue.list()[1]!.state).toBe('rendering');
+
+    const after = persistent(dir);
+    expect(await after.queue.restore()).toBe(4);
+    const jobs = after.queue.list();
+    expect(jobs.map((j) => j.state)).toEqual(['done', 'rendering', 'queued', 'queued', 'queued']);
+    // The same files as before; the interrupted one starts from the beginning.
+    expect(jobs.map((j) => j.outputPath)).toEqual(before.queue.list().map((j) => j.outputPath));
+    expect(after.renders[0]!.job.props).toEqual(before.renders[1]!.job.props);
+
+    // Four renders in a row, without anyone stepping in.
+    for (let i = 0; i < 4; i++) {
+      await settle();
+      after.renders[i]!.finish();
+    }
+    await after.queue.idle();
+    expect(after.queue.list().map((j) => j.state)).toEqual(Array(5).fill('done'));
+    await after.queue.flushed();
+
+    // Finished jobs come back for the list only.
+    const third = persistent(dir);
+    expect(await third.queue.restore()).toBe(0);
+    expect(third.queue.list()).toHaveLength(5);
+    expect(third.renderer.render).not.toHaveBeenCalled();
+  });
+
+  it('forgets a job taken off the list, and skips a broken file', async () => {
+    const dir = join(outputDir, 'render-queue');
+    const first = persistent(dir);
+    const added = await first.queue.add(job());
+    await settle();
+    first.renders[0]!.finish();
+    await first.queue.idle();
+    expect(first.queue.remove(added.id)).toBe(true);
+    await first.queue.flushed();
+    await writeFile(join(dir, 'kaputt.json'), '{ "job": ');
+
+    const warnings: string[] = [];
+    const store = createFileJobStore(dir, (message) => warnings.push(message));
+    expect(await store.load()).toEqual([]);
+    expect(warnings[0]).toMatch(/kaputt\.json/);
   });
 });

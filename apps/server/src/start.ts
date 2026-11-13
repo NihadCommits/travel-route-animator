@@ -1,5 +1,4 @@
 import { join } from 'node:path';
-import { isRenderJobFinished } from '@travel-route-animator/core';
 import type { FastifyInstance, FastifyServerOptions } from 'fastify';
 import { buildApp } from './app';
 import type { ListenOptions, RenderConfig, ServiceConfig } from './config';
@@ -7,6 +6,7 @@ import { createDemTiles } from './elevation/demTiles';
 import { createElevationSampler } from './elevation/sampler';
 import { createPhotonProvider } from './geocoding/photon';
 import { removePartialVideos } from './render/outputFiles';
+import { createFileJobStore } from './render/jobStore';
 import { createRenderQueue, type RenderQueue } from './render/queue';
 import { createRemotionRenderer } from './render/remotionRenderer';
 import type { RevealFile } from './render/reveal';
@@ -38,9 +38,10 @@ export interface RunningServer {
   url: string;
   renderQueue: RenderQueue;
   /**
-   * Cancels waiting and running renders and waits until Remotion has closed its browser and
-   * ffmpeg and removed the partial file, or until the time is up. Windows does not end child
-   * processes with their parent, so this has to happen before the process goes.
+   * Stops the running render and waits until Remotion has closed its browser and ffmpeg and
+   * removed the partial file, or until the time is up. Windows does not end child processes
+   * with their parent, so this has to happen before the process goes. Unfinished jobs stay
+   * stored and render after the next start (M13).
    */
   stopRenders: (timeoutMs: number) => Promise<void>;
   close: () => Promise<void>;
@@ -70,7 +71,12 @@ export async function startServer({
     ...(render.browserExecutable && { browserExecutable: render.browserExecutable }),
     ...(render.binariesDirectory && { binariesDirectory: render.binariesDirectory }),
   });
-  const renderQueue = createRenderQueue({ renderer });
+  const renderQueue = createRenderQueue({
+    renderer,
+    // Jobs outlive a restart (M13): tsx watch, a crash, the app closed while jobs wait.
+    store: createFileJobStore(join(dataDir, 'render-queue'), (message) => log(message)),
+    warn: (message) => log(message),
+  });
   const app = buildApp({
     logger,
     dataDir,
@@ -129,6 +135,10 @@ export async function startServer({
     url = await app.listen({ ...listen, port: 0 });
   }
 
+  // After listening: a job may need this server again (satellite tiles in its props).
+  const again = await renderQueue.restore();
+  if (again > 0) log(`${again} render job(s) from before the restart are back in the queue`);
+
   // In the background, so the server answers at once; the first render waits for it if needed.
   if (render.prepareOnStart) {
     renderer.prepare().catch((error: unknown) => {
@@ -141,11 +151,8 @@ export async function startServer({
     url,
     renderQueue,
     async stopRenders(timeoutMs) {
-      for (const job of renderQueue.list()) {
-        if (!isRenderJobFinished(job.state)) renderQueue.cancel(job.id);
-      }
       await Promise.race([
-        renderQueue.idle(),
+        renderQueue.suspend(),
         new Promise((resolve) => setTimeout(resolve, timeoutMs).unref()),
       ]);
     },
