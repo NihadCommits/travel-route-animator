@@ -48,6 +48,7 @@ export function defaultOverlays(): OverlaySettings {
     distanceCounter: false,
     timeCounter: false,
     attribution: true,
+    attributionCorner: 'bottom-right',
     elevationProfile: false,
     elevationCounter: false,
   };

@@ -58,4 +58,5 @@ export * from './files/slug';
 export * from './files/videoName';
 export * from './routing/credits';
 export * from './render/job';
+export * from './render/presets';
 export * from './desktop/bridge';

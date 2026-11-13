@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { AspectSchema, FpsSchema, ResolutionSchema, type OutputSettings } from '../model/output';
+import {
+  AspectSchema,
+  CodecSchema,
+  FpsSchema,
+  ResolutionSchema,
+  type OutputSettings,
+} from '../model/output';
 import { IdSchema } from '../model/primitives';
 
 // The render API between the editor and the local server (M7): what the render dialog asks
@@ -21,6 +27,8 @@ export const RenderRequestSchema = z
         aspect: AspectSchema.optional(),
         resolution: ResolutionSchema.optional(),
         fps: FpsSchema.optional(),
+        codec: CodecSchema.optional(),
+        transparentOverlay: z.boolean().optional(),
       })
       .default({}),
     /** Without extension; checked with cleanVideoName. Missing: suggestVideoName. */

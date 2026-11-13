@@ -126,14 +126,22 @@ export interface MapOptions {
   satelliteMix: boolean;
   /** 3D terrain and how much higher it is drawn (ADR 0012); undefined on a flat map. */
   terrain: { exaggeration: number } | undefined;
+  /** No map at all: only routes, vehicles and labels over a transparent picture (ADR 0013). */
+  transparent: boolean;
 }
 
-export function mapOptionsOf(etappe: Pick<Etappe, 'view' | 'outro'>): MapOptions {
+export function mapOptionsOf(
+  etappe: Pick<Etappe, 'view' | 'outro'>,
+  output: Pick<OutputSettings, 'transparentOverlay'>,
+): MapOptions {
   const { view, outro } = etappe;
+  const transparent = output.transparentOverlay;
   return {
-    buildings3d: view.buildings3d || outro.type === 'arrival-3d',
-    satelliteMix: outro.type === 'dive-in' && outro.switchToSatellite,
+    // Without a map there are no buildings, and no satellite picture to fade to.
+    buildings3d: !transparent && (view.buildings3d || outro.type === 'arrival-3d'),
+    satelliteMix: !transparent && outro.type === 'dive-in' && outro.switchToSatellite,
     terrain: view.terrain.enabled ? { exaggeration: view.terrain.exaggeration } : undefined,
+    transparent,
   };
 }
 
@@ -324,7 +332,7 @@ export function compileTimeline(
   const arriveBySec = etappe.view.camera.endWithOverview
     ? mainSec - overviewBlendSec(mainSec)
     : mainSec;
-  const mapOptions = mapOptionsOf(etappe);
+  const mapOptions = mapOptionsOf(etappe, output);
   const tracks = etappe.tracks.flatMap(
     (track) => planTrack(track, arriveBySec, mapOptions.terrain) ?? [],
   );

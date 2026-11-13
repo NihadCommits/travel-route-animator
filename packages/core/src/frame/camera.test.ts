@@ -247,6 +247,7 @@ describe('camera modes', () => {
           distanceCounter: false,
           timeCounter: false,
           attribution: true,
+          attributionCorner: 'bottom-right',
           elevationProfile: false,
           elevationCounter: false,
           title: 'Wohin morgen?',
