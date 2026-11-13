@@ -3,16 +3,18 @@
  * server's render jobs (M7), so that both render exactly alike. Nothing here runs in the
  * browser; the compositions themselves live in ../src.
  */
-import { readdir, rename, rm, stat, mkdir } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
-import { findEtappe } from '@travel-route-animator/core';
+import { readdir, readFile, rename, rm, stat, mkdir } from 'node:fs/promises';
+import { basename, dirname, join } from 'node:path';
+import { findEtappe, resolveOutput, type Codec } from '@travel-route-animator/core';
 import {
   ensureBrowser,
+  renderFrames,
   renderMedia,
   renderStill,
   selectComposition,
   type CancelSignal,
   type OpenGlRenderer,
+  type RenderMediaOptions,
 } from '@remotion/renderer';
 import { ALL_FORMATS, FilePathSource, Input } from 'mediabunny';
 import {
@@ -150,6 +152,29 @@ export interface RenderEtappeOptions {
   binariesDirectory?: string;
 }
 
+/** The size of a PNG, from its header: 8 bytes signature, then the IHDR chunk. */
+async function pngSize(path: string): Promise<{ width: number; height: number }> {
+  const header = (await readFile(path)).subarray(0, 24);
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+}
+
+/**
+ * Remotion's settings per codec (ARCHITEKTUR: Codec-Einstellungen). ProRes 4444 gets its
+ * frames as PNG and keeps their alpha channel in a 10-bit 4:4:4 picture with alpha.
+ */
+function encodingOf(
+  codec: Exclude<Codec, 'png-sequence'>,
+): Pick<RenderMediaOptions, 'codec' | 'proResProfile' | 'imageFormat' | 'pixelFormat'> {
+  if (codec === 'h264') return { codec: 'h264' };
+  if (codec === 'prores-422hq') return { codec: 'prores', proResProfile: 'hq' };
+  return {
+    codec: 'prores',
+    proResProfile: '4444',
+    imageFormat: 'png',
+    pixelFormat: 'yuva444p10le',
+  };
+}
+
 export interface RenderedVideo extends VideoInfo {
   outputLocation: string;
   /** The last frame as PNG, when the last stage dives in and asks for it (M11). */
@@ -167,8 +192,9 @@ export function wantsEndFrame(props: StageProps): boolean {
 }
 
 /**
- * Renders one stage to H.264 MP4 and checks the file: size and frame rate must be what the
- * project asked for. A cancelled or failed render leaves no file behind.
+ * Renders a stage to a video (H.264 MP4 or ProRes MOV) or to a folder of PNGs, and checks
+ * the result: size and frame rate (or the number of pictures) must be what the project asked
+ * for. A cancelled or failed render leaves nothing behind.
  */
 export async function renderEtappe({
   serveUrl,
@@ -201,13 +227,27 @@ export async function renderEtappe({
 
   const partial = partialPathOf(outputLocation);
   await mkdir(dirname(outputLocation), { recursive: true });
+  const { codec } = resolveOutput(props.project, props.output);
+  if (codec === 'png-sequence') {
+    return renderPngSequence({
+      serveUrl,
+      props,
+      composition,
+      outputLocation,
+      partial,
+      chromiumOptions,
+      binaries,
+      cancelSignal,
+      onProgress,
+    });
+  }
   try {
     await renderMedia({
       serveUrl,
       composition,
       inputProps: props,
-      codec: 'h264',
-      // Remotion 4 tags H.264 as BT.601 unless told otherwise; HD video is BT.709, which is
+      ...encodingOf(codec),
+      // Remotion 4 tags video as BT.601 unless told otherwise; HD video is BT.709, which is
       // also what Premiere expects. (Remotion 5 makes this the default.)
       colorSpace: 'bt709',
       outputLocation: partial,
@@ -247,6 +287,82 @@ export async function renderEtappe({
     return { outputLocation, ...info, endFrameLocation };
   } catch (error) {
     await rm(partial, { force: true });
+    throw error;
+  }
+}
+
+type Composition = Awaited<ReturnType<typeof selectComposition>>;
+
+interface PngSequenceJob {
+  serveUrl: string;
+  props: StageProps;
+  composition: Composition;
+  outputLocation: string;
+  partial: string;
+  chromiumOptions: { gl: OpenGlRenderer };
+  binaries: { browserExecutable?: string; binariesDirectory?: string };
+  cancelSignal: CancelSignal | undefined;
+  onProgress: ((progress: RenderProgress) => void) | undefined;
+}
+
+/**
+ * One PNG per frame in a folder named like the video would be, with alpha: "<name>_0000.png"
+ * and up. Premiere and After Effects read it as an image sequence. Like a video, the folder
+ * gets its real name only once every picture is there.
+ */
+async function renderPngSequence({
+  serveUrl,
+  props,
+  composition,
+  outputLocation,
+  partial,
+  chromiumOptions,
+  binaries,
+  cancelSignal,
+  onProgress,
+}: PngSequenceJob): Promise<RenderedVideo> {
+  const { width, height, fps, durationInFrames } = composition;
+  const name = basename(outputLocation);
+  await rm(partial, { recursive: true, force: true });
+  const startedAt = performance.now();
+  try {
+    await renderFrames({
+      serveUrl,
+      composition,
+      inputProps: props,
+      outputDir: partial,
+      imageFormat: 'png',
+      imageSequencePattern: `${name}_[frame].[ext]`,
+      chromiumOptions,
+      ...(binaries.browserExecutable && { browserExecutable: binaries.browserExecutable }),
+      ...(binaries.binariesDirectory && { binariesDirectory: binaries.binariesDirectory }),
+      concurrency: 1,
+      timeoutInMilliseconds: 60_000,
+      ...(cancelSignal && { cancelSignal }),
+      onStart: () => undefined,
+      onFrameUpdate: (rendered) => {
+        // Drawing is all there is: no encoding step, so progress is the share of frames.
+        const elapsed = performance.now() - startedAt;
+        onProgress?.({
+          progress: rendered / durationInFrames,
+          remainingMs: (elapsed / Math.max(1, rendered)) * (durationInFrames - rendered),
+        });
+      },
+    });
+    const pictures = (await readdir(partial)).filter((file) => file.endsWith('.png')).sort();
+    const first = pictures[0];
+    const size = first ? await pngSize(join(partial, first)) : { width: 0, height: 0 };
+    if (pictures.length !== durationInFrames || size.width !== width || size.height !== height) {
+      throw new Error(
+        `The sequence has ${pictures.length} pictures of ${size.width}×${size.height}, ` +
+          `not ${durationInFrames} of ${width}×${height}`,
+      );
+    }
+    await rm(outputLocation, { recursive: true, force: true });
+    await rename(partial, outputLocation);
+    return { outputLocation, width, height, fps, durationSec: durationInFrames / fps };
+  } catch (error) {
+    await rm(partial, { recursive: true, force: true });
     throw error;
   }
 }

@@ -84,3 +84,24 @@ describe('mixHex', () => {
     expect(mixHex('#000000', '#ff8000', 0.5)).toBe('#804000');
   });
 });
+
+describe('the transparent overlay', () => {
+  it('has no map at all, only the glyphs for the stop names', () => {
+    const style = buildStyle({ base: 'vector' }, clean, { transparent: true, buildings3d: true });
+    expect(style.layers).toEqual([]);
+    expect(style.sources).toEqual({});
+    expect(style.glyphs).toContain('/fonts/{fontstack}/{range}.pbf');
+    expect(validateStyleMin(style)).toEqual([]);
+  });
+
+  it('keeps 3D terrain under the lines, but shows none of it', () => {
+    const style = buildStyle({ base: 'terrain' }, clean, {
+      transparent: true,
+      terrain: { exaggeration: 1.5 },
+      contourTiles,
+    });
+    expect(style.layers).toEqual([]);
+    expect(Object.keys(style.sources)).toEqual([TERRAIN_SOURCE]);
+    expect(style.terrain).toEqual({ source: TERRAIN_SOURCE, exaggeration: 1.5 });
+  });
+});

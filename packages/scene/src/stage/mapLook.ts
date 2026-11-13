@@ -21,6 +21,8 @@ export interface MapLook {
   extras: ThemeExtras;
   /** The style names an own theme this render was not given; the default stands in. */
   themeMissing: boolean;
+  /** No map, a transparent picture: an overlay for footage (ADR 0013). */
+  transparent: boolean;
   /** Changes whenever the style does; the stage builds a new map then. */
   key: string;
 }
@@ -41,8 +43,23 @@ export function mapLookOf(timeline: Timeline, { themes, serverUrl }: MapLookOpti
     buildings3d: mapOptions.buildings3d,
     satelliteMix: mapOptions.satelliteMix,
     terrain: mapOptions.terrain,
-    ...(mapStyle.base === 'terrain' && { contourTiles: contourTilesUrl() }),
+    transparent: mapOptions.transparent,
+    ...(mapStyle.base === 'terrain' &&
+      !mapOptions.transparent && { contourTiles: contourTilesUrl() }),
   });
+  if (mapOptions.transparent) {
+    return {
+      style,
+      sky: { 'sky-color': 'rgba(0, 0, 0, 0)', 'horizon-color': 'rgba(0, 0, 0, 0)' },
+      background: 'transparent',
+      // No map is shown; the terrain still shapes the lines when it is on.
+      credits: mapOptions.terrain ? [TERRAIN_ATTRIBUTION] : [],
+      extras: { texture: 'none', vignette: 0 },
+      themeMissing: false,
+      transparent: true,
+      key: JSON.stringify(style),
+    };
+  }
   const credits = [
     ...styleCredits(mapStyle, theme),
     // A dive-in that ends on satellite shows MapTiler's pictures too, 3D terrain the DEM.
@@ -60,6 +77,7 @@ export function mapLookOf(timeline: Timeline, { themes, serverUrl }: MapLookOpti
         ? theme.extras
         : { texture: 'none', vignette: 0 },
     themeMissing: missing,
+    transparent: false,
     key: JSON.stringify(style),
   };
 }

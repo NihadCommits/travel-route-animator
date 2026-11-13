@@ -3,7 +3,7 @@ import { useMemo, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'remotion';
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
-import { EffectsOverlay } from '../overlays/EffectsOverlay';
+import { blackOf, EffectsOverlay } from '../overlays/EffectsOverlay';
 import { MapFinish } from '../overlays/MapFinish';
 import { mapLookOf } from '../stage/mapLook';
 import { MapStage } from '../stage/MapStage';
@@ -45,12 +45,19 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
   );
 
   return (
-    <AbsoluteFill style={{ backgroundColor: look.background }}>
+    <AbsoluteFill
+      style={
+        // An overlay fades out instead of to black (ADR 0013).
+        look.transparent
+          ? { opacity: 1 - blackOf(state.effects) }
+          : { backgroundColor: look.background }
+      }
+    >
       {/* A new style is a new map: a diff would drop our own sources and layers (ADR 0010). */}
       <MapStage key={look.key} timeline={timeline} state={state} images={images} look={look} />
-      <MapFinish extras={look.extras} />
+      {!look.transparent && <MapFinish extras={look.extras} />}
       <Overlays timeline={timeline} state={state} credits={look.credits} />
-      <EffectsOverlay effects={state.effects} />
+      <EffectsOverlay effects={state.effects} transparent={look.transparent} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>
   );

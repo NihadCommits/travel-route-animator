@@ -19,12 +19,26 @@ import { createRenderMap } from './renderMap';
 function applyProjection(
   map: MapLibreMap,
   projection: FrameState['projection'],
-  sky: MapLook['sky'],
+  look: Pick<MapLook, 'sky' | 'transparent'>,
 ): void {
   if (map.getProjection()?.type !== projection) map.setProjection({ type: projection });
+  if (look.transparent) {
+    // An overlay has no sky, no fog and no atmosphere: everything around the lines stays clear.
+    const clear = 'rgba(0, 0, 0, 0)';
+    map.setSky({
+      'sky-color': clear,
+      'horizon-color': clear,
+      'fog-color': clear,
+      'atmosphere-blend': 0,
+    });
+    return;
+  }
   map.setSky(
     projection === 'globe'
-      ? { ...sky, 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 8, 0] }
+      ? {
+          ...look.sky,
+          'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 8, 0],
+        }
       : { 'atmosphere-blend': 0 },
   );
 }
@@ -144,10 +158,11 @@ export const MapStage: FC<MapStageProps> = ({
       pitch: firstState.camera.pitchDeg,
       bearing: firstState.camera.bearingDeg,
       pixelRatio: first.scale,
+      // The walls at the edges of terrain tiles hide gaps between zoom levels. With no map
+      // around them (an overlay) they would show as grey strokes below every line.
+      terrainSkirtLength: firstLook.transparent ? 'none' : 'auto',
     });
-    instance.on('style.load', () =>
-      applyProjection(instance, firstState.projection, firstLook.sky),
-    );
+    instance.on('style.load', () => applyProjection(instance, firstState.projection, firstLook));
     instance.on('load', () => {
       addSceneLayers(instance);
       const all = initial.current.preload;
@@ -202,8 +217,8 @@ export const MapStage: FC<MapStageProps> = ({
   // Switching the view between flat map and globe in the editor.
   const { projection } = state;
   useEffect(() => {
-    if (map) applyProjection(map, projection, look.sky);
-  }, [map, projection, look.sky]);
+    if (map) applyProjection(map, projection, look);
+  }, [map, projection, look]);
 
   // Switching the preview between half and full resolution.
   useEffect(() => {

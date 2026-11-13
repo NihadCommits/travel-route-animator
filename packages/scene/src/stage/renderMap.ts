@@ -3,7 +3,14 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 
 export type RenderMapOptions = Pick<
   MapOptions,
-  'container' | 'style' | 'center' | 'zoom' | 'pitch' | 'bearing' | 'pixelRatio'
+  | 'container'
+  | 'style'
+  | 'center'
+  | 'zoom'
+  | 'pitch'
+  | 'bearing'
+  | 'pixelRatio'
+  | 'terrainSkirtLength'
 >;
 
 /**
