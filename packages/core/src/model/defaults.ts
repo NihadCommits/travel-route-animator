@@ -43,7 +43,14 @@ export function defaultProjectSettings(): ProjectDefaults {
 }
 
 export function defaultOverlays(): OverlaySettings {
-  return { labels: true, distanceCounter: false, timeCounter: false, attribution: true };
+  return {
+    labels: true,
+    distanceCounter: false,
+    timeCounter: false,
+    attribution: true,
+    elevationProfile: false,
+    elevationCounter: false,
+  };
 }
 
 /** How faint the route ahead starts out; also what file format 1 called "ghost". */

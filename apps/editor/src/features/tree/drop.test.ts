@@ -1,4 +1,4 @@
-import { createProject, type Project } from '@travel-route-animator/core';
+import { createProject, defaultOverlays, type Project } from '@travel-route-animator/core';
 import { describe, expect, it } from 'vitest';
 import { dropPositionFor, resolveDrop, type DropTarget } from './drop';
 
@@ -25,7 +25,7 @@ function project(): Project {
     },
     intro: { type: 'none' as const },
     outro: { type: 'none' as const },
-    overlays: { labels: true, distanceCounter: false, timeCounter: false, attribution: true },
+    overlays: defaultOverlays(),
     tracks: trackIds.map((trackId) => ({
       id: trackId,
       vehicle: { type: 'car' as const, variant: 'car-default' },

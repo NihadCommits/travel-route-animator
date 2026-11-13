@@ -52,6 +52,11 @@ export interface ModelDrawing {
   model: ModelKind;
   head: { lngLat: LngLat; altitudeM: number; bearingDeg: number; climbDeg: number };
   /**
+   * A car: it stands on the terrain as the map draws it (ADR 0012), which only the map knows.
+   * A plane's height already includes the ground below it.
+   */
+  onGround: boolean;
+  /**
    * The model's length in metres: about as long on screen as the flat icon, a little more for
    * large types and less for small ones.
    */
@@ -153,6 +158,7 @@ export function drawings3d(
         color: style.lineColor,
         model,
         head: { ...head, climbDeg: flight?.climbDeg ?? 0 },
+        onGround: !flight,
         lengthM: ICON_SIZE_PX * style.vehicleScale * sizeFactor(model) * metersPerPx,
       });
     }

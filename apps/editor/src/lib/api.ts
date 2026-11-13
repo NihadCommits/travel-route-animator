@@ -2,8 +2,10 @@ import {
   assetFileName,
   ComputedRouteSchema,
   ImageAssetSchema,
+  RouteElevationSchema,
   type Asset,
   type ComputedRoute,
+  type ElevationRequest,
   type ImageAsset,
   type ImageProblem,
   type LngLat,
@@ -11,6 +13,7 @@ import {
   type Project,
   type RenderJob,
   type RenderRequest,
+  type RouteElevation,
   type RouteRequest,
   type Theme,
   type ValidationIssue,
@@ -108,6 +111,18 @@ export const api = {
       await request<unknown>('/route', {
         method: 'POST',
         body: JSON.stringify(route),
+        ...(signal && { signal }),
+      }),
+    ),
+  // Heights along a route from terrain tiles, sampled by the server (ADR 0012).
+  sampleElevation: async (
+    elevation: ElevationRequest,
+    signal?: AbortSignal,
+  ): Promise<RouteElevation> =>
+    RouteElevationSchema.parse(
+      await request<unknown>('/elevation', {
+        method: 'POST',
+        body: JSON.stringify(elevation),
         ...(signal && { signal }),
       }),
     ),

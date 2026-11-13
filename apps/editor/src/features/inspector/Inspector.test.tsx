@@ -2,6 +2,7 @@ import {
   addEtappe,
   addGroup,
   addTrack,
+  addWaypoint,
   createProject,
   type Project,
 } from '@travel-route-animator/core';
@@ -127,6 +128,53 @@ describe('Inspector', () => {
     await user.selectOptions(inspector().getByLabelText('Ansicht'), '3D geneigt');
     expect(pitch).toBeEnabled();
     expect(pitch).toHaveValue('55');
+  });
+
+  it('stands a stage on 3D terrain, higher if wanted, and says when it looks flat', async () => {
+    const { user } = await renderEditor(trip().project);
+    await selectRow('Wien – Porto');
+    const exaggeration = inspector().getByLabelText('Überhöhung');
+    expect(exaggeration).toBeDisabled();
+
+    await user.click(inspector().getByRole('switch', { name: '3D-Gelände' }));
+    expect(exaggeration).toBeEnabled();
+    expect(inspector().getByText(/Von oben wirkt das Gelände flach/)).toBeInTheDocument();
+    fireEvent.change(exaggeration, { target: { value: '2' } });
+    expect(inspector().getByText('2×')).toBeInTheDocument();
+    await user.selectOptions(inspector().getByLabelText('Ansicht'), '3D geneigt');
+    expect(inspector().queryByText(/Von oben wirkt das Gelände flach/)).not.toBeInTheDocument();
+  });
+
+  it('shows a height profile once the route has its heights', async () => {
+    const outward = addGroup(createProject('Trip'), 'Hinreise');
+    const stage = addEtappe(outward.project, outward.id, 'Westbahn');
+    const train = addTrack(stage.project, stage.id, 'train', { label: 'Zug' });
+    let project = train.project;
+    for (const [name, lngLat] of [
+      ['Salzburg', [13.0456, 47.8131]],
+      ['Linz', [14.2911, 48.2903]],
+    ] as const) {
+      project = addWaypoint(project, train.id, { name, lngLat: [...lngLat] }).project;
+    }
+    const server = installFakeServer([project], {
+      // No smoothing at this step: up 400 m, down 200 m.
+      elevation: () => ({
+        status: 200,
+        body: { source: 'dem', stepM: 50_000, elevationsM: [500, 900, 700] },
+      }),
+    });
+    render(
+      <AppProviders queryClient={createQueryClient()}>
+        <EditorScreen projectId={project.id} />
+      </AppProviders>,
+    );
+    await screen.findByRole('heading', { level: 1, name: project.name });
+    const user = userEvent.setup();
+    await selectRow('Westbahn');
+
+    await user.click(inspector().getByRole('switch', { name: 'Höhenprofil' }));
+    expect(await inspector().findByText('Zug: ↑ 400 m, ↓ 200 m')).toBeInTheDocument();
+    expect(server.calls.filter((call) => call.path === '/elevation')).toHaveLength(1);
   });
 
   it('offers only the routing a vehicle allows and keeps it consistent on a switch', async () => {

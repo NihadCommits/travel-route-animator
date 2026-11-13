@@ -12,6 +12,15 @@ import type {
   SourceSpecification,
   StyleSpecification,
 } from 'maplibre-gl';
+import {
+  colorReliefLayer,
+  CONTOUR_SOURCE,
+  contourLayers,
+  demSource,
+  hillshadeLayer,
+  RELIEF_SOURCE,
+  TERRAIN_SOURCE,
+} from './terrain';
 
 // Our own MapLibre style from a theme (ADR 0010), on OpenFreeMap's vector tiles in the
 // OpenMapTiles schema. Few layers, no sprite: a video map should be calm, so that the route
@@ -38,6 +47,13 @@ export interface BuildStyleOptions {
    * (`SATELLITE_MIX_LAYER`): the end of a dive-in (M11). Needs `serverUrl`.
    */
   satelliteMix?: boolean | undefined;
+  /** 3D terrain (ADR 0012): the ground stands up, `exaggeration` times as high. */
+  terrain?: { exaggeration: number } | undefined;
+  /**
+   * Vector tiles of contour lines (maplibre-contour's protocol URL), which the terrain base
+   * draws; without them it shows hillshade and relief only.
+   */
+  contourTiles?: string | undefined;
 }
 
 /** The layer a dive-in fades the satellite picture in with (raster-opacity per frame). */
@@ -521,6 +537,32 @@ function vectorLayers(theme: Theme, style: MapStyleRef, options: BuildStyleOptio
   return out;
 }
 
+function insertBefore(layers: LayerSpecification[], id: string, extra: LayerSpecification[]) {
+  const at = layers.findIndex((layer) => layer.id === id);
+  layers.splice(at < 0 ? layers.length : at, 0, ...extra);
+}
+
+/**
+ * The ground of a vector map (ADR 0012). The terrain base gets the colour relief right above
+ * the background, the hillshade under the water and the contour lines above it; other vector
+ * maps get a subtle hillshade under 3D terrain, without which the mountains look flat.
+ */
+function addGround(
+  layers: LayerSpecification[],
+  style: MapStyleRef,
+  theme: Theme,
+  options: BuildStyleOptions,
+): void {
+  const t = effectiveTokens(theme, style);
+  if (style.base === 'terrain') {
+    insertBefore(layers, 'landcover', [colorReliefLayer(t)]);
+    insertBefore(layers, 'water', [hillshadeLayer(t, 0.6)]);
+    if (options.contourTiles) insertBefore(layers, 'waterway', contourLayers(t, FONT.regular));
+  } else if (options.terrain) {
+    insertBefore(layers, 'water', [hillshadeLayer(t, 0.35)]);
+  }
+}
+
 /** Satellite as a raster from our server; hybrid adds roads, borders and white labels on top. */
 function satelliteLayers(hybrid: boolean, style: MapStyleRef, theme: Theme): LayerSpecification[] {
   const out: LayerSpecification[] = [
@@ -592,6 +634,14 @@ export function buildStyle(
         (layer) => layer.id !== 'satellite' || sources.satellite,
       )
     : vectorLayers(theme, style, options);
+  if (!satellite) addGround(layers, style, theme, options);
+  if (layers.some((layer) => 'source' in layer && layer.source === RELIEF_SOURCE)) {
+    sources[RELIEF_SOURCE] = demSource();
+  }
+  if (layers.some((layer) => 'source' in layer && layer.source === CONTOUR_SOURCE)) {
+    sources[CONTOUR_SOURCE] = { type: 'vector', tiles: [options.contourTiles!], maxzoom: 15 };
+  }
+  if (options.terrain) sources[TERRAIN_SOURCE] = demSource();
   if (!satellite && options.satelliteMix && sources.satellite) {
     // Over everything of the base map, labels included; the route stays on top of it.
     layers.push({
@@ -607,6 +657,9 @@ export function buildStyle(
     glyphs: `${OPENFREEMAP}/fonts/{fontstack}/{range}.pbf`,
     sources,
     layers,
+    ...(options.terrain && {
+      terrain: { source: TERRAIN_SOURCE, exaggeration: options.terrain.exaggeration },
+    }),
   };
 }
 

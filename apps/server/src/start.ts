@@ -3,6 +3,8 @@ import { isRenderJobFinished } from '@travel-route-animator/core';
 import type { FastifyInstance, FastifyServerOptions } from 'fastify';
 import { buildApp } from './app';
 import type { ListenOptions, RenderConfig, ServiceConfig } from './config';
+import { createDemTiles } from './elevation/demTiles';
+import { createElevationSampler } from './elevation/sampler';
 import { createPhotonProvider } from './geocoding/photon';
 import { removePartialVideos } from './render/outputFiles';
 import { createRenderQueue, type RenderQueue } from './render/queue';
@@ -76,6 +78,12 @@ export async function startServer({
     renderQueue,
     ...(editorDir && { editorDir }),
     ...(revealFile && { revealFile }),
+    elevation: createElevationSampler(
+      createDemTiles({
+        cacheDir: join(dataDir, 'cache', 'tiles', 'terrain'),
+        userAgent: services.userAgent,
+      }),
+    ),
     geocodingProvider: createPhotonProvider({
       baseUrl: services.photonUrl,
       userAgent: services.userAgent,

@@ -23,10 +23,13 @@ import {
   describeIssues,
   parseProjectFile,
   refreshLocalRoutes,
+  RouteElevationSchema,
   resolveOutput,
   slugify,
   suggestVideoName,
+  toElevationRequest,
   toRouteRequest,
+  tracksAwaitingElevation,
   tracksAwaitingRoute,
   type OutputSettings,
   type Project,
@@ -175,13 +178,48 @@ async function withRoadRoutes(project: Project, etappeId: string): Promise<Proje
   return project;
 }
 
+/**
+ * Asks the local server for the heights the stage needs and the file does not hold yet: its
+ * height profile, or planes on 3D terrain (ADR 0012). Without them the video still renders,
+ * only without a profile, so a failure is a warning.
+ */
+async function withElevations(project: Project, etappeId: string): Promise<Project> {
+  for (const group of project.groups) {
+    for (const etappe of group.etappen) {
+      if (etappe.id !== etappeId) continue;
+      for (const track of tracksAwaitingElevation(etappe)) {
+        const request = toElevationRequest(track);
+        if (!request) continue;
+        await ensureServer();
+        console.log(`Asking ${values.server} for the heights of "${track.label ?? track.id}" …`);
+        try {
+          const response = await fetch(`${values.server}/api/elevation`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(request),
+          });
+          const body: unknown = await response.json();
+          if (!response.ok) throw new Error(JSON.stringify(body));
+          track.computed!.elevation = RouteElevationSchema.parse(body);
+        } catch (error) {
+          console.warn(`No heights for "${track.label ?? track.id}": ${String(error)}`);
+        }
+      }
+    }
+  }
+  return project;
+}
+
 const loaded = await loadProject(values.file);
 const etappe = loaded.groups
   .flatMap((group) => group.etappen)
   .find((e) => e.id === values.etappe || e.name.toLowerCase() === values.etappe!.toLowerCase());
 if (!etappe) fail(`No stage "${values.etappe}" in ${values.file}`);
 
-const project = refreshLocalRoutes(await withRoadRoutes(loaded, etappe.id), loaded.updatedAt);
+const project = await withElevations(
+  refreshLocalRoutes(await withRoadRoutes(loaded, etappe.id), loaded.updatedAt),
+  etappe.id,
+);
 
 // An own theme lives with the server (data/themes), and satellite tiles come through it
 // (ADR 0010); for those the server is asked, and kept running while a satellite map renders.

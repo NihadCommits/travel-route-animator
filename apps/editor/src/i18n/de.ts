@@ -238,6 +238,11 @@ export const de = {
       pitch: 'Neigung',
       pitchFlat: 'In 2D immer 0°.',
       bearing: 'Ausrichtung',
+      terrain: '3D-Gelände',
+      terrainFlat: 'Von oben wirkt das Gelände flach; die Berge zeigen sich mit Neigung.',
+      exaggeration: 'Überhöhung',
+      exaggerationValue: (factor: number) =>
+        `${factor.toLocaleString('de-AT', { maximumFractionDigits: 1 })}×`,
       camera: 'Kamera',
       cameraMode: 'Modus',
       followTrack: 'Folgt',
@@ -250,6 +255,16 @@ export const de = {
       title: 'Titel',
       titlePlaceholder: 'z. B. Tag 4',
       attribution: 'Karten-Credits',
+      elevationProfile: 'Höhenprofil',
+      elevationCounter: 'Höhenmeter',
+      elevation: {
+        noTrack: 'Braucht ein Fahrzeug am Boden (Flugzeuge haben kein Höhenprofil).',
+        noRoute: 'Kommt, sobald die Route berechnet ist.',
+        loading: 'Höhen werden geladen …',
+        failed: 'Höhen konnten nicht geladen werden. Läuft der Server, gibt es Netz?',
+        summary: (track: string, gain: string, loss: string) =>
+          `${track}: ↑ ${gain} m, ↓ ${loss} m`,
+      },
       copyCredits: 'Credits kopieren',
       creditsCopied: 'Credits kopiert',
       creditsHint: 'Für die Videobeschreibung: alle Quellen dieser Etappe in einer Zeile.',
@@ -257,7 +272,7 @@ export const de = {
       presentAsOptions: 'Als Optionen darstellen',
       presentAsOptionsHint:
         'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
-      later: 'Gelände (M12) und weitere Zähler kommen mit ihren Modulen dazu.',
+      later: 'Weitere Zähler (Kilometer, Zeit) kommen mit ihren Modulen dazu.',
     },
     ends: {
       title: 'Anfang und Ende',
@@ -321,7 +336,7 @@ export const de = {
         vector: 'Vektorkarte',
         satellite: 'Satellit',
         'satellite-hybrid': 'Satellit hybrid',
-        terrain: 'Gelände (kommt mit M12)',
+        terrain: 'Gelände (Relief und Höhenlinien)',
       } satisfies Record<MapBase, string>,
       satelliteOff:
         'Satellit braucht einen MapTiler-Key in der .env (MAPTILER_API_KEY). Der kostenlose Plan gilt nur für nicht-kommerzielle Nutzung.',

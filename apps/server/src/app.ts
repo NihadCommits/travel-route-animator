@@ -3,6 +3,8 @@ import fastifyStatic from '@fastify/static';
 import type { Place, RouterId, RouteShape } from '@travel-route-animator/core';
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { createAirportStore } from './airports/airportStore';
+import { noElevation, registerElevationRoutes } from './elevation/routes';
+import type { ElevationSampler } from './elevation/sampler';
 import { registerAirportRoutes } from './airports/routes';
 import { createFileCache } from './lib/fileCache';
 import { createGeocoder } from './geocoding/geocoder';
@@ -37,6 +39,8 @@ export interface AppOptions {
   routingIntervalsMs?: Record<RouterId, number>;
   /** Satellite tiles with the MapTiler key (ADR 0010); without one the option stays off. */
   satellite?: SatelliteSource;
+  /** Heights along routes from terrain tiles (ADR 0012); index.ts passes AWS, tests a fake. */
+  elevation?: ElevationSampler;
   /** Where rendered videos go; index.ts reads OUTPUT_DIR. */
   outputDir?: string;
   /** Renders the jobs; index.ts passes Remotion, tests a fake. Without one, jobs fail. */
@@ -73,6 +77,7 @@ export function buildApp({
   routingProviders = {},
   routingIntervalsMs = { ors: 1500, osrm: 1000 },
   satellite,
+  elevation = noElevation,
   outputDir = join(dataDir, 'output'),
   renderer = noRenderer,
   revealFile = () => false,
@@ -127,11 +132,13 @@ export function buildApp({
     log: (message) => app.log.info(message),
   });
   registerRoutingRoutes(app, router, now ?? (() => new Date()));
+  registerElevationRoutes(app, elevation);
 
   registerRenderRoutes(app, {
     queue: renderQueue,
     store,
     themes,
+    elevation,
     outputDir,
     now: now ?? (() => new Date()),
     revealFile,

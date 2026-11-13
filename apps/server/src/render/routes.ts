@@ -20,6 +20,8 @@ import {
 } from '@travel-route-animator/core';
 import type { FastifyInstance } from 'fastify';
 import { isBuiltInTheme } from '@travel-route-animator/styles';
+import { fillElevations } from '../elevation/fill';
+import type { ElevationSampler } from '../elevation/sampler';
 import { ownUrl } from '../themes/routes';
 import type { ThemeStore } from '../themes/themeStore';
 import {
@@ -34,6 +36,8 @@ export interface RenderRouteOptions {
   queue: RenderQueue;
   store: ProjectStore;
   themes: ThemeStore;
+  /** Fills in heights a stage needs and the file does not have yet (ADR 0012). */
+  elevation: ElevationSampler;
   outputDir: string;
   now: () => Date;
   revealFile: RevealFile;
@@ -62,7 +66,7 @@ function videoTitle(project: Project, etappen: readonly Etappe[]): string {
 
 export function registerRenderRoutes(
   app: FastifyInstance,
-  { queue, store, themes, outputDir, now, revealFile }: RenderRouteOptions,
+  { queue, store, themes, elevation, outputDir, now, revealFile }: RenderRouteOptions,
 ): void {
   void app.register((routes, _options, done) => {
     routes.setErrorHandler((error, _request, reply) => {
@@ -97,8 +101,8 @@ export function registerRenderRoutes(
       // As saved; the editor saves before it asks. Local routes are computed here, as the
       // editor does after every edit, in case the file was written by something else.
       const saved = await store.get(projectId);
-      const project = refreshLocalRoutes(saved, saved.updatedAt);
-      const all = project.groups.flatMap((group) => group.etappen);
+      const routed = refreshLocalRoutes(saved, saved.updatedAt);
+      const all = routed.groups.flatMap((group) => group.etappen);
       const etappen = etappeIds.map((id) => all.find((candidate) => candidate.id === id));
       const missing = etappeIds.find((_id, i) => !etappen[i]);
       if (missing !== undefined) {
@@ -111,9 +115,9 @@ export function registerRenderRoutes(
 
       // The renderer never asks a router itself (ARCHITEKTUR: Render-Pipeline): a road route
       // that is missing or stale would come out as a straight line.
-      const issues = checkRenderReadiness(project, etappeIds);
+      const issues = checkRenderReadiness(routed, etappeIds);
       const awaitingRoute = found.flatMap((e) => tracksAwaitingRoute(e).map((track) => track.id));
-      const title = videoTitle(project, found);
+      const title = videoTitle(routed, found);
       if (issues.length > 0 || awaitingRoute.length > 0) {
         return reply.code(409).send({
           error: 'not_ready',
@@ -126,6 +130,9 @@ export function registerRenderRoutes(
         });
       }
 
+      const project = await fillElevations(routed, etappeIds, elevation, (message) =>
+        request.log.warn(message),
+      );
       const output = resolveOutput(project, overrides);
       const name =
         fileName === undefined ? suggestVideoName(title, output, now()) : cleanVideoName(fileName);

@@ -6,8 +6,10 @@ import {
   resolveTheme,
   skyOf,
   styleCredits,
+  TERRAIN_ATTRIBUTION,
 } from '@travel-route-animator/styles';
 import type { SkySpecification, StyleSpecification } from 'maplibre-gl';
+import { contourTilesUrl } from './contours';
 
 /** How a stage's map looks (ADR 0010): worked out once per stage from its resolved style. */
 export interface MapLook {
@@ -31,24 +33,27 @@ export interface MapLookOptions {
 }
 
 export function mapLookOf(timeline: Timeline, { themes, serverUrl }: MapLookOptions): MapLook {
-  const { mapStyle, view } = timeline;
+  const { mapStyle, mapOptions } = timeline;
   const { theme, missing } = resolveTheme(mapStyle.themeId, themes);
-  const { outro } = timeline;
+  const satelliteMix = mapOptions.satelliteMix && serverUrl !== undefined;
   const style = buildStyle(mapStyle, theme, {
     serverUrl,
-    // A 3D arrival needs the buildings standing, whatever the stage's view says (M11).
-    buildings3d: view.buildings3d || outro.type === 'arrival-3d',
-    satelliteMix: outro.type === 'dive-in' && outro.switchToSatellite,
+    buildings3d: mapOptions.buildings3d,
+    satelliteMix: mapOptions.satelliteMix,
+    terrain: mapOptions.terrain,
+    ...(mapStyle.base === 'terrain' && { contourTiles: contourTilesUrl() }),
   });
+  const credits = [
+    ...styleCredits(mapStyle, theme),
+    // A dive-in that ends on satellite shows MapTiler's pictures too, 3D terrain the DEM.
+    ...(satelliteMix ? [MAPTILER_ATTRIBUTION] : []),
+    ...(mapOptions.terrain ? [TERRAIN_ATTRIBUTION] : []),
+  ];
   return {
     style,
     sky: skyOf(mapStyle, theme),
     background: backgroundOf(mapStyle, theme),
-    // A dive-in that ends on satellite shows MapTiler's pictures too.
-    credits:
-      outro.type === 'dive-in' && outro.switchToSatellite && serverUrl
-        ? [...new Set([...styleCredits(mapStyle, theme), MAPTILER_ATTRIBUTION])]
-        : styleCredits(mapStyle, theme),
+    credits: [...new Set(credits)],
     // Satellite pictures need no paper grain or vignette from a vector theme.
     extras:
       mapStyle.base === 'vector' || mapStyle.base === 'terrain'

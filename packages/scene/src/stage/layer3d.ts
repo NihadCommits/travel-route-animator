@@ -380,7 +380,14 @@ export function createLayer3d(): Layer3d {
         scene.add(object);
       }
       showOnly(object);
-      placeCamera(drawing.head, drawing.lengthM, projection);
+      // On 3D terrain a car stands on the ground as drawn (exaggerated, from the tiles of this
+      // camera); a render waits until they are all loaded, so every frame finds the same.
+      const ground = drawing.onGround ? (map!.queryTerrainElevation(drawing.head.lngLat) ?? 0) : 0;
+      placeCamera(
+        { ...drawing.head, altitudeM: drawing.head.altitudeM + ground },
+        drawing.lengthM,
+        projection,
+      );
       // Pitch first (nose up), then turn to the heading, clockwise from north.
       object.rotation.set(toRad(drawing.head.climbDeg), 0, -toRad(drawing.head.bearingDeg), 'ZXY');
       renderer!.render(scene, camera);

@@ -1,13 +1,17 @@
 import {
   CameraModeSchema,
   checkEtappeReadiness,
+  compileProfile,
   editEtappe,
+  measureLine,
   presentAsOptions,
+  profileTrackOf,
   renameItem,
   resolveMapStyle,
   routingCredits,
   setCameraMode,
   setViewMode,
+  showsElevation,
   ViewModeSchema,
   type CameraSettings,
   type Etappe,
@@ -16,7 +20,7 @@ import {
   type ReadinessIssue,
   type ViewSettings,
 } from '@travel-route-animator/core';
-import { resolveTheme, styleCredits } from '@travel-route-animator/styles';
+import { resolveTheme, styleCredits, TERRAIN_ATTRIBUTION } from '@travel-route-animator/styles';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { de } from '@/i18n/de';
@@ -24,6 +28,7 @@ import { translateIssue } from '@/i18n/issues';
 import { selectProject, useEditor } from '@/state/editorStore';
 import { NumberField } from './fields/NumberField';
 import { SelectField } from './fields/SelectField';
+import { SliderField } from './fields/SliderField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
 import { EndsSection } from './EndsSection';
@@ -47,12 +52,34 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
     const style = resolveMapStyle(project, etappe.id).value;
     const credits = [
       ...styleCredits(style, resolveTheme(style.themeId, ownThemes).theme),
+      // 3D terrain on any map draws the terrain tiles too (ADR 0012).
+      ...(etappe.view.terrain.enabled ? [TERRAIN_ATTRIBUTION] : []),
       ...routingCredits(etappe.tracks.map((track) => track.computed?.provider)),
     ];
-    void navigator.clipboard.writeText(credits.join(' · ')).then(() => setCreditsCopied(true));
+    const line = [...new Set(credits)].join(' · ');
+    void navigator.clipboard.writeText(line).then(() => setCreditsCopied(true));
   };
   const { camera } = view;
   const issues = useMemo(() => checkEtappeReadiness(etappe), [etappe]);
+  const elevationJobs = useEditor((state) => state.elevationJobs);
+  const elevationNote = useMemo(() => {
+    if (!showsElevation(etappe)) return undefined;
+    const texts = de.inspector.etappe.elevation;
+    const track = profileTrackOf(etappe);
+    if (!track) return texts.noTrack;
+    const elevation = track.computed?.elevation;
+    if (elevation) {
+      const profile = compileProfile(elevation, measureLine(track.computed!.geometry).lengthM);
+      const format = (m: number) => Math.round(m).toLocaleString('de-AT');
+      return texts.summary(
+        trackName(track),
+        format(profile.gainM.at(-1)!),
+        format(profile.lossM.at(-1)!),
+      );
+    }
+    if (!track.computed) return texts.noRoute;
+    return elevationJobs[track.id]?.state === 'failed' ? texts.failed : texts.loading;
+  }, [etappe, elevationJobs]);
 
   // Several vehicles without waypoints would read as the same line twice; name each one.
   const describe = (issue: ReadinessIssue) => {
@@ -115,6 +142,24 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
             onCommit={(bearingDeg) => setView('bearingDeg', bearingDeg)}
           />
         </Row>
+        <SwitchField
+          label={de.inspector.etappe.terrain}
+          checked={view.terrain.enabled}
+          onCommit={(enabled) => setView('terrain', { ...view.terrain, enabled })}
+        />
+        {view.terrain.enabled && view.mode === '2d' && (
+          <p className="text-muted-foreground text-xs">{de.inspector.etappe.terrainFlat}</p>
+        )}
+        <SliderField
+          label={de.inspector.etappe.exaggeration}
+          value={view.terrain.exaggeration}
+          min={1}
+          max={3}
+          step={0.1}
+          format={de.inspector.etappe.exaggerationValue}
+          disabled={!view.terrain.enabled}
+          onCommit={(exaggeration) => setView('terrain', { ...view.terrain, exaggeration })}
+        />
       </Section>
 
       <Section title={de.inspector.etappe.camera}>
@@ -179,6 +224,17 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
           checked={overlays.labels}
           onCommit={(on) => setOverlay('labels', on)}
         />
+        <SwitchField
+          label={de.inspector.etappe.elevationProfile}
+          checked={overlays.elevationProfile}
+          onCommit={(on) => setOverlay('elevationProfile', on)}
+        />
+        <SwitchField
+          label={de.inspector.etappe.elevationCounter}
+          checked={overlays.elevationCounter}
+          onCommit={(on) => setOverlay('elevationCounter', on)}
+        />
+        {elevationNote && <p className="text-muted-foreground text-xs">{elevationNote}</p>}
         <SwitchField
           label={de.inspector.etappe.attribution}
           checked={overlays.attribution}
