@@ -145,7 +145,7 @@ export function MapStyleSection({
         options={MapBaseSchema.options.map((base) => ({
           value: base,
           label: texts.bases[base],
-          disabled: base === 'terrain' || (SATELLITE.has(base) && !satelliteAvailable),
+          disabled: SATELLITE.has(base) && !satelliteAvailable,
         }))}
         hint={
           satelliteAvailable ? (satellite ? texts.satelliteHint : undefined) : texts.satelliteOff

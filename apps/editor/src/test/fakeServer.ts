@@ -3,6 +3,7 @@ import {
   defaultOutput,
   type ImageAsset,
   type Place,
+  type ElevationRequest,
   type Project,
   type RenderJob,
   type RenderRequest,
@@ -41,6 +42,8 @@ export interface FakeSearch {
   places?: (query: string, bias: string | null) => Place[];
   /** Answers POST /api/route; undefined stands for a server without ORS key (503 no_key). */
   route?: (request: RouteRequest) => { status: number; body: unknown };
+  /** Answers POST /api/elevation; undefined climbs 1 m per sample from 500 m. */
+  elevation?: (request: ElevationRequest) => { status: number; body: unknown };
   /** Answers POST /api/render; undefined queues the job (fakeRenderJob). */
   render?: (request: RenderRequest) => { status: number; body: unknown };
   /** Answers POST /api/render/:id/reveal; undefined stands for Windows (204). */
@@ -136,6 +139,21 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
       const answer = search.route
         ? search.route(body as RouteRequest)
         : { status: 503, body: { error: 'no_key', message: 'ORS_API_KEY is not set in .env' } };
+      return Promise.resolve(json(answer.status, answer.body));
+    }
+
+    if (searchUrl.pathname === '/elevation') {
+      const request = body as ElevationRequest;
+      const answer = search.elevation
+        ? search.elevation(request)
+        : {
+            status: 200,
+            body: {
+              source: 'dem',
+              stepM: request.stepM ?? 20,
+              elevationsM: [500, 501, 502],
+            },
+          };
       return Promise.resolve(json(answer.status, answer.body));
     }
 

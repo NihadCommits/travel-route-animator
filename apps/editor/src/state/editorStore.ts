@@ -9,6 +9,7 @@ import {
   type Id,
   type LngLat,
   type Project,
+  type RouteElevation,
   type RouteFailure,
   type RouterId,
   type ValidationIssue,
@@ -70,6 +71,20 @@ export interface RouteJob {
   failure?: RouteJobFailure;
 }
 
+/**
+ * Heights for a route on their way from the server, or failed (ADR 0012). Belongs to one
+ * computed route (`routeKey`); a new route makes a new job (see features/elevation).
+ */
+export interface ElevationJob {
+  routeKey: string;
+  state: 'loading' | 'failed';
+}
+
+/** Tells two computed routes apart, also two answers for the same points. */
+export function routeKeyOf(route: ComputedRoute): string {
+  return `${route.inputHash}|${route.provider}|${route.computedAt}`;
+}
+
 export interface EditorState {
   history: History<Project>;
   selectedId: Id | null;
@@ -84,6 +99,8 @@ export interface EditorState {
   collapsed: ReadonlySet<Id>;
   /** Road routes being computed or failed, by track. Not saved, not in the undo history. */
   routeJobs: Readonly<Record<Id, RouteJob>>;
+  /** Heights being fetched or failed, by track. Not saved, not in the undo history. */
+  elevationJobs: Readonly<Record<Id, ElevationJob>>;
   workspace: Workspace;
   preview: PreviewSettings;
   saveStatus: SaveStatus;
@@ -121,6 +138,13 @@ export interface EditorState {
   applyComputedRoute: (trackId: Id, route: ComputedRoute) => boolean;
   /** Asks again for a failed route, with the same or the other router. */
   retryRoute: (trackId: Id, router: RouterId) => void;
+  /** Sets or (null) removes the height jobs of several tracks at once. */
+  setElevationJobs: (jobs: Record<Id, ElevationJob | null>) => void;
+  /**
+   * Stores heights in their track's route, without an undo step, if the route is still the
+   * one they were sampled along. Returns false otherwise.
+   */
+  applyElevation: (trackId: Id, routeKey: string, elevation: RouteElevation) => boolean;
 }
 
 export interface EditorStoreOptions {
@@ -170,6 +194,7 @@ export function createEditorStore(
       mapView: null,
       mapFocus: null,
       routeJobs: {},
+      elevationJobs: {},
       workspace: 'edit',
       preview: { quality: 'half', loop: true },
       saveStatus: { state: 'saved' },
@@ -239,6 +264,32 @@ export function createEditorStore(
           replacePresent(
             history,
             editTrack(history.present, trackId, (t) => ({ ...t, computed: route })),
+          ),
+        );
+        return true;
+      },
+      setElevationJobs(changes) {
+        const elevationJobs = { ...get().elevationJobs };
+        for (const [trackId, job] of Object.entries(changes)) {
+          if (job) elevationJobs[trackId] = job;
+          else delete elevationJobs[trackId];
+        }
+        set({ elevationJobs });
+      },
+      applyElevation(trackId, routeKey, elevation) {
+        const { history } = get();
+        const location = locateItem(history.present, trackId);
+        if (location?.kind !== 'track') return false;
+        const { groupIndex, etappeIndex, trackIndex } = location;
+        const track = history.present.groups[groupIndex]!.etappen[etappeIndex]!.tracks[trackIndex]!;
+        if (!track.computed || routeKeyOf(track.computed) !== routeKey) return false;
+        update(
+          replacePresent(
+            history,
+            editTrack(history.present, trackId, (t) => ({
+              ...t,
+              computed: { ...t.computed!, elevation },
+            })),
           ),
         );
         return true;
