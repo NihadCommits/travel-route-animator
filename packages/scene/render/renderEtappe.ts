@@ -24,6 +24,7 @@ import {
   type StageProps,
 } from '../src/compositions/etappeProps';
 import { webpackOverride } from '../webpack-override';
+import { baseOf, motionCollector, writeCredits, writeMotionFiles } from './motionFiles';
 
 export type { EtappeProps, SequenceProps, StageProps };
 export type { CancelSignal, OpenGlRenderer };
@@ -175,6 +176,23 @@ function encodingOf(
   };
 }
 
+type MotionCollector = ReturnType<typeof motionCollector>;
+
+/**
+ * What goes next to a finished render: always the credits line, and the motion of every
+ * vehicle when the render collected it (M13).
+ */
+async function writeExtras(
+  props: StageProps,
+  outputLocation: string,
+  motion: MotionCollector | undefined,
+  format: VideoFormat,
+): Promise<void> {
+  const base = baseOf(outputLocation);
+  await writeCredits(props, base);
+  if (motion) await writeMotionFiles(props, base, motion.frames, format);
+}
+
 export interface RenderedVideo extends VideoInfo {
   outputLocation: string;
   /** The last frame as PNG, when the last stage dives in and asks for it (M11). */
@@ -228,8 +246,11 @@ export async function renderEtappe({
   const partial = partialPathOf(outputLocation);
   await mkdir(dirname(outputLocation), { recursive: true });
   const { codec } = resolveOutput(props.project, props.output);
+  // The frames report where the vehicles are (MapStage); the console carries it to Node.
+  const motion = props.motionData ? motionCollector() : undefined;
   if (codec === 'png-sequence') {
     return renderPngSequence({
+      motion,
       serveUrl,
       props,
       composition,
@@ -253,6 +274,7 @@ export async function renderEtappe({
       outputLocation: partial,
       chromiumOptions,
       ...binaries,
+      ...(motion && { onBrowserLog: motion.onBrowserLog }),
       concurrency: 1,
       // Generous because a cold tile cache can make the first frames slow.
       timeoutInMilliseconds: 60_000,
@@ -269,6 +291,7 @@ export async function renderEtappe({
       );
     }
     await rename(partial, outputLocation);
+    await writeExtras(props, outputLocation, motion, { width, height, fps, durationInFrames });
     if (!wantsEndFrame(props)) return { outputLocation, ...info };
     // Drawn by the same composition, so it is the video's last frame without the compression.
     const endFrameLocation = outputLocation.replace(/\.[^.\\/]+$/, '') + '.png';
@@ -303,6 +326,7 @@ interface PngSequenceJob {
   binaries: { browserExecutable?: string; binariesDirectory?: string };
   cancelSignal: CancelSignal | undefined;
   onProgress: ((progress: RenderProgress) => void) | undefined;
+  motion: MotionCollector | undefined;
 }
 
 /**
@@ -320,6 +344,7 @@ async function renderPngSequence({
   binaries,
   cancelSignal,
   onProgress,
+  motion,
 }: PngSequenceJob): Promise<RenderedVideo> {
   const { width, height, fps, durationInFrames } = composition;
   const name = basename(outputLocation);
@@ -339,6 +364,7 @@ async function renderPngSequence({
       concurrency: 1,
       timeoutInMilliseconds: 60_000,
       ...(cancelSignal && { cancelSignal }),
+      ...(motion && { onBrowserLog: motion.onBrowserLog }),
       onStart: () => undefined,
       onFrameUpdate: (rendered) => {
         // Drawing is all there is: no encoding step, so progress is the share of frames.
@@ -360,6 +386,7 @@ async function renderPngSequence({
     }
     await rm(outputLocation, { recursive: true, force: true });
     await rename(partial, outputLocation);
+    await writeExtras(props, outputLocation, motion, { width, height, fps, durationInFrames });
     return { outputLocation, width, height, fps, durationSec: durationInFrames / fps };
   } catch (error) {
     await rm(partial, { recursive: true, force: true });

@@ -8,8 +8,6 @@ import {
   presentAsOptions,
   profileTrackOf,
   renameItem,
-  resolveMapStyle,
-  routingCredits,
   setCameraMode,
   setViewMode,
   showsElevation,
@@ -21,7 +19,7 @@ import {
   type ReadinessIssue,
   type ViewSettings,
 } from '@travel-route-animator/core';
-import { resolveTheme, styleCredits, TERRAIN_ATTRIBUTION } from '@travel-route-animator/styles';
+import { videoCredits } from '@travel-route-animator/styles';
 import { useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { de } from '@/i18n/de';
@@ -34,7 +32,7 @@ import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
 import { EndsSection } from './EndsSection';
 import { MapStyleSection } from './MapStyleSection';
-import { useOwnThemes } from './mapStyles';
+import { useOwnThemes, useSatelliteAvailable } from './mapStyles';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
 import { useEdit } from './useEdit';
 
@@ -44,21 +42,16 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
   const edit = useEdit(location);
   const project = useEditor(selectProject);
   const ownThemes = useOwnThemes();
+  const satelliteAvailable = useSatelliteAvailable();
   const [creditsCopied, setCreditsCopied] = useState(false);
   const group = project.groups.find((g) => g.etappen.some((e) => e.id === etappe.id));
   const { view, overlays } = etappe;
 
-  // Everything the video credits, as one line for the video's description.
+  // Everything the video credits, as one line for the video's description: the same line the
+  // server writes next to a rendered video (<name>.credits.txt).
   const copyCredits = () => {
-    const style = resolveMapStyle(project, etappe.id).value;
-    const credits = [
-      ...styleCredits(style, resolveTheme(style.themeId, ownThemes).theme),
-      // 3D terrain on any map draws the terrain tiles too (ADR 0012).
-      ...(etappe.view.terrain.enabled ? [TERRAIN_ATTRIBUTION] : []),
-      ...routingCredits(etappe.tracks.map((track) => track.computed?.provider)),
-    ];
-    const line = [...new Set(credits)].join(' · ');
-    void navigator.clipboard.writeText(line).then(() => setCreditsCopied(true));
+    const credits = videoCredits(project, [etappe.id], { themes: ownThemes, satelliteAvailable });
+    void navigator.clipboard.writeText(credits.join(' · ')).then(() => setCreditsCopied(true));
   };
   const { camera } = view;
   const issues = useMemo(() => checkEtappeReadiness(etappe), [etappe]);

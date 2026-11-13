@@ -94,6 +94,7 @@ function RenderForm({
   const [overlay, setOverlay] = useState(defaults.transparentOverlay);
   // More formats of the same render, each a job of its own (M13).
   const [extras, setExtras] = useState<ReadonlySet<ExportPresetId>>(new Set());
+  const [motion, setMotion] = useState(false);
   // The suggestion follows the format until the name is edited by hand.
   const [openedAt] = useState(() => new Date());
   const [typedName, setTypedName] = useState<string | null>(null);
@@ -189,12 +190,13 @@ function RenderForm({
         : scope === 'chained'
           ? [{ projectId: project.id, etappeIds }]
           : [{ projectId: project.id, etappeId: etappeIds[0]! }];
+  const motionData = motion ? { motionData: true } : {};
   const requests: RenderRequest[] = targets.flatMap((target) => [
     // A typed name goes to the chosen format only; extras are named by their format.
-    { ...target, output, ...(named && fileName ? { fileName } : {}) },
+    { ...target, output, ...motionData, ...(named && fileName ? { fileName } : {}) },
     ...[...extras]
       .filter((id) => id !== preset)
-      .map((id) => ({ ...target, output: { ...EXPORT_PRESETS[id] } })),
+      .map((id) => ({ ...target, ...motionData, output: { ...EXPORT_PRESETS[id] } })),
   ]);
 
   const keep =
@@ -287,6 +289,8 @@ function RenderForm({
             {codecHasAlpha(codec) ? de.render.overlayHint : de.render.overlayNeedsAlpha}
           </p>
           <p className="text-muted-foreground text-xs">{de.render.onlyThisRender}</p>
+          <SwitchField label={de.render.motion} checked={motion} onCommit={keep(setMotion)} />
+          <p className="text-muted-foreground text-xs">{de.render.motionHint}</p>
         </fieldset>
 
         <fieldset className="grid gap-2">

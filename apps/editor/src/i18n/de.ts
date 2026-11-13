@@ -123,6 +123,9 @@ export const de = {
       project: 'Eine Datei pro Gruppe, benannt nach der Gruppe. Alles läuft nacheinander durch.',
     },
     projectNames: (count: number) => `${count} Dateien, je nach ihrer Gruppe benannt.`,
+    motion: 'Bewegungsdaten der Fahrzeuge',
+    motionHint:
+      'Pro Fahrzeug Position und Drehung für jeden Frame, neben dem Video: After-Effects-Keyframes (.ae.txt, in AE einfügen), Premiere-XML (.xml, Test), CSV und JSON.',
     extras: 'Zusätzlich rendern als',
     extrasHint: 'Jedes Format wird ein eigener Auftrag mit eigenem Namen.',
     jobCount: (count: number) =>

@@ -44,6 +44,8 @@ export interface NewRenderJob {
   themes?: Record<string, Theme>;
   /** This server, for satellite tiles. */
   serverUrl?: string;
+  /** Also write where each vehicle is in every frame (M13). */
+  motionData?: boolean;
 }
 
 interface Entry {
@@ -245,6 +247,7 @@ export function createRenderQueue({
             ...(input.assetUrls && { assetUrls: input.assetUrls }),
             ...(input.themes && { themes: input.themes }),
             ...(input.serverUrl && { serverUrl: input.serverUrl }),
+            ...(input.motionData && { motionData: true }),
           },
           abort: new AbortController(),
           lastPublished: 0,

@@ -54,6 +54,7 @@ const { values } = parseArgs({
     fps: { type: 'string' },
     codec: { type: 'string' },
     overlay: { type: 'boolean', default: false },
+    motion: { type: 'boolean', default: false },
   },
 });
 
@@ -275,6 +276,7 @@ const video = await renderEtappe({
     project,
     etappeId: etappe.id,
     output,
+    ...(values.motion && { motionData: true }),
     assetUrls,
     ...(themes && { themes }),
     ...(satellite && { serverUrl: values.server }),

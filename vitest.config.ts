@@ -14,6 +14,8 @@ export default defineConfig({
           name: 'node',
           include: [
             'packages/*/src/**/*.test.ts',
+            // The files next to a rendered video; the render itself needs a browser.
+            'packages/scene/render/**/*.test.ts',
             'apps/server/src/**/*.test.ts',
             'apps/desktop/src/**/*.test.ts',
           ],

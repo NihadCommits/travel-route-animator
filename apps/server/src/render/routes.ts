@@ -180,6 +180,7 @@ export function registerRenderRoutes(
           themes: Object.fromEntries(usedThemes.map((theme) => [theme.id, theme])),
         }),
         serverUrl: ownUrl(request),
+        ...(body.data.motionData && { motionData: true }),
       });
       return reply.code(202).send(job);
     });

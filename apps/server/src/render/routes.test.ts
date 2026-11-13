@@ -160,9 +160,19 @@ describe('POST /api/render', () => {
       output: { codec: 'prores-4444', transparentOverlay: true },
     });
 
+    const withMotion = await startRender({ ...wienPorto, motionData: true });
+    expect(withMotion.statusCode).toBe(202);
+
     const opaque = await startRender({ ...wienPorto, output: { transparentOverlay: true } });
     expect(opaque.statusCode).toBe(400);
     expect(opaque.json()).toMatchObject({ error: 'invalid_output' });
+    renders[0]!.finish();
+    renders.length = 0;
+    await settle();
+    renders[0]!.finish();
+    await settle();
+    // The third job asks for the vehicles' motion.
+    expect(renders.at(-1)!.job.props).toMatchObject({ motionData: true });
   });
 
   it('fills in the heights a stage on 3D terrain needs before it renders', async () => {
