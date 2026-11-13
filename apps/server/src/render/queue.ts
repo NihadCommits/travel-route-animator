@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import {
   isRenderJobFinished,
+  outputExtensionOf,
   type OutputSettings,
   type Project,
   type RenderJob,
@@ -141,7 +142,12 @@ export function createRenderQueue({
   return {
     async add(input: NewRenderJob): Promise<RenderJob> {
       const claimed = adding.then(async () => {
-        const outputPath = await pickOutputPath(input.dir, input.name, claimedPaths());
+        const outputPath = await pickOutputPath(
+          input.dir,
+          input.name,
+          outputExtensionOf(input.output.codec),
+          claimedPaths(),
+        );
         const job: RenderJob = {
           id: createId(),
           projectId: input.project.id,
