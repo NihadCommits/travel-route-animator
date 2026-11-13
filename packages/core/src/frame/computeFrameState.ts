@@ -1,3 +1,4 @@
+import { readProfile, type ElevationReading } from '../elevation/profile';
 import { lineAhead, lineUntil, pointAt } from '../geo/along';
 import type { LngLat } from '../geo/lngLat';
 import type { Id } from '../model/primitives';
@@ -5,11 +6,11 @@ import type { Timeline, TrackPlan } from '../timeline/compileTimeline';
 import { movingSecAt } from './animation';
 import { cameraAt, metersPerPixel, sectionEffects, type CameraState } from './camera';
 import {
-  altitudeAt,
   arcAhead,
   arcUntil,
   climbDegAt,
   flightStyleFor,
+  heightAt,
   legAt,
   type FlightStyle,
 } from './flight';
@@ -38,7 +39,11 @@ export interface TrackFrame {
    * track hides it. Flights: densely sampled along the arc.
    */
   ahead: LngLat[] | undefined;
-  /** `altitudeM` is the height above the ground; only planes leave it. */
+  /**
+   * `altitudeM`: only planes leave the ground. It is the height above the ground, or above sea
+   * level when they are drawn in 3D over 3D terrain (ADR 0012). Vehicles on the ground stay at
+   * 0; the 3D layer puts them on the terrain as it is drawn.
+   */
   head: { lngLat: LngLat; bearingDeg: number; altitudeM: number };
   /** Share of the distance driven, 0 to 1. */
   progress: number;
@@ -70,6 +75,8 @@ export interface FrameState {
   tracks: TrackFrame[];
   labels: LabelFrame[];
   counters: { distanceKm?: number };
+  /** Height and metres climbed on the profile track, when the stage shows them (ADR 0012). */
+  elevation: (ElevationReading & { trackId: Id }) | undefined;
   /** Blur, flash, fade and satellite blend come with the transitions (M10, M11). */
   effects: { blur: number; flash: number; fade: number; satelliteMix: number };
 }
@@ -83,7 +90,13 @@ const HEADING_WINDOW_PX = 64;
 /** Labels fade in over this time once the vehicle arrives. */
 export const LABEL_FADE_SEC = 0.4;
 
-function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFrame {
+/** `onTerrain`: flights are drawn in 3D over 3D terrain, so their heights include the ground. */
+function trackFrame(
+  plan: TrackPlan,
+  sec: number,
+  camera: CameraState,
+  onTerrain: boolean,
+): TrackFrame {
   const { line } = plan;
   const s = distanceAt(plan, sec);
   const lngLat = pointAt(line, s);
@@ -105,13 +118,13 @@ function trackFrame(plan: TrackPlan, sec: number, camera: CameraState): TrackFra
       flight: undefined,
     };
   }
-  const arc = arcUntil(flight, s, lngLat);
-  const ahead = aheadShown ? arcAhead(flight, s, lngLat) : undefined;
+  const arc = arcUntil(flight, s, lngLat, onTerrain);
+  const ahead = aheadShown ? arcAhead(flight, s, lngLat, onTerrain) : undefined;
   return {
     trackId: plan.trackId,
     revealed: arc.points,
     ahead: ahead?.points,
-    head: { ...head, altitudeM: altitudeAt(flight, s) },
+    head: { ...head, altitudeM: heightAt(flight, s, onTerrain) },
     progress,
     movingSec,
     visible: true,
@@ -171,17 +184,27 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     distanceKm = (share * counted.distanceM) / 1000;
   }
 
+  const flightStyle = flightStyleFor(timeline.view.pitchDeg);
+  const onTerrain = flightStyle === 'arc-3d' && timeline.mapOptions.terrain !== undefined;
   return {
     frame,
     sec,
     section: sec < 0 ? 'intro' : sec > timeline.mainSec ? 'outro' : 'main',
     mapStyleKey: timeline.mapStyleKey,
     projection: timeline.view.mode === 'globe' ? 'globe' : 'mercator',
-    flightStyle: flightStyleFor(timeline.view.pitchDeg),
+    flightStyle,
     camera,
-    tracks: timeline.tracks.map((plan) => trackFrame(plan, sec, camera)),
+    tracks: timeline.tracks.map((plan) => trackFrame(plan, sec, camera, onTerrain)),
     labels: labelsAt(timeline, sec),
     counters: distanceKm === undefined ? {} : { distanceKm },
+    elevation: elevationReading(timeline, sec),
     effects: sectionEffects(timeline, sec),
   };
+}
+
+function elevationReading(timeline: Timeline, sec: number): FrameState['elevation'] {
+  const { elevation } = timeline;
+  const plan = timeline.tracks.find((each) => each.trackId === elevation?.trackId);
+  if (!elevation || !plan) return undefined;
+  return { trackId: plan.trackId, ...readProfile(elevation.profile, distanceAt(plan, sec)) };
 }

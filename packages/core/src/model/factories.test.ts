@@ -9,6 +9,7 @@ import {
   defaultFactoryContext,
   type FactoryContext,
 } from './factories';
+import { CURRENT_SCHEMA_VERSION } from './project';
 import { describeIssues, validateProject } from './validation';
 
 function predictableContext(): FactoryContext {
@@ -46,7 +47,7 @@ describe('factories', () => {
     const project = createProject('Trip', ctx);
     expect(project).toMatchObject({
       id: 'p_1',
-      schemaVersion: 4,
+      schemaVersion: CURRENT_SCHEMA_VERSION,
       createdAt: '2026-10-21T09:00:00.000Z',
       updatedAt: '2026-10-21T09:00:00.000Z',
     });

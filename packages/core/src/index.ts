@@ -41,6 +41,8 @@ export * from './edit/waypoints';
 export * from './places/place';
 
 export * from './geo/along';
+export * from './elevation/dem';
+export * from './elevation/profile';
 export * from './geo/bounds';
 export * from './timeline/easing';
 export * from './timeline/outputSize';

@@ -53,7 +53,14 @@ function etappe(
     },
     intro: { type: 'none' },
     outro: { type: 'none' },
-    overlays: { labels: true, distanceCounter: false, timeCounter: false, attribution: true },
+    overlays: {
+      labels: true,
+      distanceCounter: false,
+      timeCounter: false,
+      attribution: true,
+      elevationProfile: false,
+      elevationCounter: false,
+    },
     tracks,
     ...overrides,
   };
@@ -61,7 +68,7 @@ function etappe(
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',

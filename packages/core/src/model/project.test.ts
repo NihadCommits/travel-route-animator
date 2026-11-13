@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sampleProject } from '../testing/sampleProject';
 import type { ValidationIssue } from './issues';
 import type { Project } from './project';
-import { formatPath } from './project';
+import { CURRENT_SCHEMA_VERSION, formatPath } from './project';
 import { describeIssues, validateProject } from './validation';
 
 // Shortcuts into the sample: the train stage, the flight stage and the options stage.
@@ -297,7 +297,7 @@ describe('validateProject (always checked, "storable")', () => {
     });
 
     it('rejects a schema version this app does not know', () => {
-      const project = { ...sampleProject(), schemaVersion: 5 };
+      const project = { ...sampleProject(), schemaVersion: CURRENT_SCHEMA_VERSION + 1 };
       expect(issuesOf(project).map((i) => i.path)).toContain('schemaVersion');
     });
 

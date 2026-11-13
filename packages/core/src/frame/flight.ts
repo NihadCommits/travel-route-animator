@@ -12,13 +12,23 @@ export interface FlightLeg {
   fromM: number;
   toM: number;
   peakM: number;
+  /**
+   * Height of the ground at both landings on 3D terrain, already exaggerated like the terrain
+   * (ADR 0012); 0 on a flat map. In between the ground is taken as a straight slope: under a
+   * cruising plane the real mountains do not matter, at the runway only the airport does.
+   */
+  fromGroundM: number;
+  toGroundM: number;
 }
 
 export interface FlightPlan {
   options: FlightOptions;
   legs: FlightLeg[];
-  /** The whole route, sampled densely enough that the arc stays round, with the heights. */
-  arc: { points: LngLat[]; atM: number[]; altitudesM: number[] };
+  /**
+   * The whole route, sampled densely enough that the arc stays round: heights above the
+   * ground, and the ground below each point.
+   */
+  arc: { points: LngLat[]; atM: number[]; altitudesM: number[]; groundM: number[] };
 }
 
 /** A flight is drawn with at least this many points; great circles bring one every 50 km. */
@@ -76,11 +86,15 @@ function sampleLine(line: MeasuredLine, stepM: number): { points: LngLat[]; atM:
   return { points: out, atM };
 }
 
-/** `landingsM`: where the plane touches down on the line, the start and the end included. */
+/**
+ * `landingsM`: where the plane touches down on the line, the start and the end included.
+ * `groundAt`: the (exaggerated) height of the terrain `s` metres along; none on a flat map.
+ */
 export function planFlight(
   line: MeasuredLine,
   landingsM: readonly number[],
   options: FlightOptions,
+  groundAt: (s: number) => number = () => 0,
 ): FlightPlan {
   const marks = [...new Set([0, ...landingsM, line.lengthM])]
     .filter((m) => m >= 0 && m <= line.lengthM)
@@ -89,11 +103,20 @@ export function planFlight(
   for (let i = 1; i < marks.length; i++) {
     const fromM = marks[i - 1]!;
     const toM = marks[i]!;
-    if (toM > fromM) legs.push({ fromM, toM, peakM: options.arcHeightFactor * (toM - fromM) });
+    if (toM > fromM) {
+      legs.push({
+        fromM,
+        toM,
+        peakM: options.arcHeightFactor * (toM - fromM),
+        fromGroundM: groundAt(fromM),
+        toGroundM: groundAt(toM),
+      });
+    }
   }
   const sampled = sampleLine(line, Math.max(1, line.lengthM / ARC_SAMPLES));
-  const plan: FlightPlan = { options, legs, arc: { ...sampled, altitudesM: [] } };
+  const plan: FlightPlan = { options, legs, arc: { ...sampled, altitudesM: [], groundM: [] } };
   plan.arc.altitudesM = sampled.atM.map((m) => altitudeAt(plan, m));
+  plan.arc.groundM = sampled.atM.map((m) => groundUnder(plan, m));
   return plan;
 }
 
@@ -107,6 +130,19 @@ export function altitudeAt(flight: FlightPlan, s: number): number {
   if (!leg) return 0;
   const u = (s - leg.fromM) / (leg.toM - leg.fromM);
   return leg.peakM * Math.sin(Math.PI * u);
+}
+
+/** The ground below the plane `s` metres along: the slope between the two landings. */
+export function groundUnder(flight: FlightPlan, s: number): number {
+  const leg = legAt(flight, s);
+  if (!leg) {
+    const first = flight.legs[0];
+    const last = flight.legs.at(-1);
+    if (!first || !last) return 0;
+    return s <= first.fromM ? first.fromGroundM : last.toGroundM;
+  }
+  const u = (s - leg.fromM) / (leg.toM - leg.fromM);
+  return leg.fromGroundM + (leg.toGroundM - leg.fromGroundM) * u;
 }
 
 /**
@@ -135,14 +171,30 @@ function arcIndexAt(atM: readonly number[], s: number): number {
   return low;
 }
 
+/**
+ * Heights along the arc as drawn: above the ground, or above sea level on 3D terrain, where
+ * the ground itself stands up (ADR 0012).
+ */
+function arcHeights(flight: FlightPlan, onTerrain: boolean): readonly number[] {
+  const { altitudesM, groundM } = flight.arc;
+  return onTerrain ? altitudesM.map((altitude, i) => altitude + groundM[i]!) : altitudesM;
+}
+
+/** The plane's height as drawn, see arcHeights. */
+export function heightAt(flight: FlightPlan, s: number, onTerrain: boolean): number {
+  return altitudeAt(flight, s) + (onTerrain ? groundUnder(flight, s) : 0);
+}
+
 /** The arc flown up to `s` with its heights, ending exactly at the plane (`head`). */
 export function arcUntil(
   flight: FlightPlan,
   s: number,
   head: LngLat,
+  onTerrain = false,
 ): { points: LngLat[]; altitudesM: number[] } {
-  const { points, atM, altitudesM } = flight.arc;
-  const headAltitude = altitudeAt(flight, s);
+  const { points, atM } = flight.arc;
+  const altitudesM = arcHeights(flight, onTerrain);
+  const headAltitude = heightAt(flight, s, onTerrain);
   // Same shape as lineUntil: a vehicle at the start still has a (zero-length) line.
   if (s <= 0) return { points: [[...head], [...head]], altitudesM: [headAltitude, headAltitude] };
   const low = arcIndexAt(atM, s);
@@ -160,9 +212,11 @@ export function arcAhead(
   flight: FlightPlan,
   s: number,
   head: LngLat,
+  onTerrain = false,
 ): { points: LngLat[]; altitudesM: number[] } {
-  const { points, atM, altitudesM } = flight.arc;
-  const headAltitude = altitudeAt(flight, s);
+  const { points, atM } = flight.arc;
+  const altitudesM = arcHeights(flight, onTerrain);
+  const headAltitude = heightAt(flight, s, onTerrain);
   // Only points beyond the plane: one right at it (or before the start) would repeat it.
   let from = arcIndexAt(atM, s);
   while (from < atM.length && atM[from]! <= Math.max(s, 0)) from++;

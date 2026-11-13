@@ -64,9 +64,7 @@ export function compileSequence(
         from: i,
         startFrame: cursor,
         durationInFrames: frames,
-        styleChanges:
-          timeline.mapStyleKey !== next.mapStyleKey ||
-          timeline.view.buildings3d !== next.view.buildings3d,
+        styleChanges: timeline.mapStyleKey !== next.mapStyleKey,
       });
     }
     cursor += frames;

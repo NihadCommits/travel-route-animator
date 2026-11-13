@@ -113,6 +113,20 @@ export const FlightOptionsSchema = z.strictObject({
 });
 export type FlightOptions = z.infer<typeof FlightOptionsSchema>;
 
+/**
+ * Heights along a computed route (ADR 0012), for the elevation profile, the climb counter and
+ * flights that start in the mountains. Sample i lies min(i · stepM, length) metres along the
+ * geometry, measured with core's own geo functions.
+ */
+export const RouteElevationSchema = z.strictObject({
+  /** 'dem' is sampled from terrain tiles by the server; 'gpx' comes with an imported track (M14). */
+  source: z.enum(['dem', 'gpx']),
+  stepM: z.number().positive(),
+  /** Metres above sea level. */
+  elevationsM: z.array(z.number()).min(2),
+});
+export type RouteElevation = z.infer<typeof RouteElevationSchema>;
+
 /** Route computed by the server and stored in the project, so rendering works offline and reproducibly. */
 export const ComputedRouteSchema = z.strictObject({
   /** Hash over waypoints (lngLat, kind) and routing; see routing/inputHash.ts. */
@@ -132,6 +146,8 @@ export const ComputedRouteSchema = z.strictObject({
   durationS: z.number().min(0).optional(),
   provider: z.string().min(1),
   computedAt: IsoDateTimeSchema,
+  /** Filled in later, and only where a stage needs heights; goes with the geometry it belongs to. */
+  elevation: RouteElevationSchema.optional(),
 });
 export type ComputedRoute = z.infer<typeof ComputedRouteSchema>;
 

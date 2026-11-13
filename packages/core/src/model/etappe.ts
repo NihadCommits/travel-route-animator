@@ -94,6 +94,10 @@ export const OverlaySettingsSchema = z.strictObject({
   manualDurationText: z.string().optional(),
   title: z.string().optional(),
   attribution: z.boolean(),
+  /** The height profile of the profile track, with a point that moves along (ADR 0012). */
+  elevationProfile: z.boolean(),
+  /** Metres climbed and descended so far. */
+  elevationCounter: z.boolean(),
 });
 export type OverlaySettings = z.infer<typeof OverlaySettingsSchema>;
 

@@ -1,9 +1,22 @@
+import {
+  compileProfile,
+  elevationAt,
+  profileTrackOf,
+  showsElevation,
+  type ElevationProfile,
+} from '../elevation/profile';
 import { measureLine, type MeasuredLine } from '../geo/along';
 import { boundsOf, type Bounds } from '../geo/bounds';
 import { planFlight, type FlightPlan } from '../frame/flight';
 import type { LngLat } from '../geo/lngLat';
 import type { Easing, VehicleType } from '../model/enums';
-import type { IntroSettings, OutroSettings, OverlaySettings, ViewSettings } from '../model/etappe';
+import type {
+  Etappe,
+  IntroSettings,
+  OutroSettings,
+  OverlaySettings,
+  ViewSettings,
+} from '../model/etappe';
 import { defaultFlightOptions } from '../model/defaults';
 import type { OutputSettings } from '../model/output';
 import type { Id } from '../model/primitives';
@@ -91,11 +104,37 @@ export interface Timeline {
   view: ViewSettings;
   overlays: OverlaySettings;
   mapStyle: MapStyleRef;
-  /** Changes only when the look changes; the stage swaps styles on a new key (M10). */
+  /** What the stage adds to its map style, beyond the style itself. */
+  mapOptions: MapOptions;
+  /**
+   * Changes whenever the map's style does (the style and its options); a chained stage with
+   * another key needs a new map (M10, ADR 0012).
+   */
   mapStyleKey: string;
   tracks: TrackPlan[];
+  /** The height profile the stage shows (ADR 0012); undefined without heights or overlays. */
+  elevation: { trackId: Id; profile: ElevationProfile } | undefined;
   /** Box around every route of the stage, for the overview camera. */
   overview: Bounds | undefined;
+}
+
+/** What a stage changes about its map style; all of it goes into `mapStyleKey`. */
+export interface MapOptions {
+  /** Buildings as blocks: the stage's view asks for them, or a 3D arrival (M11). */
+  buildings3d: boolean;
+  /** A dive-in that fades to the satellite picture at its end (M11). */
+  satelliteMix: boolean;
+  /** 3D terrain and how much higher it is drawn (ADR 0012); undefined on a flat map. */
+  terrain: { exaggeration: number } | undefined;
+}
+
+export function mapOptionsOf(etappe: Pick<Etappe, 'view' | 'outro'>): MapOptions {
+  const { view, outro } = etappe;
+  return {
+    buildings3d: view.buildings3d || outro.type === 'arrival-3d',
+    satelliteMix: outro.type === 'dive-in' && outro.switchToSatellite,
+    terrain: view.terrain.enabled ? { exaggeration: view.terrain.exaggeration } : undefined,
+  };
 }
 
 export interface CompileOptions {
@@ -186,7 +225,15 @@ function arrivalSec(phases: Phase[], easing: Easing, atM: number, fallback: numb
   return move.startSec + (move.endSec - move.startSec) * invertEase(easing, share);
 }
 
-function planTrack(track: Track, arriveBySec: number): TrackPlan | undefined {
+/**
+ * `terrain`: the stage's 3D terrain, from which a plane takes off and on which it lands at the
+ * ground's height (ADR 0012).
+ */
+function planTrack(
+  track: Track,
+  arriveBySec: number,
+  terrain: MapOptions['terrain'],
+): TrackPlan | undefined {
   if (track.waypoints.length === 0) return undefined;
   const routed = track.computed !== undefined && !isRouteStale(track);
   const line = measureLine(
@@ -214,12 +261,18 @@ function planTrack(track: Track, arriveBySec: number): TrackPlan | undefined {
     ];
   });
 
+  const elevation = routed ? track.computed!.elevation : undefined;
+  const groundAt =
+    terrain && elevation
+      ? (s: number) => elevationAt(elevation, line.lengthM, s) * terrain.exaggeration
+      : undefined;
   const flight =
     track.vehicle.type === 'plane'
       ? planFlight(
           line,
           stops.map((stop) => stop.atM),
           track.flight ?? defaultFlightOptions(),
+          groundAt,
         )
       : undefined;
 
@@ -271,7 +324,10 @@ export function compileTimeline(
   const arriveBySec = etappe.view.camera.endWithOverview
     ? mainSec - overviewBlendSec(mainSec)
     : mainSec;
-  const tracks = etappe.tracks.flatMap((track) => planTrack(track, arriveBySec) ?? []);
+  const mapOptions = mapOptionsOf(etappe);
+  const tracks = etappe.tracks.flatMap(
+    (track) => planTrack(track, arriveBySec, mapOptions.terrain) ?? [],
+  );
   const mapStyle = resolveMapStyle(fresh, etappeId).value;
 
   return {
@@ -295,8 +351,20 @@ export function compileTimeline(
     view: etappe.view,
     overlays: etappe.overlays,
     mapStyle,
-    mapStyleKey: canonicalJson(mapStyle),
+    mapOptions,
+    mapStyleKey: canonicalJson({ mapStyle, mapOptions }),
     tracks,
+    elevation: elevationOf(etappe, tracks),
     overview: boundsOf(tracks.flatMap((track) => track.line.points)),
   };
+}
+
+/** The profile of the stage's profile track, once its route has heights. */
+function elevationOf(etappe: Etappe, tracks: readonly TrackPlan[]): Timeline['elevation'] {
+  if (!showsElevation(etappe)) return undefined;
+  const track = profileTrackOf(etappe);
+  const plan = tracks.find((each) => each.trackId === track?.id);
+  const elevation = track?.computed?.elevation;
+  if (!track || !plan?.routed || !elevation) return undefined;
+  return { trackId: track.id, profile: compileProfile(elevation, plan.line.lengthM) };
 }

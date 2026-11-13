@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { measureLine } from '../geo/along';
 import { distanceM } from '../geo/distance';
 import type { LngLat } from '../geo/lngLat';
+import { defaultOverlays } from '../model/defaults';
 import { trip, type TripOptions } from '../testing/trip';
 import { compileTimeline } from '../timeline/compileTimeline';
 import { cameraAt } from './camera';
@@ -171,7 +172,7 @@ describe('labels and counter', () => {
       },
     ],
     etappe: {
-      overlays: { labels: true, distanceCounter: true, timeCounter: false, attribution: true },
+      overlays: { ...defaultOverlays(), distanceCounter: true },
     },
   };
 
