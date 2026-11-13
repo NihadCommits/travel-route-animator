@@ -33,7 +33,15 @@ export interface BuildStyleOptions {
   serverUrl?: string | undefined;
   /** Buildings as blocks with their height, for tilted views (the stage's buildings3d). */
   buildings3d?: boolean | undefined;
+  /**
+   * A satellite picture over the whole map, invisible until the frame fades it in
+   * (`SATELLITE_MIX_LAYER`): the end of a dive-in (M11). Needs `serverUrl`.
+   */
+  satelliteMix?: boolean | undefined;
 }
+
+/** The layer a dive-in fades the satellite picture in with (raster-opacity per frame). */
+export const SATELLITE_MIX_LAYER = 'satellite-mix';
 
 /** The theme's labels with the style's own choices on top; all false is "Saubere Karte". */
 export function effectiveLabels(theme: Theme, style: MapStyleRef): LabelSettings {
@@ -571,7 +579,7 @@ export function buildStyle(
       maxzoom: 6,
     };
   }
-  if (satellite && options.serverUrl) {
+  if ((satellite || options.satelliteMix) && options.serverUrl) {
     // Through our server: the MapTiler key never reaches the browser (ADR 0010).
     sources.satellite = {
       type: 'raster',
@@ -584,6 +592,15 @@ export function buildStyle(
         (layer) => layer.id !== 'satellite' || sources.satellite,
       )
     : vectorLayers(theme, style, options);
+  if (!satellite && options.satelliteMix && sources.satellite) {
+    // Over everything of the base map, labels included; the route stays on top of it.
+    layers.push({
+      id: SATELLITE_MIX_LAYER,
+      type: 'raster',
+      source: 'satellite',
+      paint: { 'raster-opacity': 0, 'raster-fade-duration': 0 },
+    });
+  }
   return {
     version: 8,
     name: satellite ? style.base : theme.name,

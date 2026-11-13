@@ -2,6 +2,7 @@ import type { Theme, ThemeExtras, Timeline } from '@travel-route-animator/core';
 import {
   backgroundOf,
   buildStyle,
+  MAPTILER_ATTRIBUTION,
   resolveTheme,
   skyOf,
   styleCredits,
@@ -32,12 +33,22 @@ export interface MapLookOptions {
 export function mapLookOf(timeline: Timeline, { themes, serverUrl }: MapLookOptions): MapLook {
   const { mapStyle, view } = timeline;
   const { theme, missing } = resolveTheme(mapStyle.themeId, themes);
-  const style = buildStyle(mapStyle, theme, { serverUrl, buildings3d: view.buildings3d });
+  const { outro } = timeline;
+  const style = buildStyle(mapStyle, theme, {
+    serverUrl,
+    // A 3D arrival needs the buildings standing, whatever the stage's view says (M11).
+    buildings3d: view.buildings3d || outro.type === 'arrival-3d',
+    satelliteMix: outro.type === 'dive-in' && outro.switchToSatellite,
+  });
   return {
     style,
     sky: skyOf(mapStyle, theme),
     background: backgroundOf(mapStyle, theme),
-    credits: styleCredits(mapStyle, theme),
+    // A dive-in that ends on satellite shows MapTiler's pictures too.
+    credits:
+      outro.type === 'dive-in' && outro.switchToSatellite && serverUrl
+        ? [...new Set([...styleCredits(mapStyle, theme), MAPTILER_ATTRIBUTION])]
+        : styleCredits(mapStyle, theme),
     // Satellite pictures need no paper grain or vignette from a vector theme.
     extras:
       mapStyle.base === 'vector' || mapStyle.base === 'terrain'

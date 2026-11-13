@@ -257,7 +257,48 @@ export const de = {
       presentAsOptions: 'Als Optionen darstellen',
       presentAsOptionsHint:
         'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
-      later: 'Intro und Outro (M11), Gelände (M12) und Zähler (M5) kommen mit ihren Modulen dazu.',
+      later: 'Gelände (M12) und weitere Zähler kommen mit ihren Modulen dazu.',
+    },
+    ends: {
+      title: 'Anfang und Ende',
+      intro: 'Anfang',
+      intros: {
+        none: 'Direkt los',
+        'overview-to-start': 'Vom Überblick zum Start',
+        'dive-out': 'Dive-out (aus der Nähe heraus)',
+      },
+      introDuration: 'Dauer',
+      outro: 'Ende',
+      outros: {
+        none: 'Mit der Ankunft',
+        overview: 'Zum Überblick',
+        'arrival-3d': '3D-Ankunft',
+        'dive-in': 'Dive-in (Zoom aufs Ziel)',
+      },
+      outroDuration: 'Dauer',
+      arrivalPitch: 'Neigung bei der Ankunft',
+      orbit: 'Umkreisen',
+      orbitHint: 'Wie weit die Kamera um das Ziel dreht; negativ dreht sie andersherum.',
+      arrivalHint:
+        'Die Kamera fährt nah an das Ziel, kippt und umkreist es. Gebäude stehen in 3D, wo die Karte Gebäudedaten hat.',
+      targetZoom: 'Ziel-Zoom',
+      targetZoomHint:
+        'Wie nah der Dive-in endet. Satellitenbilder können ab etwa Zoom 17 unscharf werden, je nach Region.',
+      effect: 'Effekt am Ende',
+      effects: {
+        none: 'Keiner',
+        blur: 'Unschärfe',
+        flash: 'Blitz',
+        'fade-white': 'Weißblende',
+        'fade-black': 'Schwarzblende',
+      },
+      switchToSatellite: 'Am Ende auf Satellit überblenden',
+      satelliteHint:
+        'Das Satellitenbild liegt dann über der ganzen Karte, die Route bleibt sichtbar.',
+      satelliteOff: 'Satellit braucht einen MapTiler-Key in der .env (MAPTILER_API_KEY).',
+      exportEndFrame: 'Letzten Frame als PNG exportieren',
+      exportEndFrameHint:
+        'Liegt beim Rendern neben dem Video, um im Schnitt die Footage-Einstellung daran auszurichten.',
     },
     transition: {
       title: 'Übergang zwischen Etappen',

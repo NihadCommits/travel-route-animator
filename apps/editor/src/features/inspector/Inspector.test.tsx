@@ -257,6 +257,30 @@ describe('Inspector', () => {
     expect(server.calls.filter((call) => call.method === 'PUT')).toEqual([]);
   });
 
+  it('sets how a stage begins and ends, with the fields of each kind', async () => {
+    const { user } = await renderEditor(trip().project);
+    await selectRow('Wien – Porto');
+    const ends = within(inspector().getByRole('region', { name: 'Anfang und Ende' }));
+    const outro = ends.getByLabelText('Ende');
+    expect(outro).toHaveDisplayValue('Mit der Ankunft');
+
+    await user.selectOptions(outro, 'Dive-in (Zoom aufs Ziel)');
+    expect(ends.getByLabelText('Ziel-Zoom')).toHaveValue('18');
+    expect(ends.getByLabelText('Ziel-Zoom')).toHaveAccessibleDescription(/ab etwa Zoom 17/);
+    // Without a MapTiler key there is no satellite to fade to.
+    expect(ends.getByRole('switch', { name: 'Am Ende auf Satellit überblenden' })).toBeDisabled();
+    expect(ends.getByRole('switch', { name: 'Letzten Frame als PNG exportieren' })).toBeChecked();
+    await user.selectOptions(ends.getByLabelText('Effekt am Ende'), 'Weißblende');
+    expect(ends.getByLabelText('Effekt am Ende')).toHaveDisplayValue('Weißblende');
+
+    await user.selectOptions(outro, '3D-Ankunft');
+    expect(ends.getByLabelText('Umkreisen')).toHaveValue('60');
+    expect(ends.queryByLabelText('Ziel-Zoom')).toBeNull();
+
+    await user.selectOptions(ends.getByLabelText('Anfang'), 'Dive-out (aus der Nähe heraus)');
+    expect(ends.getAllByLabelText('Dauer')).toHaveLength(2);
+  });
+
   it('gives a group a transition of its own and takes it back', async () => {
     const { user } = await renderEditor(trip().project);
     await selectRow('Hinreise');
