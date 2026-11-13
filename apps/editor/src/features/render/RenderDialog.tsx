@@ -15,6 +15,7 @@ import {
   type Id,
   type OutputSettings,
   type Project,
+  type RenderRequest,
 } from '@travel-route-animator/core';
 import { useQueryClient } from '@tanstack/react-query';
 import { LoaderCircle } from 'lucide-react';
@@ -50,8 +51,11 @@ interface RenderDialogProps {
   onStarted: () => void;
 }
 
-/** What gets rendered: the selected stage, the group as one video, or its stages one by one. */
-type Scope = 'etappe' | 'chained' | 'separate';
+/**
+ * What gets rendered: the selected stage, the group as one video, its stages one by one, or
+ * every group of the project as one video each (a batch, M13).
+ */
+type Scope = 'etappe' | 'chained' | 'separate' | 'project';
 
 /** "Rendern" (UI-Konzept: Render-Dialog): stage or group, the format and the file name. */
 export function RenderDialog({ open, onOpenChange, ...props }: RenderDialogProps) {
@@ -88,6 +92,8 @@ function RenderForm({
   const [fps, setFps] = useState(defaults.fps);
   const [codec, setCodec] = useState(defaults.codec);
   const [overlay, setOverlay] = useState(defaults.transparentOverlay);
+  // More formats of the same render, each a job of its own (M13).
+  const [extras, setExtras] = useState<ReadonlySet<ExportPresetId>>(new Set());
   // The suggestion follows the format until the name is edited by hand.
   const [openedAt] = useState(() => new Date());
   const [typedName, setTypedName] = useState<string | null>(null);
@@ -100,12 +106,21 @@ function RenderForm({
     (etappeId !== null ? etappeOf(project, etappeId) : undefined) ??
     (group?.etappen.length === 1 ? group.etappen[0] : undefined);
   const [scope, setScope] = useState<Scope>(etappe ? 'etappe' : 'chained');
-  const etappen = scope === 'etappe' ? (etappe ? [etappe] : []) : (group?.etappen ?? []);
+  const groupsWithStages = project.groups.filter((g) => g.etappen.length > 0);
+  const etappen =
+    scope === 'etappe'
+      ? etappe
+        ? [etappe]
+        : []
+      : scope === 'project'
+        ? groupsWithStages.flatMap((g) => g.etappen)
+        : (group?.etappen ?? []);
   const etappeIds = etappen.map((e) => e.id);
   const issues = checkRenderReadiness(project, etappeIds);
   if (!group || etappen.length === 0) return null;
 
-  const title = scope === 'etappe' ? etappen[0]!.name : group.name;
+  const title =
+    scope === 'etappe' ? etappen[0]!.name : scope === 'project' ? project.name : group.name;
   const preset = presetOf({ aspect, resolution, fps, codec, transparentOverlay: overlay });
   const applyPreset = (id: ExportPresetId) => {
     const chosen = EXPORT_PRESETS[id];
@@ -121,7 +136,8 @@ function RenderForm({
     if (!codecHasAlpha(next)) setOverlay(false);
   };
   const name = typedName ?? suggestVideoName(title, { aspect, resolution }, openedAt);
-  const fileName = scope === 'separate' ? '' : cleanVideoName(name);
+  const named = scope === 'etappe' || scope === 'chained';
+  const fileName = named ? cleanVideoName(name) : '';
   // The editor computes road routes after every edit (routeSync); a render has to wait for
   // them, or the server would refuse the stage.
   const awaiting = etappen.flatMap((e) => tracksAwaitingRoute(e));
@@ -142,15 +158,6 @@ function RenderForm({
       return;
     }
     try {
-      const output = { aspect, resolution, fps, codec, transparentOverlay: overlay };
-      const named = fileName !== null && fileName !== '' ? { fileName } : {};
-      // One by one: a job per stage, each named after its stage by the server.
-      const requests =
-        scope === 'separate'
-          ? etappeIds.map((id) => ({ projectId: project.id, etappeId: id, output }))
-          : scope === 'chained'
-            ? [{ projectId: project.id, etappeIds, output, ...named }]
-            : [{ projectId: project.id, etappeId: etappeIds[0]!, output, ...named }];
       for (const request of requests) storeRenderJob(queryClient, await api.startRender(request));
       onStarted();
       onDone();
@@ -166,6 +173,29 @@ function RenderForm({
       setBusy(false);
     }
   }
+
+  const output = { aspect, resolution, fps, codec, transparentOverlay: overlay };
+  // Every job of this render: the targets, each in the chosen format and every extra one.
+  const targets: Omit<RenderRequest, 'output'>[] =
+    scope === 'separate'
+      ? etappeIds.map((id) => ({ projectId: project.id, etappeId: id }))
+      : scope === 'project'
+        ? // One video per group; the server names each after its group.
+          groupsWithStages.map((g) =>
+            g.etappen.length === 1
+              ? { projectId: project.id, etappeId: g.etappen[0]!.id }
+              : { projectId: project.id, etappeIds: g.etappen.map((e) => e.id) },
+          )
+        : scope === 'chained'
+          ? [{ projectId: project.id, etappeIds }]
+          : [{ projectId: project.id, etappeId: etappeIds[0]! }];
+  const requests: RenderRequest[] = targets.flatMap((target) => [
+    // A typed name goes to the chosen format only; extras are named by their format.
+    { ...target, output, ...(named && fileName ? { fileName } : {}) },
+    ...[...extras]
+      .filter((id) => id !== preset)
+      .map((id) => ({ ...target, output: { ...EXPORT_PRESETS[id] } })),
+  ]);
 
   const keep =
     <T,>(set: (value: T) => void) =>
@@ -185,14 +215,19 @@ function RenderForm({
               : de.render.group(group.name, group.etappen.length)}
           </DialogDescription>
         </DialogHeader>
-        {group.etappen.length > 1 && (
+        {(group.etappen.length > 1 || groupsWithStages.length > 1) && (
           <SelectField
             label={de.render.target}
             value={scope}
             options={optionsOf(
-              ['etappe', 'chained', 'separate'] as const,
+              ['etappe', 'chained', 'separate', 'project'] as const,
               de.render.targets,
-              (s) => (s === 'etappe' ? !etappe : false),
+              (s) =>
+                s === 'etappe'
+                  ? !etappe
+                  : s === 'project'
+                    ? groupsWithStages.length < 2
+                    : group.etappen.length < 2,
             )}
             hint={de.render.targetHints[scope]}
             onCommit={keep(setScope)}
@@ -254,9 +289,32 @@ function RenderForm({
           <p className="text-muted-foreground text-xs">{de.render.onlyThisRender}</p>
         </fieldset>
 
-        {scope === 'separate' ? (
+        <fieldset className="grid gap-2">
+          <legend className="mb-1 text-sm font-medium">{de.render.extras}</legend>
+          {(Object.keys(EXPORT_PRESETS) as ExportPresetId[])
+            .filter((id) => id !== preset)
+            .map((id) => (
+              <SwitchField
+                key={id}
+                label={de.render.presets[id]}
+                checked={extras.has(id)}
+                onCommit={(on) => {
+                  const next = new Set(extras);
+                  if (on) next.add(id);
+                  else next.delete(id);
+                  setExtras(next);
+                  return null;
+                }}
+              />
+            ))}
+          <p className="text-muted-foreground text-xs">{de.render.extrasHint}</p>
+        </fieldset>
+
+        {!named ? (
           <p className="text-muted-foreground text-xs">
-            {de.render.separateNames(etappen.length)}{' '}
+            {scope === 'project'
+              ? de.render.projectNames(groupsWithStages.length)
+              : de.render.separateNames(etappen.length)}{' '}
             {de.render.fileNameHint(slugify(project.name), outputExtensionOf(codec))}
           </p>
         ) : (
@@ -296,6 +354,11 @@ function RenderForm({
             {de.render.routeMissing(trackName(track))}
           </p>
         ))}
+        {requests.length > 1 && (
+          <p role="status" className="text-muted-foreground text-sm">
+            {de.render.jobCount(requests.length)}
+          </p>
+        )}
         {error && (
           <p role="alert" className="text-destructive text-sm">
             {error}

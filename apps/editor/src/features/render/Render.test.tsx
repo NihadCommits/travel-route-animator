@@ -220,6 +220,51 @@ describe('render dialog', () => {
     });
   });
 
+  it('queues every group of the project, also in extra formats, in one go', async () => {
+    const { project } = trip();
+    // A second group "Rückreise" with a flight of its own.
+    const back = addGroup(project, 'Rückreise');
+    const stage = addEtappe(back.project, back.id, 'Porto – Wien');
+    const flight = addTrack(stage.project, stage.id, 'plane', { label: 'Rückflug' });
+    const both = editTrack(flight.project, flight.id, (track) => ({
+      ...track,
+      waypoints: [
+        createWaypoint({ name: 'Porto', lngLat: [-8.68, 41.25] }),
+        createWaypoint({ name: 'Wien', lngLat: [16.57, 48.11] }),
+      ],
+    }));
+    const { server, user } = await renderEditor(both);
+    await selectRow(/^Flug/);
+    await user.click(renderButton());
+    await user.selectOptions(
+      dialog().getByRole('combobox', { name: 'Was gerendert wird' }),
+      'Ganzes Projekt: jede Gruppe als ein Video',
+    );
+    expect(
+      dialog().getByText('2 Dateien, je nach ihrer Gruppe benannt.', { exact: false }),
+    ).toBeInTheDocument();
+    await user.click(dialog().getByRole('switch', { name: 'Reel 1080×1920 30p' }));
+    expect(dialog().getByText('4 Aufträge für die Warteschlange.')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', { name: 'Rendern' }));
+
+    await waitFor(() =>
+      expect(server.calls.filter((c) => c.method === 'POST' && c.path === '/render')).toHaveLength(
+        4,
+      ),
+    );
+    const sent = server.calls
+      .filter((c) => c.method === 'POST' && c.path === '/render')
+      .map((c) => c.body as RenderRequest);
+    expect(sent.map((r) => [r.etappeId ?? r.etappeIds, r.output?.aspect])).toEqual([
+      [expect.any(String), '16:9'],
+      [expect.any(String), '9:16'],
+      [stage.id, '16:9'],
+      [stage.id, '9:16'],
+    ]);
+    // The server names each after its group and format.
+    expect(sent.every((r) => r.fileName === undefined)).toBe(true);
+  });
+
   it('turns the overlay off when the codec has no alpha channel', async () => {
     const { project } = trip();
     const { user } = await renderEditor(project);
