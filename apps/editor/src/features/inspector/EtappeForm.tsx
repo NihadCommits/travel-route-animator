@@ -2,6 +2,7 @@ import {
   CameraModeSchema,
   checkEtappeReadiness,
   compileProfile,
+  CornerSchema,
   editEtappe,
   measureLine,
   presentAsOptions,
@@ -239,6 +240,13 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
           label={de.inspector.etappe.attribution}
           checked={overlays.attribution}
           onCommit={(on) => setOverlay('attribution', on)}
+        />
+        <SelectField
+          label={de.inspector.etappe.attributionCorner}
+          value={overlays.attributionCorner}
+          options={optionsOf(CornerSchema.options, de.inspector.etappe.corners)}
+          disabled={!overlays.attribution}
+          onCommit={(corner) => setOverlay('attributionCorner', corner)}
         />
         <Button variant="outline" size="sm" className="w-full" onClick={copyCredits}>
           {creditsCopied ? de.inspector.etappe.creditsCopied : de.inspector.etappe.copyCredits}

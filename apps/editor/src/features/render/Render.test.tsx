@@ -189,6 +189,56 @@ describe('render dialog', () => {
     expect(await screen.findByText(/^wien-porto_9x16_1080p_.*\.mp4$/)).toBeInTheDocument();
   });
 
+  it('fills the format from a preset and renders a transparent overlay', async () => {
+    const { project } = trip();
+    const { server, user } = await renderEditor(project);
+    await selectRow(/Flug/);
+    await user.click(renderButton());
+    const preset = dialog().getByRole('combobox', { name: 'Vorlage' });
+    const overlay = dialog().getByRole('switch', { name: 'Transparentes Overlay' });
+    // H.264 has no alpha channel, so it cannot be an overlay.
+    expect(overlay).toBeDisabled();
+    expect(preset).toHaveDisplayValue('YouTube 1080p 25p');
+
+    await user.selectOptions(preset, 'Reel 1080×1920 30p');
+    expect(dialog().getByRole('combobox', { name: 'Seitenverhältnis' })).toHaveDisplayValue(
+      '9:16 (Hochformat)',
+    );
+    await user.selectOptions(preset, 'Overlay ProRes 4444 (transparent)');
+    expect(overlay).toBeChecked();
+    expect(dialog().getByText(/Landet als \.mov in output\/portugal-2026\//)).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', { name: 'Rendern' }));
+
+    await waitFor(() =>
+      expect(server.calls.some((call) => call.method === 'POST' && call.path === '/render')).toBe(
+        true,
+      ),
+    );
+    const sent = server.calls.find((call) => call.method === 'POST' && call.path === '/render');
+    expect(sent?.body).toMatchObject({
+      output: { aspect: '16:9', fps: 25, codec: 'prores-4444', transparentOverlay: true },
+    });
+  });
+
+  it('turns the overlay off when the codec has no alpha channel', async () => {
+    const { project } = trip();
+    const { user } = await renderEditor(project);
+    await selectRow(/Flug/);
+    await user.click(renderButton());
+    const codec = dialog().getByRole('combobox', { name: 'Codec' });
+    await user.selectOptions(codec, 'PNG-Sequenz (Ordner, mit Alpha)');
+    const overlay = dialog().getByRole('switch', { name: 'Transparentes Overlay' });
+    await user.click(overlay);
+    expect(overlay).toBeChecked();
+    expect(dialog().getByText(/Landet als Ordner mit PNGs/)).toBeInTheDocument();
+    expect(dialog().getByRole('combobox', { name: 'Vorlage' })).toHaveDisplayValue(
+      'Eigene Einstellung',
+    );
+    await user.selectOptions(codec, 'ProRes 422 HQ (MOV)');
+    expect(overlay).not.toBeChecked();
+    expect(overlay).toBeDisabled();
+  });
+
   it('waits for a road route the server could not compute, and says so', async () => {
     const { project } = trip('car');
     const { server, user } = await renderEditor(project);

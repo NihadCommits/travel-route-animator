@@ -1,10 +1,17 @@
 import {
   checkRenderReadiness,
   cleanVideoName,
+  CODECS,
+  codecHasAlpha,
+  EXPORT_PRESETS,
   locateItem,
+  outputExtensionOf,
+  presetOf,
   slugify,
   suggestVideoName,
   tracksAwaitingRoute,
+  type Codec,
+  type ExportPresetId,
   type Id,
   type OutputSettings,
   type Project,
@@ -23,6 +30,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { SelectField } from '@/features/inspector/fields/SelectField';
+import { SwitchField } from '@/features/inspector/fields/SwitchField';
 import { optionsOf, ReadinessNote, trackName } from '@/features/inspector/parts';
 import { ASPECTS, FRAME_RATES, RESOLUTIONS } from '@/features/inspector/ProjectForm';
 import { de } from '@/i18n/de';
@@ -78,6 +86,8 @@ function RenderForm({
   const [aspect, setAspect] = useState(defaults.aspect);
   const [resolution, setResolution] = useState(defaults.resolution);
   const [fps, setFps] = useState(defaults.fps);
+  const [codec, setCodec] = useState(defaults.codec);
+  const [overlay, setOverlay] = useState(defaults.transparentOverlay);
   // The suggestion follows the format until the name is edited by hand.
   const [openedAt] = useState(() => new Date());
   const [typedName, setTypedName] = useState<string | null>(null);
@@ -96,6 +106,20 @@ function RenderForm({
   if (!group || etappen.length === 0) return null;
 
   const title = scope === 'etappe' ? etappen[0]!.name : group.name;
+  const preset = presetOf({ aspect, resolution, fps, codec, transparentOverlay: overlay });
+  const applyPreset = (id: ExportPresetId) => {
+    const chosen = EXPORT_PRESETS[id];
+    setAspect(chosen.aspect);
+    setResolution(chosen.resolution);
+    setFps(chosen.fps);
+    setCodec(chosen.codec);
+    setOverlay(chosen.transparentOverlay);
+  };
+  const changeCodec = (next: Codec) => {
+    setCodec(next);
+    // Only codecs with an alpha channel can be transparent.
+    if (!codecHasAlpha(next)) setOverlay(false);
+  };
   const name = typedName ?? suggestVideoName(title, { aspect, resolution }, openedAt);
   const fileName = scope === 'separate' ? '' : cleanVideoName(name);
   // The editor computes road routes after every edit (routeSync); a render has to wait for
@@ -118,7 +142,7 @@ function RenderForm({
       return;
     }
     try {
-      const output = { aspect, resolution, fps };
+      const output = { aspect, resolution, fps, codec, transparentOverlay: overlay };
       const named = fileName !== null && fileName !== '' ? { fileName } : {};
       // One by one: a job per stage, each named after its stage by the server.
       const requests =
@@ -177,6 +201,20 @@ function RenderForm({
 
         <fieldset className="grid gap-2">
           <legend className="mb-1 text-sm font-medium">{de.render.format}</legend>
+          <SelectField
+            label={de.render.preset}
+            value={preset ?? 'custom'}
+            options={[
+              { value: 'custom', label: de.render.presets.custom, disabled: true },
+              ...(Object.keys(EXPORT_PRESETS) as ExportPresetId[]).map((id) => ({
+                value: id,
+                label: de.render.presets[id],
+              })),
+            ]}
+            onCommit={keep((id: string) => {
+              if (id !== 'custom') applyPreset(id as ExportPresetId);
+            })}
+          />
           <div className="grid grid-cols-3 gap-2">
             <SelectField
               label={de.inspector.project.aspect}
@@ -197,15 +235,29 @@ function RenderForm({
               onCommit={keep((value: string) => setFps(Number(value) as OutputSettings['fps']))}
             />
           </div>
+          <SelectField
+            label={de.render.codec}
+            value={codec}
+            options={optionsOf(CODECS, de.render.codecs)}
+            hint={de.render.codecHints[codec]}
+            onCommit={keep(changeCodec)}
+          />
+          <SwitchField
+            label={de.render.overlay}
+            checked={overlay}
+            disabled={!codecHasAlpha(codec)}
+            onCommit={keep(setOverlay)}
+          />
           <p className="text-muted-foreground text-xs">
-            {de.render.onlyThisRender} {de.render.codec}
+            {codecHasAlpha(codec) ? de.render.overlayHint : de.render.overlayNeedsAlpha}
           </p>
+          <p className="text-muted-foreground text-xs">{de.render.onlyThisRender}</p>
         </fieldset>
 
         {scope === 'separate' ? (
           <p className="text-muted-foreground text-xs">
             {de.render.separateNames(etappen.length)}{' '}
-            {de.render.fileNameHint(slugify(project.name))}
+            {de.render.fileNameHint(slugify(project.name), outputExtensionOf(codec))}
           </p>
         ) : (
           <div className="grid gap-1.5">
@@ -228,7 +280,7 @@ function RenderForm({
             >
               {fileName === null
                 ? de.render.fileNameInvalid
-                : de.render.fileNameHint(slugify(project.name))}
+                : de.render.fileNameHint(slugify(project.name), outputExtensionOf(codec))}
             </p>
           </div>
         )}
