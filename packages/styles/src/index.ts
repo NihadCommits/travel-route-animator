@@ -5,5 +5,6 @@
 export const OPENFREEMAP_LIBERTY_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
 
 export * from './buildStyle';
+export * from './terrain';
 export * from './credits';
 export * from './themes';
