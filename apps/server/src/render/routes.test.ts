@@ -140,6 +140,37 @@ describe('POST /api/render', () => {
     expect(renders[0]!.job.props.serverUrl).toMatch(/^http:\/\//);
   });
 
+  it('fills in the heights a stage on 3D terrain needs before it renders', async () => {
+    const project = (
+      await app.inject({ method: 'GET', url: '/api/projects/p_portugal26' })
+    ).json<Project>();
+    const onTerrain: Project = {
+      ...project,
+      groups: project.groups.map((group) => ({
+        ...group,
+        etappen: group.etappen.map((etappe) =>
+          etappe.id === wienPorto.etappeId
+            ? { ...etappe, view: { ...etappe.view, terrain: { enabled: true, exaggeration: 1.5 } } }
+            : etappe,
+        ),
+      })),
+    };
+    await app.inject({ method: 'PUT', url: '/api/projects/p_portugal26', payload: onTerrain });
+    await app.close();
+    const heights = { source: 'dem' as const, stepM: 1000, elevationsM: [183, 69] };
+    const sample = vi.fn(() => Promise.resolve(heights));
+    app = buildApp({ dataDir, outputDir, renderer, revealFile, elevation: { sample } });
+
+    expect((await startRender(wienPorto)).statusCode).toBe(202);
+    await settle();
+    const rendered = renders[0]!.job.props.project.groups
+      .flatMap((group) => group.etappen)
+      .find((etappe) => etappe.id === wienPorto.etappeId)!;
+    // The plane takes off at Vienna's height.
+    expect(rendered.tracks[0]!.computed!.elevation).toEqual(heights);
+    expect(sample).toHaveBeenCalledTimes(1);
+  });
+
   it('renders several stages as one video and names it after them', async () => {
     const response = await startRender({
       projectId: 'p_portugal26',
