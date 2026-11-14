@@ -111,7 +111,7 @@ export function registerProjectRoutes(app: FastifyInstance, store: ProjectStore)
     // Images arrive as they are, without a form around them; what they are is read from their
     // bytes (ADR 0009), so the content type only has to be one of these.
     routes.addContentTypeParser(
-      ['image/png', 'image/gif', 'application/octet-stream'],
+      ['image/png', 'image/gif', 'image/jpeg', 'application/octet-stream'],
       { parseAs: 'buffer' },
       (_request, body, done) => done(null, body),
     );

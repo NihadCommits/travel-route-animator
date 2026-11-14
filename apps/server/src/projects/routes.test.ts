@@ -389,7 +389,7 @@ describe('project API', () => {
         413,
         'image.tooLarge',
       ]);
-      expect(await problem(upload(project.id, png(10, 10), 'x.jpg', 'image/jpeg'))).toEqual([
+      expect(await problem(upload(project.id, png(10, 10), 'x.webp', 'image/webp'))).toEqual([
         415,
         'image.unsupported',
       ]);
