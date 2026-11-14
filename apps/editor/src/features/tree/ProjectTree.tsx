@@ -31,6 +31,7 @@ import { selectProject, useEditor } from '@/state/editorStore';
 import { dropPositionFor, resolveDrop, type DropTarget, type TreeItemKind } from './drop';
 import { navigate, visibleRows, type NavigationKey } from './navigation';
 import { TreeRow } from './TreeRow';
+import { ImportDialog } from './ImportDialog';
 import { VehiclePicker } from './VehiclePicker';
 
 interface PendingDelete {
@@ -63,6 +64,7 @@ export function ProjectTree() {
   const [renamingId, setRenamingId] = useState<Id | null>(null);
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [vehicleForEtappe, setVehicleForEtappe] = useState<Id | null>(null);
+  const [importForEtappe, setImportForEtappe] = useState<Id | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   // onDragMove fires on every pointer move; only re-render when the target actually changes.
   const dropTargetRef = useRef<DropTarget | null>(null);
@@ -259,6 +261,15 @@ export function ProjectTree() {
           const etappeId = vehicleForEtappe;
           setExpanded(etappeId, true);
           add((p) => addTrack(p, etappeId, vehicle, { label: de.vehicles[vehicle] }));
+        }}
+        onImport={() => setImportForEtappe(vehicleForEtappe)}
+      />
+      <ImportDialog
+        etappeId={importForEtappe}
+        onClose={() => setImportForEtappe(null)}
+        onImport={(change) => {
+          if (importForEtappe !== null) setExpanded(importForEtappe, true);
+          add(change);
         }}
       />
 

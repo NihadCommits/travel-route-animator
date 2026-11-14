@@ -101,6 +101,26 @@ export const de = {
     barHint:
       'Ziehen verschiebt den Start, die Enden ändern Start und Dauer; mit Umschalt rastet es auf Frames ein. Pfeiltasten: 0,1 s, mit Umschalt 1 s.',
   },
+  importTrack: {
+    open: 'Aus Datei importieren (GPX, DJI) …',
+    title: 'Track importieren',
+    description:
+      'Eine GPX-Datei (Rad, Wanderung, Uhr) oder die Untertiteldatei (.SRT) einer DJI-Drohne wird ein Fahrzeug dieser Etappe. Die Datei bleibt auf deinem Rechner.',
+    file: 'Datei (.gpx oder .srt)',
+    summary: (name: string, km: number, points: number, heights: boolean) =>
+      `„${name}“: ${km.toLocaleString('de-AT', { maximumFractionDigits: 1 })} km aus ${points.toLocaleString('de-AT')} Punkten${heights ? ', mit Höhen' : ', ohne Höhen (die kommen dann aus dem Gelände)'}.`,
+    vehicle: 'Fahrzeug',
+    droneHint: 'Eine Drohne hat kein eigenes Fahrzeug; „Wandern“ passt meist zum Tempo.',
+    withStops: (count: number) =>
+      count > 0
+        ? `${count} Stopps vorschlagen (Pausen, Wegpunkte)`
+        : 'Keine Pausen oder Wegpunkte gefunden',
+    import: 'Importieren',
+    unreadable: (reason: string) => `Die Datei lässt sich nicht lesen: ${reason}`,
+    stopNames: { start: 'Start', end: 'Ziel', pause: 'Pause' },
+    importedFrom: (name: string, source: string) =>
+      `Linie aus „${name}“ (${source === 'dji-srt' ? 'DJI-Untertitel' : 'GPX'}). Stopps rasten auf ihr ein.`,
+  },
   render: {
     open: 'Rendern',
     openHint: 'Diese Etappe oder Gruppe als Video rendern',

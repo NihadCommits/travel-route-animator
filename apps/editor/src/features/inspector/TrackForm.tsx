@@ -86,11 +86,13 @@ export function TrackForm({
     change('vehicle.variant', (t) => ({ ...t, vehicle: { ...t.vehicle, variant } }));
   const tilted = flightStyleFor(etappe.view.pitchDeg) === 'arc-3d';
 
-  // Routing options to avoid belong to road routing only, so they go when the mode changes.
+  // Routing options to avoid belong to road routing only, so they go when the mode changes;
+  // an imported line belongs to the gpx mode (ADR 0014). Undo brings both back.
   const setRouting = (mode: RoutingMode) =>
-    change('routing.mode', (t) => ({
+    change('routing.mode', ({ imported, ...t }) => ({
       ...t,
       routing: mode === 'road' ? { ...t.routing, mode } : { mode },
+      ...(mode === 'gpx' && imported && { imported }),
     }));
 
   // An empty list is the same as none; leave the field out so the file stays tidy.
@@ -154,14 +156,19 @@ export function TrackForm({
       <SelectField
         label={de.inspector.track.routing}
         value={track.routing.mode}
-        // A GPX track needs an imported file (M14); until then it is only shown if already set.
+        // A GPX track needs its imported line; it comes with "Aus Datei importieren".
         options={optionsOf(
           VEHICLE_CATALOG[track.vehicle.type].routingModes,
           de.inspector.routingModes,
-          (mode) => mode === 'gpx' && track.routing.mode !== 'gpx',
+          (mode) => mode === 'gpx' && !track.imported,
         )}
         onCommit={setRouting}
       />
+      {track.imported && track.routing.mode === 'gpx' && (
+        <p className="text-muted-foreground text-xs">
+          {de.importTrack.importedFrom(track.imported.name, track.imported.source)}
+        </p>
+      )}
       {track.routing.mode === 'road' && (
         <fieldset className="space-y-1.5">
           <legend className="sr-only">{de.inspector.track.avoid}</legend>
