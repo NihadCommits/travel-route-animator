@@ -22,6 +22,7 @@ import { createRouter } from './routing/router';
 import { registerRoutingRoutes } from './routing/routes';
 import { registerMapRoutes } from './themes/routes';
 import { createThemeStore } from './themes/themeStore';
+import { createTemplateStore, registerTemplateRoutes } from './templates/templates';
 import type { SatelliteSource } from './tiles/satellite';
 
 export interface AppOptions {
@@ -101,6 +102,10 @@ export function buildApp({
 
   const themes = createThemeStore({ dataDir, warn: (message) => app.log.warn(message) });
   registerMapRoutes(app, { themes, satellite });
+  registerTemplateRoutes(
+    app,
+    createTemplateStore({ dataDir, warn: (message) => app.log.warn(message) }),
+  );
 
   const airports = createAirportStore(dataDir);
   registerAirportRoutes(app, airports);
