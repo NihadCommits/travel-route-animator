@@ -36,6 +36,8 @@ export interface TreeRowProps {
   onCancelRename: () => void;
   onDuplicate: () => void;
   onDelete: () => void;
+  /** More actions of this kind of item, shown after "Duplizieren". */
+  actions?: readonly { label: string; onSelect: () => void }[];
   add?: { label: string; onAdd: () => void };
   /** Translated reasons why this item cannot be rendered yet (ADR 0002). */
   warnings?: readonly string[];
@@ -220,6 +222,16 @@ export function TreeRow(props: TreeRowProps) {
           >
             {de.common.duplicate}
           </ContextMenuItem>
+          {props.actions?.map((action) => (
+            <ContextMenuItem
+              key={action.label}
+              onSelect={() => {
+                afterClose.current = action.onSelect;
+              }}
+            >
+              {action.label}
+            </ContextMenuItem>
+          ))}
           <ContextMenuSeparator />
           <ContextMenuItem
             variant="destructive"

@@ -4,13 +4,16 @@ import {
   addTrack,
   checkEtappeReadiness,
   duplicateItem,
+  reverseEtappe,
+  templateOf,
   removeItem,
   renameItem,
   type Id,
   type ReadinessIssue,
 } from '@travel-route-animator/core';
 import { DragDropProvider, type DragDropEventHandlers } from '@dnd-kit/react';
-import { Folder, Plus, Route } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Copy, Folder, Plus, Route } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertDialog,
@@ -26,12 +29,14 @@ import { Button } from '@/components/ui/button';
 import { VEHICLE_ICONS } from '@/features/editor/vehicleIcons';
 import { de } from '@/i18n/de';
 import { translateIssue } from '@/i18n/issues';
+import { api } from '@/lib/api';
 import { DND_PLUGINS, DND_SENSORS, rowUnderPointer, type DragOperation } from '@/lib/dnd';
 import { selectProject, useEditor } from '@/state/editorStore';
 import { dropPositionFor, resolveDrop, type DropTarget, type TreeItemKind } from './drop';
 import { navigate, visibleRows, type NavigationKey } from './navigation';
 import { TreeRow } from './TreeRow';
 import { ImportDialog } from './ImportDialog';
+import { TEMPLATES_QUERY_KEY, TemplatesDialog } from './TemplatesDialog';
 import { VehiclePicker } from './VehiclePicker';
 
 interface PendingDelete {
@@ -65,6 +70,21 @@ export function ProjectTree() {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
   const [vehicleForEtappe, setVehicleForEtappe] = useState<Id | null>(null);
   const [importForEtappe, setImportForEtappe] = useState<Id | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
+  const [notice, setNotice] = useState<string>();
+  const queryClient = useQueryClient();
+
+  /** Saves a stage or group as a template for every project (M14). */
+  async function saveTemplate(id: Id) {
+    const template = templateOf(project, id);
+    try {
+      await api.saveTemplate(template);
+      await queryClient.invalidateQueries({ queryKey: TEMPLATES_QUERY_KEY });
+      setNotice(de.templates.saved(template.name));
+    } catch {
+      setNotice(de.templates.saveFailed);
+    }
+  }
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
   // onDragMove fires on every pointer move; only re-render when the target actually changes.
   const dropTargetRef = useRef<DropTarget | null>(null);
@@ -179,6 +199,9 @@ export function ProjectTree() {
                       setRenamingId(id);
                     },
                   }}
+                  actions={[
+                    { label: de.templates.save, onSelect: () => void saveTemplate(group.id) },
+                  ]}
                   {...rowHandlers(group.id, group.name, {
                     id: group.id,
                     name: group.name,
@@ -208,6 +231,21 @@ export function ProjectTree() {
                             label: de.tree.addTrack,
                             onAdd: () => setVehicleForEtappe(etappe.id),
                           }}
+                          actions={[
+                            {
+                              label: de.tree.reverse,
+                              onSelect: () =>
+                                add((p) =>
+                                  reverseEtappe(p, etappe.id, {
+                                    nameSuffix: de.common.returnSuffix,
+                                  }),
+                                ),
+                            },
+                            {
+                              label: de.templates.save,
+                              onSelect: () => void saveTemplate(etappe.id),
+                            },
+                          ]}
                           {...rowHandlers(etappe.id, etappe.name, {
                             id: etappe.id,
                             name: etappe.name,
@@ -247,11 +285,34 @@ export function ProjectTree() {
           </DragDropProvider>
         )}
       </div>
-      <footer className="border-t p-2">
+      <footer className="grid gap-1 border-t p-2">
+        {notice && (
+          <p role="status" className="text-muted-foreground px-2 text-xs">
+            {notice}
+          </p>
+        )}
         <Button variant="ghost" size="sm" className="w-full justify-start" onClick={addNewGroup}>
           <Plus /> {de.tree.addGroup}
         </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-start"
+          onClick={() => setTemplatesOpen(true)}
+        >
+          <Copy /> {de.templates.open}
+        </Button>
       </footer>
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        project={project}
+        selectedId={selectedId}
+        onInsert={(change) => {
+          add(change);
+          setNotice(undefined);
+        }}
+      />
 
       <VehiclePicker
         open={vehicleForEtappe !== null}

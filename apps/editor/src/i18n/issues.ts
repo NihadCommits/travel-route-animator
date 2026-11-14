@@ -37,6 +37,7 @@ const ISSUE_TEXTS: Record<IssueCode, Translate> = {
   'track.importOnlyGpx': () => 'Eine importierte Linie gehört zum Routing „Aus Datei (GPX)“.',
   'track.importElevations': () => 'Die importierte Linie braucht eine Höhe pro Punkt.',
   'pin.photoNeedsAsset': () => 'Ein Foto-Pin braucht sein Bild.',
+  'pin.assetMissing': (v) => `Das Foto „${v.assetId}“ fehlt in den Dateien des Projekts.`,
   'view.flat2d': () => 'Die 2D-Ansicht schaut gerade von oben, die Neigung muss 0° sein.',
   'project.duplicateId': (v) => `Die ID „${v.id}“ kommt doppelt vor.`,
   'etappe.noTracks': () => 'Noch kein Fahrzeug. Füge mit „+ Fahrzeug“ eines hinzu.',

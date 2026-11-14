@@ -27,6 +27,7 @@ export const de = {
     retry: 'Erneut versuchen',
     actions: 'Aktionen',
     copySuffix: ' (Kopie)',
+    returnSuffix: ' (Rückfahrt)',
   },
   overview: {
     title: 'Projekte',
@@ -100,6 +101,20 @@ export const de = {
       end === undefined ? `von ${start} bis zum Etappenende` : `von ${start} bis ${end}`,
     barHint:
       'Ziehen verschiebt den Start, die Enden ändern Start und Dauer; mit Umschalt rastet es auf Frames ein. Pfeiltasten: 0,1 s, mit Umschalt 1 s.',
+  },
+  templates: {
+    open: 'Aus Vorlage …',
+    title: 'Vorlagen',
+    save: 'Als Vorlage speichern',
+    saved: (name: string) => `„${name}“ ist als Vorlage gespeichert.`,
+    saveFailed: 'Die Vorlage konnte nicht gespeichert werden. Läuft der Server?',
+    whereStage: (group: string) =>
+      `Eine Etappe kommt in die Gruppe „${group}“, eine Gruppe ans Ende des Projekts. Eigene Bilder und Fotos sind in Vorlagen nicht dabei.`,
+    noGroup: 'Eine Gruppe kommt ans Ende des Projekts. Für Etappen braucht es erst eine Gruppe.',
+    empty: 'Noch keine Vorlagen. Rechtsklick auf eine Etappe oder Gruppe: „Als Vorlage speichern“.',
+    unavailable: 'Die Vorlagen lassen sich nicht laden. Läuft der Server?',
+    kinds: { etappe: 'Etappe', group: 'Gruppe' },
+    remove: (name: string) => `Vorlage „${name}“ löschen`,
   },
   pins: {
     title: 'Fotos und Orte',
@@ -283,6 +298,7 @@ export const de = {
     collapse: 'Zuklappen',
     notReady: 'Noch nicht renderbar:',
     vehiclePickerTitle: 'Fahrzeug wählen',
+    reverse: 'Rückfahrt anlegen',
     deleteTitle: (name: string) => `„${name}“ löschen?`,
     deleteGroupDescription: (count: number) =>
       count === 0
@@ -342,6 +358,13 @@ export const de = {
         'top-right': 'Oben rechts',
         'top-left': 'Oben links',
       },
+      distanceCounter: 'Kilometer-Zähler',
+      timeCounter: 'Zeit-Zähler',
+      manualDuration: 'Zeit (statt Routing)',
+      manualDurationPlaceholder: 'z. B. 2 h 35 min',
+      timeCounterNoSource:
+        'Ohne Routing-Dauer (Flug, Zug, Import) zählt die Zeit nur mit einem eingetragenen Wert.',
+      timeCounterUnreadable: 'Lässt sich nicht lesen. Beispiele: „2 h 35 min“, „1:20 h“, „45 min“.',
       elevationProfile: 'Höhenprofil',
       elevationCounter: 'Höhenmeter',
       elevation: {
@@ -359,7 +382,8 @@ export const de = {
       presentAsOptions: 'Als Optionen darstellen',
       presentAsOptionsHint:
         'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
-      later: 'Weitere Zähler (Kilometer, Zeit) kommen mit ihren Modulen dazu.',
+      later:
+        'Rechtsklick auf die Etappe im Baum: „Rückfahrt anlegen“ oder „Als Vorlage speichern“.',
     },
     ends: {
       title: 'Anfang und Ende',

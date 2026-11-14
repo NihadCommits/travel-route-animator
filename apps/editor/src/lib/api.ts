@@ -15,6 +15,7 @@ import {
   type RenderRequest,
   type RouteElevation,
   type RouteRequest,
+  type Template,
   type Theme,
   type ValidationIssue,
 } from '@travel-route-animator/core';
@@ -134,6 +135,15 @@ export const api = {
   cancelRender: (id: string) =>
     request<RenderJob | undefined>(renderPath(id), { method: 'DELETE' }),
   revealRender: (id: string) => request<undefined>(`${renderPath(id)}/reveal`, { method: 'POST' }),
+  // Stage and group templates, kept with the server for every project (M14).
+  listTemplates: () => request<Template[]>('/templates'),
+  saveTemplate: (template: Template) =>
+    request<Template>(`/templates/${encodeURIComponent(template.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(template),
+    }),
+  deleteTemplate: (id: string) =>
+    request<undefined>(`/templates/${encodeURIComponent(id)}`, { method: 'DELETE' }),
   // Own map themes live with the server, outside every project (ADR 0010).
   listThemes: () => request<Theme[]>('/themes'),
   saveTheme: (theme: Theme) =>

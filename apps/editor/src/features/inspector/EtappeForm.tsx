@@ -5,6 +5,7 @@ import {
   CornerSchema,
   editEtappe,
   measureLine,
+  parseDurationText,
   presentAsOptions,
   profileTrackOf,
   renameItem,
@@ -57,6 +58,20 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
   const { camera } = view;
   const issues = useMemo(() => checkEtappeReadiness(etappe), [etappe]);
   const elevationJobs = useEditor((state) => state.elevationJobs);
+  // Without a router's estimate the time counter only counts a typed duration.
+  const timeCounterHint = (() => {
+    const typed = overlays.manualDurationText;
+    if (typed !== undefined) {
+      return parseDurationText(typed) === undefined
+        ? de.inspector.etappe.timeCounterUnreadable
+        : undefined;
+    }
+    const counted =
+      etappe.tracks.find((track) => track.id === camera.followTrackId) ?? etappe.tracks[0];
+    return counted?.computed?.durationS === undefined
+      ? de.inspector.etappe.timeCounterNoSource
+      : undefined;
+  })();
   const elevationNote = useMemo(() => {
     if (!showsElevation(etappe)) return undefined;
     const texts = de.inspector.etappe.elevation;
@@ -219,6 +234,34 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
           checked={overlays.labels}
           onCommit={(on) => setOverlay('labels', on)}
         />
+        <SwitchField
+          label={de.inspector.etappe.distanceCounter}
+          checked={overlays.distanceCounter}
+          onCommit={(on) => setOverlay('distanceCounter', on)}
+        />
+        <SwitchField
+          label={de.inspector.etappe.timeCounter}
+          checked={overlays.timeCounter}
+          onCommit={(on) => setOverlay('timeCounter', on)}
+        />
+        {overlays.timeCounter && (
+          <TextField
+            label={de.inspector.etappe.manualDuration}
+            value={overlays.manualDurationText ?? ''}
+            placeholder={de.inspector.etappe.manualDurationPlaceholder}
+            hint={timeCounterHint}
+            onCommit={(text) =>
+              change(
+                'overlays.manualDurationText',
+                ({ overlays: { manualDurationText: _old, ...rest }, ...e }) => ({
+                  ...e,
+                  overlays: text.trim() === '' ? rest : { ...rest, manualDurationText: text },
+                }),
+                true,
+              )
+            }
+          />
+        )}
         <SwitchField
           label={de.inspector.etappe.elevationProfile}
           checked={overlays.elevationProfile}
