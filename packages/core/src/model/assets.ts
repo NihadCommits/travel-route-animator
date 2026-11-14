@@ -11,7 +11,8 @@ export const AssetIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9_-]{1,64}$/, 'Asset IDs may only use letters, digits, _ and -');
 
-export const ImageMimeTypeSchema = z.enum(['image/png', 'image/gif']);
+// JPEG since M14: photos for pins (ADR 0014), made small by the editor before upload.
+export const ImageMimeTypeSchema = z.enum(['image/png', 'image/gif', 'image/jpeg']);
 export type ImageMimeType = z.infer<typeof ImageMimeTypeSchema>;
 
 export const ImageAssetSchema = z.strictObject({
@@ -31,7 +32,11 @@ export type ImageAsset = z.infer<typeof ImageAssetSchema>;
 export const AssetSchema = ImageAssetSchema;
 export type Asset = z.infer<typeof AssetSchema>;
 
-const EXTENSIONS: Record<ImageMimeType, string> = { 'image/png': 'png', 'image/gif': 'gif' };
+const EXTENSIONS: Record<ImageMimeType, string> = {
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/jpeg': 'jpg',
+};
 
 /** The asset's file in the project's assets folder: its ID and the extension of its type. */
 export function assetFileName(asset: Pick<Asset, 'id' | 'mimeType'>): string {

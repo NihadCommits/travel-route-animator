@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 6,
+  "schemaVersion": 7,
   "id": "p_portugal26",
   "name": "Portugal 2026",
   "createdAt": "2026-10-21T00:00:00.000Z",
@@ -89,7 +89,8 @@
                 "icon": { "kind": "catalog" }
               }
             }
-          ]
+          ],
+          "pins": []
         },
         {
           "id": "e_wien_porto",
@@ -165,7 +166,8 @@
                 "takeoffLandingCamera": true
               }
             }
-          ]
+          ],
+          "pins": []
         },
         {
           "id": "e_flughafen_hotel",
@@ -242,7 +244,8 @@
                 "icon": { "kind": "catalog" }
               }
             }
-          ]
+          ],
+          "pins": []
         }
       ]
     },
@@ -338,7 +341,8 @@
                 "icon": { "kind": "catalog" }
               }
             }
-          ]
+          ],
+          "pins": []
         },
         {
           "id": "e_wohin_morgen",
@@ -479,7 +483,8 @@
                 "icon": { "kind": "catalog" }
               }
             }
-          ]
+          ],
+          "pins": []
         }
       ]
     }

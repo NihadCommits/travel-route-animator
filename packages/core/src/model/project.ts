@@ -7,7 +7,7 @@ import { HexColorSchema, IdSchema, IsoDateTimeSchema } from './primitives';
 import { MapStyleRefSchema, TransitionSettingsSchema } from './style';
 
 /** Bump together with a new migration in migrations/migrations.ts. */
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 export const ProjectDefaultsSchema = z.strictObject({
   /** Default look, overridable per group and stage. */

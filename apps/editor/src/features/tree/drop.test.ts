@@ -26,6 +26,7 @@ function project(): Project {
     intro: { type: 'none' as const },
     outro: { type: 'none' as const },
     overlays: defaultOverlays(),
+    pins: [],
     tracks: trackIds.map((trackId) => ({
       id: trackId,
       vehicle: { type: 'car' as const, variant: 'car-default' },

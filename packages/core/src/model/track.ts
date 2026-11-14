@@ -119,13 +119,34 @@ export type FlightOptions = z.infer<typeof FlightOptionsSchema>;
  * geometry, measured with core's own geo functions.
  */
 export const RouteElevationSchema = z.strictObject({
-  /** 'dem' is sampled from terrain tiles by the server; 'gpx' comes with an imported track (M14). */
+  /**
+   * 'dem' is sampled from terrain tiles by the server; 'gpx' comes from an imported file (GPX,
+   * or the altitudes of a DJI subtitle file, ADR 0014).
+   */
   source: z.enum(['dem', 'gpx']),
   stepM: z.number().positive(),
   /** Metres above sea level. */
   elevationsM: z.array(z.number()).min(2),
 });
 export type RouteElevation = z.infer<typeof RouteElevationSchema>;
+
+/**
+ * A line read from a file (ADR 0014): a GPX track or the GPS of a DJI drone's subtitle file.
+ * The route of a `gpx` track is built from it, with the stops laid onto it, so editing a stop
+ * never loses the line.
+ */
+export const ImportedLineSchema = z.strictObject({
+  source: z.enum(['gpx', 'dji-srt']),
+  /** The file it came from, to recognise it in the editor. */
+  name: z.string(),
+  /** Simplified like router routes (5 m, ADR 0005). */
+  line: z.array(LngLatSchema).min(2),
+  /** Metres above sea level per point of `line`, when the file had them. */
+  elevationsM: z.array(z.number()).optional(),
+  /** SHA-256 over the line; part of the route's input hash. */
+  fingerprint: z.string().min(1),
+});
+export type ImportedLine = z.infer<typeof ImportedLineSchema>;
 
 /** Route computed by the server and stored in the project, so rendering works offline and reproducibly. */
 export const ComputedRouteSchema = z.strictObject({
@@ -165,6 +186,8 @@ export const TrackSchema = z
     timing: TrackTimingSchema,
     style: TrackStyleSchema,
     flight: FlightOptionsSchema.optional(),
+    /** The line of a GPX or DJI import; the `gpx` routing mode needs it (ADR 0014). */
+    imported: ImportedLineSchema.optional(),
     /** Cache written by the server. Never edited by hand. */
     computed: ComputedRouteSchema.optional(),
   })
@@ -191,6 +214,27 @@ export const TrackSchema = z
         code: 'track.flightOnlyPlane',
         message: `Flight options only apply to planes, not to a ${vehicle.type}`,
         values: { vehicle: vehicle.type },
+      });
+    }
+
+    if (track.imported !== undefined && routing.mode !== 'gpx') {
+      reportIssue(ctx, {
+        path: ['imported'],
+        input: track.imported.name,
+        code: 'track.importOnlyGpx',
+        message: `An imported line belongs to the gpx routing mode, not to "${routing.mode}"`,
+        values: { mode: routing.mode },
+      });
+    }
+    if (
+      track.imported?.elevationsM &&
+      track.imported.elevationsM.length !== track.imported.line.length
+    ) {
+      reportIssue(ctx, {
+        path: ['imported', 'elevationsM'],
+        input: track.imported.elevationsM.length,
+        code: 'track.importElevations',
+        message: `An imported line needs one height per point (${track.imported.line.length}), got ${track.imported.elevationsM.length}`,
       });
     }
   });
