@@ -83,6 +83,18 @@ export const ProjectSchema = z
             check(waypoint.id, ['groups', g, 'etappen', e, 'tracks', t, 'waypoints', w]);
           });
         });
+        etappe.pins.forEach((pin, p) => {
+          check(pin.id, ['groups', g, 'etappen', e, 'pins', p]);
+          if (pin.assetId !== undefined && !assetIds.has(pin.assetId)) {
+            reportIssue(ctx, {
+              path: ['groups', g, 'etappen', e, 'pins', p, 'assetId'],
+              input: pin.assetId,
+              code: 'pin.assetMissing',
+              message: `The photo "${pin.assetId}" is not among the project's assets`,
+              values: { assetId: pin.assetId },
+            });
+          }
+        });
       });
     });
     // Last, as they are listed last in the file: a clash is reported at the asset.

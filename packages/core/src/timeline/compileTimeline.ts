@@ -70,6 +70,8 @@ export interface TrackPlan {
   provider: string | undefined;
   /** The route's real distance (a router's road distance), for the kilometre counter. */
   distanceM: number;
+  /** The router's estimate of the travel time, for the time counter (M14). */
+  durationS: number | undefined;
   startSec: number;
   endSec: number;
   phases: Phase[];
@@ -302,6 +304,7 @@ function planTrack(
     routed,
     provider: routed ? track.computed!.provider : undefined,
     distanceM: routed ? track.computed!.distanceM : line.lengthM,
+    durationS: routed ? track.computed!.durationS : undefined,
     startSec,
     endSec: startSec + totalSec,
     phases,

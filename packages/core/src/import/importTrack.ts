@@ -1,5 +1,3 @@
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
 import { distanceM } from '../geo/distance';
 import type { LngLat } from '../geo/lngLat';
 import { simplifyLineIndices } from '../geo/simplify';
@@ -13,10 +11,10 @@ import {
 import { findEtappe } from '../resolve/resolve';
 import type { Project } from '../model/project';
 import type { ImportedLine, Track } from '../model/track';
-import { canonicalJson } from '../routing/canonicalJson';
 import { SIMPLIFY_TOLERANCE_M } from '../routing/assemble';
 import type { Added } from '../edit/operations';
 import { editEtappe } from '../edit/operations';
+import { lineFingerprint } from './fingerprint';
 import type { ImportedTrackData, ImportPoint } from './parse';
 
 // From a parsed file to a track (ADR 0014): the line, simplified and fingerprinted, a vehicle
@@ -57,7 +55,7 @@ export function toImportedLine(data: ImportedTrackData): ImportedLine {
     name: data.name,
     line,
     ...(elevationsM && { elevationsM }),
-    fingerprint: bytesToHex(sha256(utf8ToBytes(canonicalJson(line)))),
+    fingerprint: lineFingerprint(line),
   };
 }
 

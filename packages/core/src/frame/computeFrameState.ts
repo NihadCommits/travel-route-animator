@@ -1,4 +1,5 @@
 import { readProfile, type ElevationReading } from '../elevation/profile';
+import { parseDurationText } from './duration';
 import { pinsAt, type PinFrame } from '../pins/pins';
 import { lineAhead, lineUntil, pointAt } from '../geo/along';
 import type { LngLat } from '../geo/lngLat';
@@ -75,7 +76,8 @@ export interface FrameState {
   camera: CameraState;
   tracks: TrackFrame[];
   labels: LabelFrame[];
-  counters: { distanceKm?: number };
+  /** Kilometres and travel time so far, when the stage counts them. */
+  counters: { distanceKm?: number; travelSec?: number };
   /** Height and metres climbed on the profile track, when the stage shows them (ADR 0012). */
   elevation: (ElevationReading & { trackId: Id }) | undefined;
   /** The photos and places open in this frame (ADR 0014). */
@@ -180,11 +182,18 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
   const counted = counterTrack(timeline);
 
   let distanceKm: number | undefined;
-  if (timeline.overlays.distanceCounter && counted) {
+  let travelSec: number | undefined;
+  if (counted) {
     const { lengthM } = counted.line;
     const share = lengthM > 0 ? distanceAt(counted, sec) / lengthM : 0;
     // Scaled to the route's own distance, so the counter ends at what the inspector shows.
-    distanceKm = (share * counted.distanceM) / 1000;
+    if (timeline.overlays.distanceCounter) distanceKm = (share * counted.distanceM) / 1000;
+    // A typed duration wins over the router's estimate; without either there is nothing to count.
+    const { manualDurationText } = timeline.overlays;
+    const total =
+      (manualDurationText !== undefined ? parseDurationText(manualDurationText) : undefined) ??
+      counted.durationS;
+    if (timeline.overlays.timeCounter && total !== undefined) travelSec = share * total;
   }
 
   const flightStyle = flightStyleFor(timeline.view.pitchDeg);
@@ -199,7 +208,10 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     camera,
     tracks: timeline.tracks.map((plan) => trackFrame(plan, sec, camera, onTerrain)),
     labels: labelsAt(timeline, sec),
-    counters: distanceKm === undefined ? {} : { distanceKm },
+    counters: {
+      ...(distanceKm !== undefined && { distanceKm }),
+      ...(travelSec !== undefined && { travelSec }),
+    },
     elevation: elevationReading(timeline, sec),
     pins: pinsAt(timeline.pins, sec),
     effects: sectionEffects(timeline, sec),
