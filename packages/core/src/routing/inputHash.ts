@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils.js';
-import type { RoutingSettings, Track, Waypoint } from '../model/track';
+import type { ImportedLine, RoutingSettings, Track, Waypoint } from '../model/track';
 import { canonicalJson } from './canonicalJson';
 
 /** The parts of a waypoint a route depends on, plus its ID to tie the legs to it. */
@@ -13,6 +13,8 @@ export type RouteWaypoint = Pick<Waypoint, 'id' | 'lngLat' | 'kind'>;
 export interface RouteInput {
   waypoints: readonly RouteWaypoint[];
   routing: RoutingSettings;
+  /** The imported line a `gpx` route is built from (ADR 0014). */
+  imported?: Pick<ImportedLine, 'fingerprint'> | undefined;
 }
 
 /**
@@ -31,6 +33,8 @@ export function computeRouteInputHash(track: RouteInput): string {
       avoid: [...new Set(track.routing.avoid ?? [])].sort(),
     },
     waypoints: track.waypoints.map(({ lngLat, kind }) => ({ lngLat, kind })),
+    // A new import is a new route, even with the same stops. Other modes keep their old hash.
+    ...(track.routing.mode === 'gpx' && { imported: track.imported?.fingerprint ?? null }),
   };
   return bytesToHex(sha256(utf8ToBytes(canonicalJson(payload))));
 }

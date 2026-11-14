@@ -6,12 +6,11 @@ import { computeLocalRoute, isLocalRoutingMode } from './localRoute';
 
 /**
  * Whether the track's route comes from a router (road, cycling, walking, hiking) through the
- * server. Local modes are computed right away, GPX brings its own line, and a track without
- * two points has no route yet.
+ * server. Local modes are computed right away (GPX from its imported line, ADR 0014), and a
+ * track without two points has no route yet.
  */
 export function needsRouter(track: Pick<Track, 'routing' | 'waypoints'>): boolean {
-  const { mode } = track.routing;
-  return !isLocalRoutingMode(mode) && mode !== 'gpx' && track.waypoints.length >= 2;
+  return !isLocalRoutingMode(track.routing.mode) && track.waypoints.length >= 2;
 }
 
 /**

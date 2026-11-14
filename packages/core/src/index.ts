@@ -28,6 +28,8 @@ export * from './routing/canonicalJson';
 export * from './routing/inputHash';
 export * from './routing/assemble';
 export * from './routing/localRoute';
+export * from './import/parse';
+export * from './import/importTrack';
 export * from './routing/legs';
 export * from './routing/refresh';
 export * from './routing/request';
