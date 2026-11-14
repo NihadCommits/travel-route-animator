@@ -101,6 +101,30 @@ export const de = {
     barHint:
       'Ziehen verschiebt den Start, die Enden ändern Start und Dauer; mit Umschalt rastet es auf Frames ein. Pfeiltasten: 0,1 s, mit Umschalt 1 s.',
   },
+  pins: {
+    title: 'Fotos und Orte',
+    hint: 'Fotos mit GPS und Ortsnamen gehen kurz auf, wenn ein Fahrzeug vorbeikommt.',
+    addPhoto: 'Foto hinzufügen',
+    uploading: 'Wird hochgeladen …',
+    photoFile: 'Foto (JPEG mit GPS)',
+    searchPlace: 'Ort hinzufügen',
+    searchPlaceholder: 'z. B. Puch bei Hallein',
+    results: 'Gefundene Orte',
+    near: (km: string) => `${km} km von der Route`,
+    far: (km: string) => `⚠ ${km} km weg`,
+    kinds: { photo: 'Foto', place: 'Ort' },
+    trigger: 'Geht auf',
+    triggers: { pass: 'Beim Vorbeifahren', time: 'Zu fester Zeit' },
+    atSec: 'Ab',
+    duration: 'Dauer',
+    remove: (title: string) => `„${title}“ entfernen`,
+    farWarning: (km: string) =>
+      `Liegt ${km} km von jeder Route weg. Richtiger Ort? (Das Video rendert trotzdem.)`,
+    noGps: (title: string) =>
+      `„${title}“ hat keine GPS-Daten und liegt vorerst in der Mitte der Route. Stelle es auf „Zu fester Zeit“.`,
+    needsRoute: 'Das Foto hat keine GPS-Daten, und die Etappe hat noch keine Route.',
+    photoFailed: (reason: string) => `Das Foto ließ sich nicht hinzufügen: ${reason}`,
+  },
   importTrack: {
     open: 'Aus Datei importieren (GPX, DJI) …',
     title: 'Track importieren',

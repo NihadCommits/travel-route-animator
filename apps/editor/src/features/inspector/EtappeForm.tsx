@@ -30,6 +30,7 @@ import { SelectField } from './fields/SelectField';
 import { SliderField } from './fields/SliderField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
+import { PinsSection } from '@/features/pins/PinsSection';
 import { EndsSection } from './EndsSection';
 import { MapStyleSection } from './MapStyleSection';
 import { useOwnThemes, useSatelliteAvailable } from './mapStyles';
@@ -246,6 +247,8 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
         </Button>
         <p className="text-muted-foreground text-xs">{de.inspector.etappe.creditsHint}</p>
       </Section>
+
+      <PinsSection etappe={etappe} edit={edit} />
 
       {group && (
         <MapStyleSection project={project} level={{ kind: 'etappe', etappe, group }} edit={edit} />
