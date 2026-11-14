@@ -58,6 +58,7 @@ function etappe(
       distanceCounter: false,
       timeCounter: false,
       attribution: true,
+      attributionCorner: 'bottom-right',
       elevationProfile: false,
       elevationCounter: false,
     },
@@ -68,7 +69,7 @@ function etappe(
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',

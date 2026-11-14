@@ -140,6 +140,41 @@ describe('POST /api/render', () => {
     expect(renders[0]!.job.props.serverUrl).toMatch(/^http:\/\//);
   });
 
+  it('renders an overlay as ProRes 4444 or PNG for this render only, and refuses it as H.264', async () => {
+    const overlay = await startRender({
+      ...wienPorto,
+      output: { codec: 'prores-4444', transparentOverlay: true },
+    });
+    expect(overlay.statusCode).toBe(202);
+    expect(overlay.json<RenderJob>().outputPath).toMatch(
+      /wien-porto_16x9_1080p_20261029-1530\.mov$/,
+    );
+    const pictures = await startRender({
+      ...wienPorto,
+      output: { codec: 'png-sequence', transparentOverlay: true },
+    });
+    // A PNG sequence is a folder named like the video.
+    expect(pictures.json<RenderJob>().outputPath).toMatch(/wien-porto_16x9_1080p_20261029-1530$/);
+    await settle();
+    expect(renders[0]!.job.props).toMatchObject({
+      output: { codec: 'prores-4444', transparentOverlay: true },
+    });
+
+    const withMotion = await startRender({ ...wienPorto, motionData: true });
+    expect(withMotion.statusCode).toBe(202);
+
+    const opaque = await startRender({ ...wienPorto, output: { transparentOverlay: true } });
+    expect(opaque.statusCode).toBe(400);
+    expect(opaque.json()).toMatchObject({ error: 'invalid_output' });
+    renders[0]!.finish();
+    renders.length = 0;
+    await settle();
+    renders[0]!.finish();
+    await settle();
+    // The third job asks for the vehicles' motion.
+    expect(renders.at(-1)!.job.props).toMatchObject({ motionData: true });
+  });
+
   it('fills in the heights a stage on 3D terrain needs before it renders', async () => {
     const project = (
       await app.inject({ method: 'GET', url: '/api/projects/p_portugal26' })

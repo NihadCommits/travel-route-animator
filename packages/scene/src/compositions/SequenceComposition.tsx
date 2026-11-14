@@ -1,7 +1,7 @@
 import { compileSequence, sequenceFrameAt } from '@travel-route-animator/core';
 import { useMemo, type FC } from 'react';
 import { AbsoluteFill, useCurrentFrame, type CalculateMetadataFunction } from 'remotion';
-import { EffectsOverlay } from '../overlays/EffectsOverlay';
+import { blackOf, EffectsOverlay } from '../overlays/EffectsOverlay';
 import { MapFinish } from '../overlays/MapFinish';
 import { Overlays } from '../overlays/Overlays';
 import { SafeArea } from '../overlays/SafeArea';
@@ -27,7 +27,17 @@ export const calculateSequenceMetadata: CalculateMetadataFunction<SequenceProps>
 };
 
 export const SequenceComposition: FC<SequenceProps> = (props) => {
-  const { project, etappeIds, output, previewScale, guides, assetUrls, themes, serverUrl } = props;
+  const {
+    project,
+    etappeIds,
+    output,
+    previewScale,
+    guides,
+    assetUrls,
+    themes,
+    serverUrl,
+    motionData,
+  } = props;
   const frame = useCurrentFrame();
   const sequence = useMemo(
     () => sequenceOf({ project, etappeIds, output, previewScale }),
@@ -54,18 +64,26 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
   const look = looks[partIndex]!;
 
   return (
-    <AbsoluteFill style={{ backgroundColor: look.background }}>
+    <AbsoluteFill
+      style={
+        // An overlay fades out instead of to black (ADR 0013).
+        look.transparent
+          ? { opacity: 1 - blackOf(state.effects, dip) }
+          : { backgroundColor: look.background }
+      }
+    >
       <MapStage
         key={look.key}
         timeline={timeline}
         state={state}
         images={images}
         look={look}
+        reportMotion={motionData ?? false}
         preload={timelines}
       />
-      <MapFinish extras={look.extras} />
+      {!look.transparent && <MapFinish extras={look.extras} />}
       <Overlays timeline={timeline} state={state} credits={look.credits} />
-      <EffectsOverlay effects={state.effects} dip={dip} />
+      <EffectsOverlay effects={state.effects} dip={dip} transparent={look.transparent} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>
   );

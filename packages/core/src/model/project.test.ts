@@ -230,18 +230,20 @@ describe('validateProject (always checked, "storable")', () => {
       expectIssue(project, 'groups[0].etappen[1].mapStyle.themeId', /only applies to vector/);
     });
 
-    it('needs ProRes 4444 for a transparent overlay', () => {
+    it('needs an alpha channel (ProRes 4444 or PNG) for a transparent overlay', () => {
       const project = sampleProject();
       project.defaults.output.transparentOverlay = true;
       const issue = expectIssue(
         project,
         'defaults.output.transparentOverlay',
-        /needs the prores-4444 codec/,
+        /needs an alpha channel \(prores-4444 or png-sequence\)/,
       );
       expect(issue).toMatchObject({
         code: 'output.transparentNeedsProres',
         values: { codec: 'h264' },
       });
+      project.defaults.output.codec = 'png-sequence';
+      expect(validateProject(project).success).toBe(true);
     });
 
     it('accepts only the supported frame rates', () => {

@@ -26,6 +26,8 @@ export type EtappeProps = {
   themes?: Record<string, Theme>;
   /** Our local server, where satellite tiles come from (the key stays there). */
   serverUrl?: string;
+  /** Render only: report where every vehicle is in every frame (M13, see renderEtappe). */
+  motionData?: boolean;
   /** Preview only: draw with fewer pixels (0.5 = half resolution), same picture otherwise. */
   previewScale?: number;
   /** Preview only: safe-area guides on top. Never set for an export. */

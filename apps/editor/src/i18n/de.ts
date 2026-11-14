@@ -114,18 +114,54 @@ export const de = {
       etappe: 'Nur diese Etappe',
       chained: 'Ganze Gruppe als ein Video',
       separate: 'Etappen der Gruppe einzeln',
+      project: 'Ganzes Projekt: jede Gruppe als ein Video',
     },
     targetHints: {
       etappe: 'Ein Video dieser Etappe.',
       chained: 'Alle Etappen nacheinander in einem Video, mit dem Übergang der Gruppe dazwischen.',
       separate: 'Eine Datei pro Etappe, benannt nach der Etappe.',
+      project: 'Eine Datei pro Gruppe, benannt nach der Gruppe. Alles läuft nacheinander durch.',
     },
+    projectNames: (count: number) => `${count} Dateien, je nach ihrer Gruppe benannt.`,
+    motion: 'Bewegungsdaten der Fahrzeuge',
+    motionHint:
+      'Pro Fahrzeug Position und Drehung für jeden Frame, neben dem Video: After-Effects-Keyframes (.ae.txt, in AE einfügen), Premiere-XML (.xml, Test), CSV und JSON.',
+    extras: 'Zusätzlich rendern als',
+    extrasHint: 'Jedes Format wird ein eigener Auftrag mit eigenem Namen.',
+    jobCount: (count: number) =>
+      count === 1 ? '1 Auftrag für die Warteschlange.' : `${count} Aufträge für die Warteschlange.`,
     separateNames: (count: number) => `${count} Dateien, je nach ihrer Etappe benannt.`,
     format: 'Format',
-    codec: 'H.264 (MP4). ProRes und Transparenz kommen in M13.',
+    preset: 'Vorlage',
+    presets: {
+      custom: 'Eigene Einstellung',
+      'youtube-4k-25': 'YouTube 4K 25p',
+      'youtube-1080-25': 'YouTube 1080p 25p',
+      'reel-1080x1920-30': 'Reel 1080×1920 30p',
+      'overlay-prores-4444': 'Overlay ProRes 4444 (transparent)',
+    },
+    codec: 'Codec',
+    codecs: {
+      h264: 'H.264 (MP4)',
+      'prores-422hq': 'ProRes 422 HQ (MOV)',
+      'prores-4444': 'ProRes 4444 (MOV, mit Alpha)',
+      'png-sequence': 'PNG-Sequenz (Ordner, mit Alpha)',
+    },
+    codecHints: {
+      h264: 'Klein und überall abspielbar.',
+      'prores-422hq': 'Für den Schnitt: große Datei, ohne Qualitätsverlust beim Weiterbearbeiten.',
+      'prores-4444': 'Für den Schnitt, mit Transparenz. Sehr große Datei.',
+      'png-sequence': 'Ein Bild pro Frame. Premiere: erstes Bild wählen, „Bildsequenz“ anhaken.',
+    },
+    overlay: 'Transparentes Overlay',
+    overlayHint: 'Nur Route, Fahrzeuge, Namen und Einblendungen, ohne Karte: zum Drüberlegen.',
+    overlayNeedsAlpha: 'Braucht ProRes 4444 oder PNG-Sequenz.',
     onlyThisRender: 'Gilt nur für diesen Render, die Standards des Projekts bleiben.',
     fileName: 'Dateiname',
-    fileNameHint: (folder: string) => `Landet als .mp4 in output/${folder}/.`,
+    fileNameHint: (folder: string, extension: string) =>
+      extension === ''
+        ? `Landet als Ordner mit PNGs in output/${folder}/.`
+        : `Landet als ${extension} in output/${folder}/.`,
     fileNameInvalid:
       'Der Name braucht mindestens ein Zeichen, das kein Punkt und kein Leerzeichen ist.',
     notReady: 'Noch nicht renderbar:',
@@ -224,7 +260,7 @@ export const de = {
       aspect: 'Seitenverhältnis',
       resolution: 'Auflösung',
       fps: 'Bildrate',
-      later: 'Codec (M13) kommt mit seinem Modul dazu.',
+      later: 'Vorlagen für den Export stehen im Render-Dialog.',
     },
     group: {
       color: 'Farbe im Projektbaum',
@@ -255,6 +291,13 @@ export const de = {
       title: 'Titel',
       titlePlaceholder: 'z. B. Tag 4',
       attribution: 'Karten-Credits',
+      attributionCorner: 'Ecke der Credits',
+      corners: {
+        'bottom-right': 'Unten rechts',
+        'bottom-left': 'Unten links',
+        'top-right': 'Oben rechts',
+        'top-left': 'Oben links',
+      },
       elevationProfile: 'Höhenprofil',
       elevationCounter: 'Höhenmeter',
       elevation: {

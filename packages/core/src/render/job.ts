@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { AspectSchema, FpsSchema, ResolutionSchema, type OutputSettings } from '../model/output';
+import {
+  AspectSchema,
+  CodecSchema,
+  FpsSchema,
+  ResolutionSchema,
+  type OutputSettings,
+} from '../model/output';
 import { IdSchema } from '../model/primitives';
 
 // The render API between the editor and the local server (M7): what the render dialog asks
@@ -21,10 +27,17 @@ export const RenderRequestSchema = z
         aspect: AspectSchema.optional(),
         resolution: ResolutionSchema.optional(),
         fps: FpsSchema.optional(),
+        codec: CodecSchema.optional(),
+        transparentOverlay: z.boolean().optional(),
       })
       .default({}),
     /** Without extension; checked with cleanVideoName. Missing: suggestVideoName. */
     fileName: z.string().max(300).optional(),
+    /**
+     * Also write where each vehicle is in the picture, frame by frame (M13): JSON, CSV, After
+     * Effects keyframes and a Final Cut Pro 7 XML next to the video.
+     */
+    motionData: z.boolean().optional(),
   })
   .refine((request) => (request.etappeId === undefined) !== (request.etappeIds === undefined), {
     message: 'Give either etappeId or etappeIds',

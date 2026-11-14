@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 5,
+  "schemaVersion": 6,
   "id": "p_portugal26",
   "name": "Portugal 2026",
   "createdAt": "2026-10-21T00:00:00.000Z",
@@ -48,6 +48,7 @@
             "distanceCounter": false,
             "timeCounter": false,
             "attribution": true,
+            "attributionCorner": "bottom-right",
             "elevationProfile": false,
             "elevationCounter": false
           },
@@ -116,6 +117,7 @@
             "distanceCounter": true,
             "timeCounter": false,
             "attribution": true,
+            "attributionCorner": "bottom-right",
             "elevationProfile": false,
             "elevationCounter": false
           },
@@ -198,6 +200,7 @@
             "distanceCounter": false,
             "timeCounter": false,
             "attribution": true,
+            "attributionCorner": "bottom-right",
             "elevationProfile": false,
             "elevationCounter": false
           },
@@ -276,6 +279,7 @@
             "timeCounter": true,
             "manualDurationText": "3 h 10 min",
             "attribution": true,
+            "attributionCorner": "bottom-right",
             "elevationProfile": false,
             "elevationCounter": false
           },
@@ -362,6 +366,7 @@
             "timeCounter": false,
             "title": "Wohin morgen?",
             "attribution": true,
+            "attributionCorner": "bottom-right",
             "elevationProfile": false,
             "elevationCounter": false
           },

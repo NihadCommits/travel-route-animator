@@ -1,6 +1,13 @@
-import { renameItem, type OutputSettings, type Project } from '@travel-route-animator/core';
+import {
+  CODECS,
+  codecHasAlpha,
+  renameItem,
+  type OutputSettings,
+  type Project,
+} from '@travel-route-animator/core';
 import { de } from '@/i18n/de';
 import { SelectField } from './fields/SelectField';
+import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
 import { MapStyleSection } from './MapStyleSection';
 import { TransitionSection } from './TransitionSection';
@@ -52,6 +59,34 @@ export function ProjectForm({ project }: { project: Project }) {
             onCommit={(fps) => setOutput('fps', Number(fps) as OutputSettings['fps'])}
           />
         </Row>
+        <SelectField
+          label={de.render.codec}
+          value={output.codec}
+          options={optionsOf(CODECS, de.render.codecs)}
+          onCommit={(codec) =>
+            // A codec without alpha cannot stay transparent; both change in one step.
+            edit('defaults.output.codec', (p) => ({
+              ...p,
+              defaults: {
+                ...p.defaults,
+                output: {
+                  ...p.defaults.output,
+                  codec,
+                  transparentOverlay: p.defaults.output.transparentOverlay && codecHasAlpha(codec),
+                },
+              },
+            }))
+          }
+        />
+        <SwitchField
+          label={de.render.overlay}
+          checked={output.transparentOverlay}
+          disabled={!codecHasAlpha(output.codec)}
+          onCommit={(on) => setOutput('transparentOverlay', on)}
+        />
+        <p className="text-muted-foreground text-xs">
+          {codecHasAlpha(output.codec) ? de.render.overlayHint : de.render.overlayNeedsAlpha}
+        </p>
       </Section>
 
       <MapStyleSection project={project} level={{ kind: 'project' }} edit={edit} />

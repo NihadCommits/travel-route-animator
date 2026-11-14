@@ -1,4 +1,9 @@
-import { routingCredits, type FrameState, type Timeline } from '@travel-route-animator/core';
+import {
+  routingCredits,
+  type Corner,
+  type FrameState,
+  type Timeline,
+} from '@travel-route-animator/core';
 import type { CSSProperties, FC } from 'react';
 import { climbText, ElevationProfileChart } from './ElevationProfile';
 
@@ -21,6 +26,14 @@ const kilometres = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
 /** The profile panel's width: wide enough to read, never wider than the picture allows. */
 const PROFILE_WIDTH = 860;
 const MARGIN = 48;
+/** The credits line and the room it takes at the bottom, for what sits above it. */
+const CREDITS_HEIGHT = 36;
+
+/** The credits in their corner (ADR 0013), a little in from the edges. */
+function cornerStyle(corner: Corner): CSSProperties {
+  const [vertical, horizontal] = corner.split('-') as ['top' | 'bottom', 'left' | 'right'];
+  return { [vertical]: 10, [horizontal]: 12 };
+}
 
 export const Overlays: FC<{
   timeline: Timeline;
@@ -64,7 +77,11 @@ export const Overlays: FC<{
         style={{
           position: 'absolute',
           left: MARGIN,
-          bottom: 44,
+          // Credits at the bottom left take the space below the counters.
+          bottom:
+            overlays.attribution && overlays.attributionCorner === 'bottom-left'
+              ? 44 + CREDITS_HEIGHT
+              : 44,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'flex-start',
@@ -91,8 +108,7 @@ export const Overlays: FC<{
         <div
           style={{
             position: 'absolute',
-            right: 12,
-            bottom: 10,
+            ...cornerStyle(overlays.attributionCorner),
             padding: '3px 9px',
             borderRadius: 5,
             backgroundColor: 'rgba(255, 255, 255, 0.78)',

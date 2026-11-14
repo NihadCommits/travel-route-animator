@@ -54,6 +54,11 @@ export interface BuildStyleOptions {
    * draws; without them it shows hillshade and relief only.
    */
   contourTiles?: string | undefined;
+  /**
+   * No map at all (ADR 0013): no background, no layers, only what the scene adds on top, over
+   * a transparent picture. For overlays laid over footage.
+   */
+  transparent?: boolean | undefined;
 }
 
 /** The layer a dive-in fades the satellite picture in with (raster-opacity per frame). */
@@ -610,6 +615,19 @@ export function buildStyle(
   options: BuildStyleOptions = {},
 ): StyleSpecification {
   const satellite = style.base === 'satellite' || style.base === 'satellite-hybrid';
+  if (options.transparent) {
+    // The glyphs stay: the scene's stop names are drawn by the map too.
+    return {
+      version: 8,
+      name: 'overlay',
+      glyphs: `${OPENFREEMAP}/fonts/{fontstack}/{range}.pbf`,
+      sources: options.terrain ? { [TERRAIN_SOURCE]: demSource() } : {},
+      layers: [],
+      ...(options.terrain && {
+        terrain: { source: TERRAIN_SOURCE, exaggeration: options.terrain.exaggeration },
+      }),
+    };
+  }
   const sources: Record<string, SourceSpecification> = {
     [SOURCE]: { type: 'vector', url: `${OPENFREEMAP}/planet` },
   };

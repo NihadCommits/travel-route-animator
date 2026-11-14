@@ -33,7 +33,7 @@ export function cleanVideoName(name: string): string | null {
   const cleaned = printable
     .replace(NOT_IN_FILE_NAMES, '-')
     .trim()
-    .replace(/\.mp4$/i, '')
+    .replace(/\.(mp4|mov)$/i, '')
     // Reserved for the file being rendered (see renderEtappe), which may be cleaned up.
     .replace(/\.partial$/i, '')
     .slice(0, MAX_VIDEO_NAME_LENGTH)

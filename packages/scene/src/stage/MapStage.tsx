@@ -1,8 +1,14 @@
-import { flightStyleFor, type FrameState, type Timeline } from '@travel-route-animator/core';
+import {
+  flightStyleFor,
+  MOTION_LOG_PREFIX,
+  type FrameState,
+  type MotionFrame,
+  type Timeline,
+} from '@travel-route-animator/core';
 import { SATELLITE_MIX_LAYER } from '@travel-route-animator/styles';
 import type { Map as MapLibreMap } from 'maplibre-gl';
 import { useEffect, useRef, useState, type FC } from 'react';
-import { useBufferState, useDelayRender, useRemotionEnvironment } from 'remotion';
+import { useBufferState, useCurrentFrame, useDelayRender, useRemotionEnvironment } from 'remotion';
 import { decodeImage, type DecodedImage, type StageImage } from '../vehicles/images';
 import { drawings3d, modelOf } from './data3d';
 import { sceneFeatures } from './features';
@@ -10,6 +16,7 @@ import type { Layer3d } from './layer3d';
 import { addSceneLayers, addStageImages, loadVehicleIcons, setSceneFeatures } from './layers';
 import type { ImageTimings } from './look';
 import type { MapLook } from './mapLook';
+import { measureMotion } from './motion';
 import { createRenderMap } from './renderMap';
 
 /**
@@ -19,12 +26,26 @@ import { createRenderMap } from './renderMap';
 function applyProjection(
   map: MapLibreMap,
   projection: FrameState['projection'],
-  sky: MapLook['sky'],
+  look: Pick<MapLook, 'sky' | 'transparent'>,
 ): void {
   if (map.getProjection()?.type !== projection) map.setProjection({ type: projection });
+  if (look.transparent) {
+    // An overlay has no sky, no fog and no atmosphere: everything around the lines stays clear.
+    const clear = 'rgba(0, 0, 0, 0)';
+    map.setSky({
+      'sky-color': clear,
+      'horizon-color': clear,
+      'fog-color': clear,
+      'atmosphere-blend': 0,
+    });
+    return;
+  }
   map.setSky(
     projection === 'globe'
-      ? { ...sky, 'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 8, 0] }
+      ? {
+          ...look.sky,
+          'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 5, 1, 8, 0],
+        }
       : { 'atmosphere-blend': 0 },
   );
 }
@@ -88,6 +109,11 @@ export interface MapStageProps {
    * before the first frame. Missing: only `timeline`.
    */
   preload?: readonly Timeline[];
+  /**
+   * While rendering: report where every vehicle is once the frame is drawn, as a console line
+   * the render collects (M13: motion data for After Effects and Premiere).
+   */
+  reportMotion?: boolean;
 }
 
 const NO_IMAGES: readonly StageImage[] = [];
@@ -113,8 +139,11 @@ export const MapStage: FC<MapStageProps> = ({
   images = NO_IMAGES,
   look,
   preload,
+  reportMotion = false,
 }) => {
   const { isRendering } = useRemotionEnvironment();
+  // The video's frame; in a sequence the stage's own frame state counts from its start.
+  const videoFrame = useCurrentFrame();
   const { delayRender, continueRender, cancelRender } = useDelayRender();
   const buffer = useBufferState();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -144,10 +173,11 @@ export const MapStage: FC<MapStageProps> = ({
       pitch: firstState.camera.pitchDeg,
       bearing: firstState.camera.bearingDeg,
       pixelRatio: first.scale,
+      // The walls at the edges of terrain tiles hide gaps between zoom levels. With no map
+      // around them (an overlay) they would show as grey strokes below every line.
+      terrainSkirtLength: firstLook.transparent ? 'none' : 'auto',
     });
-    instance.on('style.load', () =>
-      applyProjection(instance, firstState.projection, firstLook.sky),
-    );
+    instance.on('style.load', () => applyProjection(instance, firstState.projection, firstLook));
     instance.on('load', () => {
       addSceneLayers(instance);
       const all = initial.current.preload;
@@ -202,8 +232,8 @@ export const MapStage: FC<MapStageProps> = ({
   // Switching the view between flat map and globe in the editor.
   const { projection } = state;
   useEffect(() => {
-    if (map) applyProjection(map, projection, look.sky);
-  }, [map, projection, look.sky]);
+    if (map) applyProjection(map, projection, look);
+  }, [map, projection, look]);
 
   // Switching the preview between half and full resolution.
   useEffect(() => {
@@ -224,7 +254,8 @@ export const MapStage: FC<MapStageProps> = ({
     if (map.getLayer(SATELLITE_MIX_LAYER)) {
       map.setPaintProperty(SATELLITE_MIX_LAYER, 'raster-opacity', state.effects.satelliteMix);
     }
-    const drawn = setSceneFeatures(map, sceneFeatures(timeline, state, timings));
+    const features = sceneFeatures(timeline, state, timings);
+    const drawn = setSceneFeatures(map, features);
     if (!isRendering) {
       drawn.catch((error: unknown) => cancelRender(error));
       return;
@@ -241,7 +272,16 @@ export const MapStage: FC<MapStageProps> = ({
       .then(() => {
         // 'idle' fires once all tiles for this camera and the new data are drawn. triggerRepaint
         // makes sure it fires even if nothing changed since the previous frame.
-        map.once('idle', () => continueRender(handle));
+        map.once('idle', () => {
+          if (reportMotion) {
+            const report: MotionFrame = {
+              frame: videoFrame,
+              tracks: measureMotion(map, timeline, state, features, layer3d.current),
+            };
+            console.log(MOTION_LOG_PREFIX + JSON.stringify(report));
+          }
+          continueRender(handle);
+        });
         map.triggerRepaint();
       })
       .catch((error: unknown) => cancelRender(error));
@@ -255,6 +295,8 @@ export const MapStage: FC<MapStageProps> = ({
     delayRender,
     continueRender,
     cancelRender,
+    reportMotion,
+    videoFrame,
   ]);
 
   // Outside rendering the load handle has no effect, but it must not stay open either.

@@ -21,6 +21,7 @@ import {
   checkRenderReadiness,
   ComputedRouteSchema,
   describeIssues,
+  outputExtensionOf,
   parseProjectFile,
   refreshLocalRoutes,
   RouteElevationSchema,
@@ -51,6 +52,9 @@ const { values } = parseArgs({
     aspect: { type: 'string' },
     resolution: { type: 'string' },
     fps: { type: 'string' },
+    codec: { type: 'string' },
+    overlay: { type: 'boolean', default: false },
+    motion: { type: 'boolean', default: false },
   },
 });
 
@@ -66,14 +70,17 @@ const gl = GL_RENDERERS.find((renderer) => renderer === values.gl);
 if (!gl) fail(`Unknown --gl value "${values.gl}". Use one of: ${GL_RENDERERS.join(', ')}`);
 
 /**
- * --aspect, --resolution and --fps on top of the project's output settings, checked the same
- * way the timeline resolves them (resolveOutput), so a bad value fails here and not mid-render.
+ * --aspect, --resolution, --fps, --codec and --overlay on top of the project's output settings,
+ * checked the same way the timeline resolves them (resolveOutput), so a bad value fails here
+ * and not mid-render.
  */
 function outputOverrides(project: Project): Partial<OutputSettings> {
   const overrides = {
     ...(values.aspect && { aspect: values.aspect }),
     ...(values.resolution && { resolution: values.resolution }),
     ...(values.fps && { fps: Number(values.fps) }),
+    ...(values.codec && { codec: values.codec }),
+    ...(values.overlay && { transparentOverlay: true }),
   } as Partial<OutputSettings>;
   try {
     resolveOutput(project, overrides);
@@ -250,8 +257,14 @@ const assetUrls = await readAssetUrls(
   join(dirname(resolve(repoRoot, values.file)), 'assets'),
   assetsOfEtappe(project, etappe.id),
 );
-const name = suggestVideoName(etappe.name, resolveOutput(project, output), new Date());
-const outputLocation = join(repoRoot, 'output', slugify(project.name), `${name}.mp4`);
+const resolvedOutput = resolveOutput(project, output);
+const name = suggestVideoName(etappe.name, resolvedOutput, new Date());
+const outputLocation = join(
+  repoRoot,
+  'output',
+  slugify(project.name),
+  `${name}${outputExtensionOf(resolvedOutput.codec)}`,
+);
 
 console.log('Bundling the scene …');
 const serveUrl = await bundleScene();
@@ -263,6 +276,7 @@ const video = await renderEtappe({
     project,
     etappeId: etappe.id,
     output,
+    ...(values.motion && { motionData: true }),
     assetUrls,
     ...(themes && { themes }),
     ...(satellite && { serverUrl: values.server }),

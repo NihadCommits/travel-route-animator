@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import {
   isRenderJobFinished,
+  outputExtensionOf,
   type OutputSettings,
   type Project,
   type RenderJob,
   type Theme,
 } from '@travel-route-animator/core';
 import type { StageProps } from '@travel-route-animator/scene/render';
+import { memoryJobStore, type JobStore } from './jobStore';
 import { pickOutputPath } from './outputFiles';
 import type { StageRenderer } from './renderer';
 
@@ -18,6 +20,10 @@ export interface RenderQueueOptions {
   progressIntervalMs?: number;
   /** Finished jobs kept in the list; the oldest go first. */
   keepFinished?: number;
+  /** Where jobs outlive a restart (jobStore.ts); in memory only without one. */
+  store?: JobStore;
+  /** Where a failed write of the stored queue is reported. */
+  warn?: (message: string) => void;
 }
 
 export interface NewRenderJob {
@@ -38,18 +44,22 @@ export interface NewRenderJob {
   themes?: Record<string, Theme>;
   /** This server, for satellite tiles. */
   serverUrl?: string;
+  /** Also write where each vehicle is in every frame (M13). */
+  motionData?: boolean;
 }
 
 interface Entry {
   job: RenderJob;
-  props: StageProps;
+  /** Missing only for finished jobs restored from the store. */
+  props: StageProps | undefined;
   abort: AbortController;
   lastPublished: number;
 }
 
 /**
  * Render jobs, one at a time (WebGL maps want the whole GPU, ARCHITEKTUR: Render-Pipeline).
- * Kept in memory: after a restart the list starts empty, the videos are in the output folder.
+ * With a store they outlive a restart (M13): waiting jobs wait on, and a job that was running
+ * starts again from the beginning; its partial file is gone by then (removePartialVideos).
  */
 export function createRenderQueue({
   renderer,
@@ -57,15 +67,38 @@ export function createRenderQueue({
   createId = randomUUID,
   progressIntervalMs = 250,
   keepFinished = 50,
+  store = memoryJobStore,
+  warn = () => undefined,
 }: RenderQueueOptions) {
   const entries = new Map<string, Entry>();
   const listeners = new Set<(job: RenderJob) => void>();
   const idleWaiters: (() => void)[] = [];
   let running: Entry | undefined;
+  // Set on shutdown: nothing new starts, and the running job is stopped without being marked
+  // cancelled, so the store still has it as running and the next start renders it again.
+  let suspended = false;
   // Adding picks a free file name; one after the other, so two jobs never get the same one.
   let adding: Promise<unknown> = Promise.resolve();
 
   const timestamp = () => now().toISOString();
+  // Writes to the store one after the other, so a later state never loses to an earlier one.
+  let writes: Promise<unknown> = Promise.resolve();
+
+  function persist(entry: Entry) {
+    const finished = isRenderJobFinished(entry.job.state);
+    const stored =
+      finished || !entry.props ? { job: entry.job } : { job: entry.job, props: entry.props };
+    writes = writes
+      .then(() => store.save(stored))
+      .catch((error: unknown) => warn(`The render queue could not be saved: ${String(error)}`));
+  }
+
+  function forget(id: string) {
+    entries.delete(id);
+    writes = writes
+      .then(() => store.remove(id))
+      .catch((error: unknown) => warn(`The render queue could not be saved: ${String(error)}`));
+  }
 
   function publish(entry: Entry) {
     entry.lastPublished = now().getTime();
@@ -74,6 +107,8 @@ export function createRenderQueue({
 
   function update(entry: Entry, patch: Partial<RenderJob>, { progressOnly = false } = {}) {
     entry.job = { ...entry.job, ...patch };
+    // Progress is not stored: after a restart a job starts from the beginning anyway.
+    if (!progressOnly) persist(entry);
     // A progress event per frame would flood the browser; the last one before a state
     // change is not lost, the state change carries it.
     if (progressOnly && now().getTime() - entry.lastPublished < progressIntervalMs) return;
@@ -91,12 +126,17 @@ export function createRenderQueue({
   function forgetOldFinished() {
     const finished = [...entries.values()].filter(({ job }) => isRenderJobFinished(job.state));
     for (const { job } of finished.slice(0, Math.max(0, finished.length - keepFinished))) {
-      entries.delete(job.id);
+      forget(job.id);
     }
   }
 
   async function run(entry: Entry) {
     const { signal } = entry.abort;
+    const { props } = entry;
+    if (!props) {
+      update(entry, { state: 'failed', error: 'Nothing left to render', finishedAt: timestamp() });
+      return;
+    }
     update(entry, { state: 'preparing', startedAt: timestamp() });
     let result: Partial<RenderJob>;
     try {
@@ -106,7 +146,7 @@ export function createRenderQueue({
       update(entry, { state: 'rendering' });
       const video = await renderer.render({
         serveUrl,
-        props: entry.props,
+        props,
         outputLocation: entry.job.outputPath,
         signal,
         onProgress: (progress, remainingMs) =>
@@ -114,6 +154,7 @@ export function createRenderQueue({
       });
       result = { state: 'done', progress: 1, video };
     } catch (error) {
+      if (suspended && signal.aborted) return;
       result = signal.aborted
         ? { state: 'cancelled' }
         : { state: 'failed', error: error instanceof Error ? error.message : String(error) };
@@ -122,7 +163,7 @@ export function createRenderQueue({
   }
 
   async function runNext(): Promise<void> {
-    if (running) return;
+    if (running || suspended) return;
     const next = [...entries.values()].find(({ job }) => job.state === 'queued');
     if (!next) {
       idleWaiters.splice(0).forEach((resolve) => resolve());
@@ -135,13 +176,51 @@ export function createRenderQueue({
       running = undefined;
       forgetOldFinished();
     }
+    if (suspended) {
+      idleWaiters.splice(0).forEach((resolve) => resolve());
+      return;
+    }
     return runNext();
   }
 
   return {
+    /**
+     * Takes up the stored jobs after a restart and starts the first waiting one. Returns how
+     * many will render again.
+     */
+    async restore(): Promise<number> {
+      let again = 0;
+      for (const { job, props } of await store.load()) {
+        if (entries.has(job.id)) continue;
+        const unfinished = !isRenderJobFinished(job.state);
+        const restored: RenderJob = unfinished
+          ? { ...job, state: 'queued', progress: 0, remainingMs: null, startedAt: null }
+          : job;
+        const entry: Entry = {
+          job: restored,
+          props: unfinished ? props : undefined,
+          abort: new AbortController(),
+          lastPublished: 0,
+        };
+        entries.set(job.id, entry);
+        if (unfinished) {
+          again++;
+          persist(entry);
+        }
+      }
+      forgetOldFinished();
+      void runNext();
+      return again;
+    },
+
     async add(input: NewRenderJob): Promise<RenderJob> {
       const claimed = adding.then(async () => {
-        const outputPath = await pickOutputPath(input.dir, input.name, claimedPaths());
+        const outputPath = await pickOutputPath(
+          input.dir,
+          input.name,
+          outputExtensionOf(input.output.codec),
+          claimedPaths(),
+        );
         const job: RenderJob = {
           id: createId(),
           projectId: input.project.id,
@@ -168,11 +247,13 @@ export function createRenderQueue({
             ...(input.assetUrls && { assetUrls: input.assetUrls }),
             ...(input.themes && { themes: input.themes }),
             ...(input.serverUrl && { serverUrl: input.serverUrl }),
+            ...(input.motionData && { motionData: true }),
           },
           abort: new AbortController(),
           lastPublished: 0,
         };
         entries.set(job.id, entry);
+        persist(entry);
         publish(entry);
         return entry;
       });
@@ -205,7 +286,26 @@ export function createRenderQueue({
     remove(id: string): boolean {
       const entry = entries.get(id);
       if (!entry || !isRenderJobFinished(entry.job.state)) return false;
-      return entries.delete(id);
+      forget(id);
+      return true;
+    },
+
+    /**
+     * Stops for a shutdown: the running render ends and removes its partial file, but every
+     * unfinished job stays stored and renders after the next start. Resolves once the
+     * renderer has let go and the store is written.
+     */
+    async suspend(): Promise<void> {
+      suspended = true;
+      const current = running;
+      current?.abort.abort(new Error('The server is shutting down'));
+      if (current) await new Promise<void>((resolve) => idleWaiters.push(resolve));
+      await writes;
+    },
+
+    /** Resolves when every change so far is on disk (tests, shutdown). */
+    flushed(): Promise<void> {
+      return writes.then(() => undefined);
     },
 
     /** Called with a job on every change; returns the unsubscribe. */

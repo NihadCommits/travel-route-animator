@@ -28,6 +28,7 @@ export interface LineProps {
 }
 
 export interface VehicleProps {
+  trackId: string;
   icon: string;
   bearing: number;
   size: number;
@@ -207,6 +208,7 @@ export function sceneFeatures(
               : head.lngLat,
           },
           properties: {
+            trackId: track.trackId,
             icon: look.icon,
             bearing: !look.turns ? 0 : flight ? liftedBearing(track, up) : head.bearingDeg,
             // Icons are added at their full size; icon-size scales them by the track setting.

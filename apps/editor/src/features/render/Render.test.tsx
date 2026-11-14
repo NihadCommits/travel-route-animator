@@ -189,6 +189,103 @@ describe('render dialog', () => {
     expect(await screen.findByText(/^wien-porto_9x16_1080p_.*\.mp4$/)).toBeInTheDocument();
   });
 
+  it('fills the format from a preset and renders a transparent overlay', async () => {
+    const { project } = trip();
+    const { server, user } = await renderEditor(project);
+    await selectRow(/Flug/);
+    await user.click(renderButton());
+    const preset = dialog().getByRole('combobox', { name: 'Vorlage' });
+    const overlay = dialog().getByRole('switch', { name: 'Transparentes Overlay' });
+    // H.264 has no alpha channel, so it cannot be an overlay.
+    expect(overlay).toBeDisabled();
+    expect(preset).toHaveDisplayValue('YouTube 1080p 25p');
+
+    await user.selectOptions(preset, 'Reel 1080×1920 30p');
+    expect(dialog().getByRole('combobox', { name: 'Seitenverhältnis' })).toHaveDisplayValue(
+      '9:16 (Hochformat)',
+    );
+    await user.selectOptions(preset, 'Overlay ProRes 4444 (transparent)');
+    expect(overlay).toBeChecked();
+    await user.click(dialog().getByRole('switch', { name: 'Bewegungsdaten der Fahrzeuge' }));
+    expect(dialog().getByText(/Landet als \.mov in output\/portugal-2026\//)).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', { name: 'Rendern' }));
+
+    await waitFor(() =>
+      expect(server.calls.some((call) => call.method === 'POST' && call.path === '/render')).toBe(
+        true,
+      ),
+    );
+    const sent = server.calls.find((call) => call.method === 'POST' && call.path === '/render');
+    expect(sent?.body).toMatchObject({
+      output: { aspect: '16:9', fps: 25, codec: 'prores-4444', transparentOverlay: true },
+      motionData: true,
+    });
+  });
+
+  it('queues every group of the project, also in extra formats, in one go', async () => {
+    const { project } = trip();
+    // A second group "Rückreise" with a flight of its own.
+    const back = addGroup(project, 'Rückreise');
+    const stage = addEtappe(back.project, back.id, 'Porto – Wien');
+    const flight = addTrack(stage.project, stage.id, 'plane', { label: 'Rückflug' });
+    const both = editTrack(flight.project, flight.id, (track) => ({
+      ...track,
+      waypoints: [
+        createWaypoint({ name: 'Porto', lngLat: [-8.68, 41.25] }),
+        createWaypoint({ name: 'Wien', lngLat: [16.57, 48.11] }),
+      ],
+    }));
+    const { server, user } = await renderEditor(both);
+    await selectRow(/^Flug/);
+    await user.click(renderButton());
+    await user.selectOptions(
+      dialog().getByRole('combobox', { name: 'Was gerendert wird' }),
+      'Ganzes Projekt: jede Gruppe als ein Video',
+    );
+    expect(
+      dialog().getByText('2 Dateien, je nach ihrer Gruppe benannt.', { exact: false }),
+    ).toBeInTheDocument();
+    await user.click(dialog().getByRole('switch', { name: 'Reel 1080×1920 30p' }));
+    expect(dialog().getByText('4 Aufträge für die Warteschlange.')).toBeInTheDocument();
+    await user.click(dialog().getByRole('button', { name: 'Rendern' }));
+
+    await waitFor(() =>
+      expect(server.calls.filter((c) => c.method === 'POST' && c.path === '/render')).toHaveLength(
+        4,
+      ),
+    );
+    const sent = server.calls
+      .filter((c) => c.method === 'POST' && c.path === '/render')
+      .map((c) => c.body as RenderRequest);
+    expect(sent.map((r) => [r.etappeId ?? r.etappeIds, r.output?.aspect])).toEqual([
+      [expect.any(String), '16:9'],
+      [expect.any(String), '9:16'],
+      [stage.id, '16:9'],
+      [stage.id, '9:16'],
+    ]);
+    // The server names each after its group and format.
+    expect(sent.every((r) => r.fileName === undefined)).toBe(true);
+  });
+
+  it('turns the overlay off when the codec has no alpha channel', async () => {
+    const { project } = trip();
+    const { user } = await renderEditor(project);
+    await selectRow(/Flug/);
+    await user.click(renderButton());
+    const codec = dialog().getByRole('combobox', { name: 'Codec' });
+    await user.selectOptions(codec, 'PNG-Sequenz (Ordner, mit Alpha)');
+    const overlay = dialog().getByRole('switch', { name: 'Transparentes Overlay' });
+    await user.click(overlay);
+    expect(overlay).toBeChecked();
+    expect(dialog().getByText(/Landet als Ordner mit PNGs/)).toBeInTheDocument();
+    expect(dialog().getByRole('combobox', { name: 'Vorlage' })).toHaveDisplayValue(
+      'Eigene Einstellung',
+    );
+    await user.selectOptions(codec, 'ProRes 422 HQ (MOV)');
+    expect(overlay).not.toBeChecked();
+    expect(overlay).toBeDisabled();
+  });
+
   it('waits for a road route the server could not compute, and says so', async () => {
     const { project } = trip('car');
     const { server, user } = await renderEditor(project);

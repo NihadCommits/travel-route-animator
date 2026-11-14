@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   createEtappe,
+  CURRENT_SCHEMA_VERSION,
   createTrack,
   createWaypoint,
   IMAGE_LIMITS,
@@ -88,7 +89,10 @@ describe('project API', () => {
 
     it('starts empty and skips folders without a valid project', async () => {
       await mkdir(join(dataDir, 'projects', 'broken'), { recursive: true });
-      await writeFile(projectFile('broken'), '{ "schemaVersion": 5, "name": ');
+      await writeFile(
+        projectFile('broken'),
+        `{ "schemaVersion": ${CURRENT_SCHEMA_VERSION}, "name": `,
+      );
       await mkdir(join(dataDir, 'projects', 'empty-folder'));
 
       const response = await app.inject({ method: 'GET', url: '/api/projects' });
@@ -234,7 +238,10 @@ describe('project API', () => {
     it('says why it cannot be opened instead of claiming it does not exist', async () => {
       const project = await createViaApi('Portugal 2026');
       await breakFile('portugal-2026', (text) =>
-        text.replace('"schemaVersion": 5', '"schemaVersion": 5, "colour": "red"'),
+        text.replace(
+          `"schemaVersion": ${CURRENT_SCHEMA_VERSION}`,
+          `"schemaVersion": ${CURRENT_SCHEMA_VERSION}, "colour": "red"`,
+        ),
       );
 
       const response = await app.inject({ method: 'GET', url: `/api/projects/${project.id}` });

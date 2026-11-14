@@ -59,17 +59,24 @@ describe('map options', () => {
   it('collect what a stage adds to its map style', () => {
     const { project, etappeId } = stage(flight, (e) => e);
     const etappe = project.groups[0]!.etappen[0]!;
-    expect(mapOptionsOf(etappe)).toEqual({
+    const opaque = { transparentOverlay: false };
+    expect(mapOptionsOf(etappe, opaque)).toEqual({
       buildings3d: false,
       satelliteMix: false,
       terrain: undefined,
+      transparent: false,
     });
-    expect(mapOptionsOf(withTerrain(1.5)(etappe)).terrain).toEqual({ exaggeration: 1.5 });
+    expect(mapOptionsOf(withTerrain(1.5)(etappe), opaque).terrain).toEqual({ exaggeration: 1.5 });
     const arriving = {
       ...etappe,
       outro: { type: 'arrival-3d' as const, durationSec: 3, pitchDeg: 60, orbitDeg: 90 },
     };
-    expect(mapOptionsOf(arriving).buildings3d).toBe(true);
+    expect(mapOptionsOf(arriving, opaque).buildings3d).toBe(true);
+    // Over footage there is no map, so no buildings either.
+    expect(mapOptionsOf(arriving, { transparentOverlay: true })).toMatchObject({
+      buildings3d: false,
+      transparent: true,
+    });
     const terrain = stage(flight, withTerrain(1.5));
     expect(compileTimeline(project, etappeId).mapStyleKey).not.toBe(
       compileTimeline(terrain.project, terrain.etappeId).mapStyleKey,

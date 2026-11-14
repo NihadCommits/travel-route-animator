@@ -86,6 +86,10 @@ export const OutroSettingsSchema = z.discriminatedUnion('type', [
 ]);
 export type OutroSettings = z.infer<typeof OutroSettingsSchema>;
 
+/** Where the map credits sit in the picture (ADR 0013). */
+export const CornerSchema = z.enum(['bottom-right', 'bottom-left', 'top-right', 'top-left']);
+export type Corner = z.infer<typeof CornerSchema>;
+
 export const OverlaySettingsSchema = z.strictObject({
   labels: z.boolean(),
   distanceCounter: z.boolean(),
@@ -94,6 +98,7 @@ export const OverlaySettingsSchema = z.strictObject({
   manualDurationText: z.string().optional(),
   title: z.string().optional(),
   attribution: z.boolean(),
+  attributionCorner: CornerSchema,
   /** The height profile of the profile track, with a point that moves along (ADR 0012). */
   elevationProfile: z.boolean(),
   /** Metres climbed and descended so far. */

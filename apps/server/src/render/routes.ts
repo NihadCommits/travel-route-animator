@@ -7,6 +7,7 @@ import {
   cleanVideoName,
   describeIssues,
   isRenderJobFinished,
+  OutputSettingsSchema,
   refreshLocalRoutes,
   RenderRequestSchema,
   resolveOutput,
@@ -133,6 +134,15 @@ export function registerRenderRoutes(
       const project = await fillElevations(routed, etappeIds, elevation, (message) =>
         request.log.warn(message),
       );
+      // The dialog may switch codec and overlay for this render; both have to fit together.
+      const checked = OutputSettingsSchema.safeParse({ ...project.defaults.output, ...overrides });
+      if (!checked.success) {
+        return reply.code(400).send({
+          error: 'invalid_output',
+          message: 'These output settings do not fit together',
+          issues: toValidationIssues(checked.error),
+        });
+      }
       const output = resolveOutput(project, overrides);
       const name =
         fileName === undefined ? suggestVideoName(title, output, now()) : cleanVideoName(fileName);
@@ -170,6 +180,7 @@ export function registerRenderRoutes(
           themes: Object.fromEntries(usedThemes.map((theme) => [theme.id, theme])),
         }),
         serverUrl: ownUrl(request),
+        ...(body.data.motionData && { motionData: true }),
       });
       return reply.code(202).send(job);
     });
