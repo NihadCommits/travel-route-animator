@@ -1,4 +1,5 @@
 import { readProfile, type ElevationReading } from '../elevation/profile';
+import { pinsAt, type PinFrame } from '../pins/pins';
 import { lineAhead, lineUntil, pointAt } from '../geo/along';
 import type { LngLat } from '../geo/lngLat';
 import type { Id } from '../model/primitives';
@@ -77,6 +78,8 @@ export interface FrameState {
   counters: { distanceKm?: number };
   /** Height and metres climbed on the profile track, when the stage shows them (ADR 0012). */
   elevation: (ElevationReading & { trackId: Id }) | undefined;
+  /** The photos and places open in this frame (ADR 0014). */
+  pins: PinFrame[];
   /** Blur, flash, fade and satellite blend come with the transitions (M10, M11). */
   effects: { blur: number; flash: number; fade: number; satelliteMix: number };
 }
@@ -198,6 +201,7 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     labels: labelsAt(timeline, sec),
     counters: distanceKm === undefined ? {} : { distanceKm },
     elevation: elevationReading(timeline, sec),
+    pins: pinsAt(timeline.pins, sec),
     effects: sectionEffects(timeline, sec),
   };
 }

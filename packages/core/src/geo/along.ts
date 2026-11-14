@@ -126,3 +126,36 @@ export function lineAhead(line: MeasuredLine, s: number): LngLat[] {
   rest.push(pointAt(line, s));
   return rest;
 }
+
+/**
+ * The place on the line closest to `point`: how far along it lies and how far away it is, in
+ * ground metres. Measured on each segment in Web Mercator and scaled back at the point's
+ * latitude, like simplifyLine; good enough for "which part of the route passes a photo".
+ */
+export function closestOnLine(line: MeasuredLine, point: LngLat): { s: number; distanceM: number } {
+  const [px, py] = toMercator(point);
+  let best = { s: 0, distanceM: Number.POSITIVE_INFINITY };
+  const scale = Math.cos((point[1] * Math.PI) / 180);
+  for (let i = 0; i < line.points.length - 1; i++) {
+    const [ax, ay] = toMercator(line.points[i]!);
+    const [bx, by] = toMercator(line.points[i + 1]!);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lengthSquared = dx * dx + dy * dy;
+    const t =
+      lengthSquared === 0
+        ? 0
+        : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lengthSquared));
+    const away = Math.hypot(px - (ax + t * dx), py - (ay + t * dy)) * scale;
+    if (away < best.distanceM) {
+      const from = line.cumulative[i]!;
+      best = { s: from + t * (line.cumulative[i + 1]! - from), distanceM: away };
+    }
+  }
+  if (line.points.length === 1) {
+    best = { s: 0, distanceM: Math.hypot(...sub(toMercator(line.points[0]!), [px, py])) * scale };
+  }
+  return best;
+}
+
+const sub = ([ax, ay]: Point2, [bx, by]: Point2): [number, number] => [ax - bx, ay - by];

@@ -6,6 +6,7 @@ import {
   type ElevationProfile,
 } from '../elevation/profile';
 import { measureLine, type MeasuredLine } from '../geo/along';
+import { planPins, type PinPlan } from '../pins/pins';
 import { boundsOf, type Bounds } from '../geo/bounds';
 import { planFlight, type FlightPlan } from '../frame/flight';
 import type { LngLat } from '../geo/lngLat';
@@ -114,6 +115,8 @@ export interface Timeline {
   tracks: TrackPlan[];
   /** The height profile the stage shows (ADR 0012); undefined without heights or overlays. */
   elevation: { trackId: Id; profile: ElevationProfile } | undefined;
+  /** Photos and places along the way, with when each is open (ADR 0014). */
+  pins: PinPlan[];
   /** Box around every route of the stage, for the overview camera. */
   overview: Bounds | undefined;
 }
@@ -224,6 +227,11 @@ function planPhases(
   }
   driveTo(lengthM);
   return phases;
+}
+
+/** When the vehicle is `atM` metres along its line: at the end of the trip if never. */
+export function secAtDistance(plan: TrackPlan, atM: number): number {
+  return arrivalSec(plan.phases, plan.easing, atM, plan.endSec);
 }
 
 function arrivalSec(phases: Phase[], easing: Easing, atM: number, fallback: number): number {
@@ -363,6 +371,15 @@ export function compileTimeline(
     mapStyleKey: canonicalJson({ mapStyle, mapOptions }),
     tracks,
     elevation: elevationOf(etappe, tracks),
+    pins: planPins(
+      etappe.pins,
+      tracks.map((plan) => ({
+        trackId: plan.trackId,
+        line: plan.line,
+        secAt: (s: number) => secAtDistance(plan, s),
+      })),
+      etappe.view.camera.mode === 'follow' ? etappe.view.camera.followTrackId : undefined,
+    ),
     overview: boundsOf(tracks.flatMap((track) => track.line.points)),
   };
 }
