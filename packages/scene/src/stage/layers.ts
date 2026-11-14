@@ -2,9 +2,11 @@ import type { Timeline } from '@travel-route-animator/core';
 import type { GeoJSONSource, LineLayerSpecification, Map as MapLibreMap } from 'maplibre-gl';
 import { ICON_SIZE_PX, iconId, iconSvg, PLANE_SHADOW_ICON } from '../vehicles/icons';
 import {
+  framedPhoto,
   IMAGE_PIXEL_RATIO,
   imageFrameId,
   imageShadowId,
+  pinPhotoId,
   silhouette,
   type DecodedImage,
 } from '../vehicles/images';
@@ -17,7 +19,14 @@ const SOURCES = {
   routes: 'tra-routes',
   vehicles: 'tra-vehicles',
   stops: 'tra-stops',
+  pins: 'tra-pins',
 } as const satisfies Record<keyof SceneFeatures, string>;
+
+/**
+ * A photo pin is this many times the 64 px of a vehicle icon on its longer side: about a
+ * fifth of the picture's height in 1080p.
+ */
+const PIN_PHOTO_SIZE = 3.4;
 
 const EMPTY = { type: 'FeatureCollection' as const, features: [] };
 
@@ -187,6 +196,75 @@ export function addSceneLayers(map: MapLibreMap): void {
       'icon-ignore-placement': true,
     },
   });
+
+  // Pins pop up above everything (ADR 0014): a dot where the place is, the framed photo or
+  // the name standing over it and facing the viewer, all scaled by how far they have popped.
+  map.addLayer({
+    id: 'tra-pin-dots',
+    type: 'circle',
+    source: SOURCES.pins,
+    paint: {
+      'circle-radius': ['*', 7, ['get', 'scale']],
+      'circle-color': '#ffffff',
+      'circle-stroke-color': '#1f2937',
+      'circle-stroke-width': 3,
+      'circle-opacity': ['get', 'opacity'],
+      'circle-stroke-opacity': ['get', 'opacity'],
+      'circle-pitch-alignment': 'map',
+    },
+  });
+  map.addLayer({
+    id: 'tra-pin-photos',
+    type: 'symbol',
+    source: SOURCES.pins,
+    filter: ['==', ['get', 'kind'], 'photo'],
+    layout: {
+      'icon-image': ['get', 'icon'],
+      'icon-size': ['*', PIN_PHOTO_SIZE, ['get', 'scale']],
+      'icon-anchor': 'bottom',
+      'icon-offset': [0, -6],
+      'icon-pitch-alignment': 'viewport',
+      'icon-rotation-alignment': 'viewport',
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      'text-field': ['get', 'title'],
+      'text-font': LABEL_FONT,
+      'text-size': ['*', 22, ['max', ['get', 'scale'], 0.01]],
+      'text-anchor': 'top',
+      'text-offset': [0, 0.8],
+      'text-allow-overlap': true,
+      'text-ignore-placement': true,
+    },
+    paint: {
+      'icon-opacity': ['get', 'opacity'],
+      'text-color': '#1f2937',
+      'text-halo-color': '#ffffff',
+      'text-halo-width': 2.5,
+      'text-opacity': ['get', 'opacity'],
+    },
+  });
+  map.addLayer({
+    id: 'tra-pin-places',
+    type: 'symbol',
+    source: SOURCES.pins,
+    filter: ['==', ['get', 'kind'], 'place'],
+    layout: {
+      'text-field': ['get', 'title'],
+      'text-font': LABEL_FONT,
+      'text-size': ['*', 34, ['max', ['get', 'scale'], 0.01]],
+      'text-anchor': 'bottom',
+      'text-offset': [0, -0.6],
+      'text-pitch-alignment': 'viewport',
+      'text-allow-overlap': true,
+      'text-ignore-placement': true,
+    },
+    paint: {
+      'text-color': '#111827',
+      'text-halo-color': '#ffffff',
+      'text-halo-width': 3,
+      'text-opacity': ['get', 'opacity'],
+    },
+  });
 }
 
 export function setSceneFeatures(map: MapLibreMap, features: SceneFeatures): Promise<unknown> {
@@ -242,6 +320,10 @@ export function addStageImages(map: MapLibreMap, images: ReadonlyMap<string, Dec
     const shadow = imageShadowId(assetId);
     if (frames[0] && !map.hasImage(shadow)) {
       map.addImage(shadow, silhouette(frames[0], SHADOW_COLOR), { pixelRatio: IMAGE_PIXEL_RATIO });
+    }
+    const photo = pinPhotoId(assetId);
+    if (frames[0] && !map.hasImage(photo)) {
+      map.addImage(photo, framedPhoto(frames[0]), { pixelRatio: IMAGE_PIXEL_RATIO });
     }
   }
 }

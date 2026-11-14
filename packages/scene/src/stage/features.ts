@@ -9,6 +9,7 @@ import {
   type TrackPlan,
 } from '@travel-route-animator/core';
 import { drawsModels, modelOf } from './data3d';
+import { pinPhotoId } from '../vehicles/images';
 import { vehicleLook, type ImageTimings, type VehicleLook } from './look';
 
 // What the map draws in one frame, as GeoJSON: plain functions of the timeline and the frame
@@ -48,6 +49,17 @@ export interface ShadowIconProps {
   size: number;
 }
 
+/** A photo or place popping up (ADR 0014). */
+export interface PinProps {
+  kind: 'photo' | 'place';
+  title: string;
+  /** Photos: the framed picture's map image. */
+  icon: string;
+  /** How far it has popped up, 0 to a little over 1. */
+  scale: number;
+  opacity: number;
+}
+
 export interface SceneFeatures {
   /** Flights: the flown line on the ground and the plane's shadow (ADR 0007). */
   shadows: Collection<Feature<Line, Record<string, never>>>;
@@ -57,6 +69,7 @@ export interface SceneFeatures {
   routes: Collection<Feature<Line, LineProps>>;
   vehicles: Collection<Feature<Point, VehicleProps>>;
   stops: Collection<Feature<Point, StopProps>>;
+  pins: Collection<Feature<Point, PinProps>>;
 }
 
 const collection = <F>(features: F[]): Collection<F> => ({ type: 'FeatureCollection', features });
@@ -228,6 +241,24 @@ export function sceneFeatures(
           opacity: label.opacity,
         },
       })),
+    ),
+    pins: collection(
+      state.pins
+        // A photo whose picture is missing (not given to this render) is left out.
+        .filter(
+          (pin) => pin.kind === 'place' || (pin.assetId !== undefined && timings.has(pin.assetId)),
+        )
+        .map((pin) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: pin.lngLat },
+          properties: {
+            kind: pin.kind,
+            title: pin.title,
+            icon: pin.assetId ? pinPhotoId(pin.assetId) : '',
+            scale: pin.scale,
+            opacity: pin.opacity,
+          },
+        })),
     ),
   };
 }

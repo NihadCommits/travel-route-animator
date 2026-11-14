@@ -157,6 +157,21 @@ export const MapStage: FC<MapStageProps> = ({
   // Decoded once per image; the frame picks a picture by the timings (never by a clock).
   const decoded = useRef(new Map<string, DecodedImage>());
   const [timings, setTimings] = useState<ImageTimings>(() => new Map());
+  // Preview only: open pins the camera does not show (ADR 0014), with where to point. Worked
+  // out after each repaint of the map, from the frame it last drew.
+  const [outside, setOutside] = useState<OutsidePin[]>([]);
+  const frameRef = useRef({ timeline, state });
+  useEffect(() => {
+    if (!map || isRendering) return;
+    const update = () => {
+      const next = pinsOutside(map, frameRef.current.timeline, frameRef.current.state);
+      setOutside((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
+    };
+    map.on('render', update);
+    return () => {
+      map.off('render', update);
+    };
+  }, [map, isRendering]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -250,6 +265,7 @@ export const MapStage: FC<MapStageProps> = ({
       bearing: camera.bearingDeg,
     });
     layer3d.current?.setDrawings(drawings3d(timeline, state, timings));
+    frameRef.current = { timeline, state };
     // The satellite picture a dive-in fades in, by the frame's share (M11).
     if (map.getLayer(SATELLITE_MIX_LAYER)) {
       map.setPaintProperty(SATELLITE_MIX_LAYER, 'raster-opacity', state.effects.satelliteMix);
@@ -308,20 +324,93 @@ export const MapStage: FC<MapStageProps> = ({
   }, [map, isRendering, loadHandle, continueRender]);
 
   const { viewport, scale } = timeline;
+  const frame = {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: viewport.width,
+    height: viewport.height,
+    transform: scale === 1 ? undefined : `scale(${scale})`,
+    transformOrigin: 'top left',
+  } as const;
   return (
-    <div
-      ref={containerRef}
-      style={{
-        position: 'absolute',
-        left: 0,
-        top: 0,
-        width: viewport.width,
-        height: viewport.height,
-        transform: scale === 1 ? undefined : `scale(${scale})`,
-        transformOrigin: 'top left',
-        // The blur of a dive-in's end (M11), in reference pixels like everything here.
-        filter: state.effects.blur > 0 ? `blur(${state.effects.blur}px)` : undefined,
-      }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        style={{
+          ...frame,
+          // The blur of a dive-in's end (M11), in reference pixels like everything here.
+          filter: state.effects.blur > 0 ? `blur(${state.effects.blur}px)` : undefined,
+        }}
+      />
+      {outside.length > 0 && (
+        <div style={{ ...frame, pointerEvents: 'none' }}>
+          {outside.map((pin) => (
+            <div
+              key={pin.pinId}
+              style={{
+                position: 'absolute',
+                left: pin.x,
+                top: pin.y,
+                transform: 'translate(-50%, -50%)',
+                padding: '6px 14px',
+                borderRadius: 999,
+                background: '#dc2626',
+                color: '#ffffff',
+                font: '600 22px "Segoe UI", "Noto Sans", Arial, sans-serif',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <span style={{ display: 'inline-block', transform: `rotate(${pin.angleDeg}deg)` }}>
+                ➜
+              </span>{' '}
+              ⚠ {pin.title}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 };
+
+interface OutsidePin {
+  pinId: string;
+  title: string;
+  /** Where the badge sits, at the edge towards the pin, in reference pixels. */
+  x: number;
+  y: number;
+  /** The arrow's direction, clockwise from pointing right. */
+  angleDeg: number;
+}
+
+/** How far in from the edge the badge of a pin outside the picture sits. */
+const EDGE_PX = 70;
+
+/**
+ * Open pins that lie outside the picture (ADR 0014): in a video they would pop up with no map
+ * under them. The preview points at them from the edge instead; a render never shows this.
+ */
+function pinsOutside(map: MapLibreMap, timeline: Timeline, state: FrameState): OutsidePin[] {
+  const { width, height } = timeline.viewport;
+  return state.pins.flatMap((pin) => {
+    const { x, y } = map.project(pin.lngLat);
+    if (x >= 0 && y >= 0 && x <= width && y <= height) return [];
+    const cx = width / 2;
+    const cy = height / 2;
+    const angle = Math.atan2(y - cy, x - cx);
+    // Along the line from the middle towards the pin, stopped just inside the edge.
+    const reach = Math.min(
+      (width / 2 - EDGE_PX) / Math.max(1e-6, Math.abs(Math.cos(angle))),
+      (height / 2 - EDGE_PX) / Math.max(1e-6, Math.abs(Math.sin(angle))),
+    );
+    return [
+      {
+        pinId: pin.pinId,
+        title: pin.title,
+        x: cx + Math.cos(angle) * reach,
+        y: cy + Math.sin(angle) * reach,
+        angleDeg: (angle * 180) / Math.PI,
+      },
+    ];
+  });
+}
