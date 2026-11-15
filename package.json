@@ -19,6 +19,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "pnpm --filter @travel-route-animator/e2e test",
+    "screenshots": "pnpm --filter @travel-route-animator/e2e screenshots",
     "data:airports": "pnpm --filter @travel-route-animator/server data:airports",
     "studio": "pnpm --filter @travel-route-animator/scene studio",
     "render:etappe": "pnpm --filter @travel-route-animator/scene render:etappe",

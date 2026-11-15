@@ -31,6 +31,11 @@ export default defineConfig({
     trace: 'retain-on-failure',
     screenshot: 'only-on-failure',
   },
+  projects: [
+    { name: 'main', testIgnore: /screenshots/ },
+    // `pnpm screenshots`: the editor pictures in the README, from the example trip.
+    { name: 'screenshots', testMatch: /screenshots\.spec\.ts/ },
+  ],
   webServer: [
     {
       name: 'server',

@@ -5,7 +5,8 @@
   "description": "End-to-end test of the main flow in a real browser: project, stage, vehicle, preview, render.",
   "type": "module",
   "scripts": {
-    "test": "playwright test",
+    "test": "playwright test --project main",
+    "screenshots": "playwright test --project screenshots",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
