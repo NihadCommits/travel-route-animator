@@ -1,0 +1,15 @@
+{
+  "name": "@travel-route-animator/e2e",
+  "version": "0.0.0",
+  "private": true,
+  "description": "End-to-end test of the main flow in a real browser: project, stage, vehicle, preview, render.",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "^24.19.2"
+  }
+}
