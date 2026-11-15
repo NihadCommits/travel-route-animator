@@ -21,6 +21,8 @@ out/
 coverage/
 playwright-report/
 test-results/
+# Data and videos of the end-to-end test run
+/e2e/.tmp/
 
 # Environment (keep the template)
 .env

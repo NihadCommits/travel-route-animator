@@ -118,8 +118,3 @@ export function usePreviewPlaying(): boolean {
   const bridge = usePlayerBridge();
   return useSyncExternalStore(bridge.subscribe, bridge.isPlaying);
 }
-
-export function useAttachedPlayer(): AttachedPlayer | null {
-  const bridge = usePlayerBridge();
-  return useSyncExternalStore(bridge.subscribe, bridge.attached);
-}

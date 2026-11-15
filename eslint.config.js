@@ -15,6 +15,9 @@ export default defineConfig(
     'data/',
     'output/',
     'routen-animator-kontext/',
+    'e2e/.tmp/',
+    '**/test-results/',
+    '**/playwright-report/',
   ]),
 
   js.configs.recommended,

@@ -13,7 +13,8 @@ export default defineConfig({
         test: {
           name: 'node',
           include: [
-            'packages/*/src/**/*.test.ts',
+            // .tsx: overlays rendered to HTML on the server (react-dom/server).
+            'packages/*/src/**/*.test.{ts,tsx}',
             // The files next to a rendered video; the render itself needs a browser.
             'packages/scene/render/**/*.test.ts',
             'apps/server/src/**/*.test.ts',
