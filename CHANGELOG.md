@@ -39,8 +39,11 @@ Premiere Pro, running locally on free map and routing data.
   JSON.
 - **Templates:** stages and groups saved as templates for other projects; return trips in one
   click.
-- **Windows app:** an Electron app with its own settings and an installer that renders
-  offline.
+- **Windows app:** an Electron app with its own settings (openrouteservice and MapTiler keys
+  sealed by Windows) and an installer that renders offline and brings the example trip.
+- **Security:** the local server listens on localhost only and turns away requests from other
+  web sites, including DNS rebinding.
+- **Docs:** a quick start for non-developers in English and German.
 - **Quality:** unit tests with Vitest (coverage gates on the data model), an end-to-end test of
   the main flow with Playwright, CI on every pull request.
 

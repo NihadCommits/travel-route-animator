@@ -9,6 +9,8 @@ Animated travel route maps for vlogs, built in a local editor and rendered strai
 
 ![A plane flies from Vienna towards Porto with a kilometre counter, then a car drives through the Algarve with distance and travel time](.github/media/demo.gif)
 
+**New here?** The [quick start](QUICKSTART.md) walks you from download to your first video, no programming needed ([auf Deutsch](QUICKSTART.de.md)).
+
 [English](#english) · [Deutsch](#deutsch)
 
 ---
@@ -93,11 +95,13 @@ flowchart LR
 - **One composition for preview and export.** The editor's preview and the server's renderer run the same Remotion composition, so the video shows exactly what the preview showed.
 - **Every frame is a pure function.** `computeFrameState(timeline, frame)` in `packages/core` decides where each vehicle is, what the camera does and what is shown, from the compiled timeline and the frame number alone. No state between frames, no timers, no map animations: Remotion may render frames in any order and in parallel, and a frame looks the same every time. This is why the core is fully unit tested.
 - **The data model is the contract.** Project files are validated with Zod schemas, versioned and migrated on load. The editor checks input against the same schemas as the server.
-- **Keys stay on the server.** The browser only talks to the local server, which holds the API keys, caches every answer and throttles requests to free services as their fair-use rules ask.
+- **Keys stay on the server.** The browser only talks to the local server, which holds the API keys, caches every answer and throttles requests to free services as their fair-use rules ask. The server listens on localhost only and answers only pages from this computer, so other web sites cannot use it, not even by pointing their domain at 127.0.0.1.
 
 Decisions and their reasons are recorded as architecture decision records while building, one per module.
 
 ### Requirements
+
+On Windows, the easiest way is the app from the [latest release](https://github.com/NihadCommits/travel-route-animator/releases/latest): an installer, no tools needed (see the [quick start](QUICKSTART.md)). To run it from the source code:
 
 - Node.js 24 LTS
 - pnpm 12
@@ -146,7 +150,7 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 ### Windows app
 
-`pnpm app` builds the editor, the scene bundle and an Electron shell into `apps/desktop/dist` and starts the app: one window, no terminal and no browser. The local server runs inside the app on <http://127.0.0.1:5175>, so it can run next to `pnpm dev`. The app keeps its projects in `%APPDATA%\Routen-Animator` and its videos in `Videos\Routen-Animator`. On the first start it offers to copy the projects from the repo's `data` folder; the originals stay where they are. Instead of `.env`, the app has its own settings (Datei → Einstellungen): the openrouteservice key, which Windows keeps encrypted for your user account, the contact for free services, the video folder and the OpenGL backend for rendering. The first `pnpm app` downloads Electron (about 100 MB) once.
+`pnpm app` builds the editor, the scene bundle and an Electron shell into `apps/desktop/dist` and starts the app: one window, no terminal and no browser. The local server runs inside the app on <http://127.0.0.1:5175>, so it can run next to `pnpm dev`. The app keeps its projects in `%APPDATA%\Routen-Animator` and its videos in `Videos\Routen-Animator`. On the first start it brings the example trip along and offers to copy the projects from the repo's `data` folder; the originals stay where they are. Instead of `.env`, the app has its own settings (Datei → Einstellungen): the openrouteservice and MapTiler keys, which Windows keeps encrypted for your user account, the contact for free services, the video folder and the OpenGL backend for rendering. The first `pnpm app` downloads Electron (about 100 MB) once.
 
 `pnpm app:installer` builds the installer: `apps/desktop/release/Routen-Animator Setup <version>.exe`. It installs the app for your Windows user only (no admin rights needed), with a start menu entry and a desktop shortcut. The installed app brings its own Chrome Headless Shell and ffmpeg, so it renders offline right away. The installer is not code-signed, so Windows SmartScreen says "Windows protected your PC" on the first start: click "More info", then "Run anyway". With Smart App Control turned on, Windows blocks an unsigned build outright and offers no "Run anyway"; start the app with `pnpm app` instead. Uninstalling the app keeps your projects and videos. `apps/desktop/release/win-unpacked/Routen-Animator.exe` is the same app without installing it.
 
@@ -294,11 +298,13 @@ Das Diagramm im englischen Teil zeigt den Aufbau. Die wichtigsten Ideen:
 - **Eine Komposition für Vorschau und Export.** Die Vorschau im Editor und der Renderer auf dem Server zeigen dieselbe Remotion-Komposition; das Video zeigt genau, was die Vorschau gezeigt hat.
 - **Jeder Frame ist eine reine Funktion.** `computeFrameState(timeline, frame)` in `packages/core` bestimmt nur aus der kompilierten Zeitleiste und der Frame-Nummer, wo jedes Fahrzeug ist, was die Kamera tut und was zu sehen ist. Kein Zustand zwischen Frames, keine Timer, keine Karten-Animationen: Remotion darf Frames in beliebiger Reihenfolge und parallel rendern, und ein Frame sieht jedes Mal gleich aus. Deshalb ist der Kern vollständig mit Unit-Tests abgedeckt.
 - **Das Datenmodell ist der Vertrag.** Projektdateien werden mit Zod-Schemas geprüft, versioniert und beim Laden migriert. Der Editor prüft Eingaben mit denselben Schemas wie der Server.
-- **Keys bleiben auf dem Server.** Der Browser spricht nur mit dem lokalen Server; der hält die API-Keys, speichert jede Antwort zwischen und drosselt Anfragen an freie Dienste, wie es deren Fair-Use-Regeln erbitten.
+- **Keys bleiben auf dem Server.** Der Browser spricht nur mit dem lokalen Server; der hält die API-Keys, speichert jede Antwort zwischen und drosselt Anfragen an freie Dienste, wie es deren Fair-Use-Regeln erbitten. Der Server lauscht nur auf localhost und antwortet nur Seiten von diesem Rechner; andere Webseiten können ihn nicht benutzen, auch nicht, indem sie ihre Domain auf 127.0.0.1 zeigen lassen.
 
 Entscheidungen und ihre Gründe wurden beim Bauen als Architecture Decision Records festgehalten, eine pro Modul.
 
 ### Voraussetzungen
+
+Unter Windows ist die App aus dem [neuesten Release](https://github.com/NihadCommits/travel-route-animator/releases/latest) der einfachste Weg: ein Installer, keine Werkzeuge nötig (siehe [Schnellstart](QUICKSTART.de.md)). Für den Start aus dem Quellcode:
 
 - Node.js 24 LTS
 - pnpm 12
@@ -347,7 +353,7 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 ### Windows-App
 
-`pnpm app` baut Editor, Szenen-Bundle und eine Electron-Hülle nach `apps/desktop/dist` und startet die App: ein Fenster, kein Terminal, kein Browser. Der lokale Server läuft in der App unter <http://127.0.0.1:5175>, also auch parallel zu `pnpm dev`. Die App legt ihre Projekte in `%APPDATA%\Routen-Animator` ab und ihre Videos in `Videos\Routen-Animator`. Beim ersten Start bietet sie an, die Projekte aus dem `data`-Ordner des Repos zu kopieren; die Originale bleiben, wo sie sind. Statt `.env` hat die App eigene Einstellungen (Datei → Einstellungen): den openrouteservice-Key, den Windows für dein Benutzerkonto verschlüsselt aufbewahrt, den Kontakt für freie Dienste, den Videoordner und das OpenGL-Backend für das Rendern. Das erste `pnpm app` lädt einmalig Electron herunter (etwa 100 MB).
+`pnpm app` baut Editor, Szenen-Bundle und eine Electron-Hülle nach `apps/desktop/dist` und startet die App: ein Fenster, kein Terminal, kein Browser. Der lokale Server läuft in der App unter <http://127.0.0.1:5175>, also auch parallel zu `pnpm dev`. Die App legt ihre Projekte in `%APPDATA%\Routen-Animator` ab und ihre Videos in `Videos\Routen-Animator`. Beim ersten Start bringt sie die Beispielreise mit und bietet an, die Projekte aus dem `data`-Ordner des Repos zu kopieren; die Originale bleiben, wo sie sind. Statt `.env` hat die App eigene Einstellungen (Datei → Einstellungen): die Keys für openrouteservice und MapTiler, die Windows für dein Benutzerkonto verschlüsselt aufbewahrt, den Kontakt für freie Dienste, den Videoordner und das OpenGL-Backend für das Rendern. Das erste `pnpm app` lädt einmalig Electron herunter (etwa 100 MB).
 
 `pnpm app:installer` baut den Installer: `apps/desktop/release/Routen-Animator Setup <version>.exe`. Er installiert die App nur für deinen Windows-Benutzer (ohne Admin-Rechte), mit Startmenü-Eintrag und Desktop-Verknüpfung. Die installierte App bringt ihre eigene Chrome Headless Shell und ffmpeg mit und rendert damit sofort offline. Der Installer ist nicht signiert, deshalb meldet Windows SmartScreen beim ersten Start „Der Computer wurde durch Windows geschützt“: auf „Weitere Informationen“ und dann „Trotzdem ausführen“ klicken. Ist die intelligente App-Steuerung (Smart App Control) eingeschaltet, blockiert Windows einen unsignierten Build ganz und bietet kein „Trotzdem ausführen“; dann die App mit `pnpm app` starten. Beim Deinstallieren bleiben Projekte und Videos erhalten. `apps/desktop/release/win-unpacked/Routen-Animator.exe` ist dieselbe App ohne Installation.
 
