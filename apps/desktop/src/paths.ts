@@ -27,6 +27,8 @@ export interface AppPaths {
   editorDir: string;
   sceneBundleDir: string;
   airportsFile: string;
+  /** The example trip, a project folder copied in on the very first start. */
+  exampleDir: string;
   /**
    * The Chrome Headless Shell and Remotion's compositor shipped with the installed app.
    * Undefined when started from the build: Remotion then uses its own from node_modules.
@@ -57,6 +59,7 @@ export function appPaths({
     editorDir: join(resources, 'editor'),
     sceneBundleDir: join(resources, 'scene-bundle'),
     airportsFile: join(resources, 'airports.json'),
+    exampleDir: join(resources, 'example'),
     browserExecutable: isPackaged
       ? join(
           unpacked,

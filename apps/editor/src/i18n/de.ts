@@ -267,6 +267,9 @@ export const de = {
     orsKeyMissing: 'Noch kein Key gespeichert.',
     orsKeyRemove: 'Key entfernen',
     orsKeyRemoved: 'Der Key wird beim Speichern entfernt.',
+    maptilerKey: 'MapTiler-Key (Satellit)',
+    maptilerKeyHint:
+      'Für Satellitenbilder; kostenlos auf maptiler.com, der Gratis-Plan gilt nur für nicht-kommerzielle Nutzung. Er wird verschlüsselt gespeichert und nie angezeigt.',
     contact: 'Kontakt für freie Dienste',
     contactHint:
       'Geht an Photon und OSRM, wie es deren Fair-Use-Regeln erbitten. Eine Profil-URL genügt.',
@@ -421,7 +424,8 @@ export const de = {
       switchToSatellite: 'Am Ende auf Satellit überblenden',
       satelliteHint:
         'Das Satellitenbild liegt dann über der ganzen Karte, die Route bleibt sichtbar.',
-      satelliteOff: 'Satellit braucht einen MapTiler-Key in der .env (MAPTILER_API_KEY).',
+      satelliteOff:
+        'Satellit braucht einen MapTiler-Key: in der Windows-App unter Einstellungen, sonst in der .env (MAPTILER_API_KEY).',
       exportEndFrame: 'Letzten Frame als PNG exportieren',
       exportEndFrameHint:
         'Liegt beim Rendern neben dem Video, um im Schnitt die Footage-Einstellung daran auszurichten.',
@@ -450,7 +454,7 @@ export const de = {
         terrain: 'Gelände (Relief und Höhenlinien)',
       } satisfies Record<MapBase, string>,
       satelliteOff:
-        'Satellit braucht einen MapTiler-Key in der .env (MAPTILER_API_KEY). Der kostenlose Plan gilt nur für nicht-kommerzielle Nutzung.',
+        'Satellit braucht einen MapTiler-Key: in der Windows-App unter Einstellungen, sonst in der .env (MAPTILER_API_KEY). Der kostenlose Plan gilt nur für nicht-kommerzielle Nutzung.',
       satelliteHint:
         'Satellitenbilder von MapTiler. Der kostenlose Plan gilt nur für nicht-kommerzielle Nutzung.',
       theme: 'Theme',

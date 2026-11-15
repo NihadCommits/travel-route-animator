@@ -45,6 +45,7 @@ describe('appPaths', () => {
   it('finds its resources next to main.mjs when started from the build', () => {
     const paths = appPaths({ ...inputs, isPackaged: false });
     expect(paths.sceneBundleDir).toBe(join(inputs.mainDir, 'resources', 'scene-bundle'));
+    expect(paths.exampleDir).toBe(join(inputs.mainDir, 'resources', 'example'));
     expect(paths.browserExecutable).toBeUndefined();
     expect(paths.binariesDirectory).toBeUndefined();
   });
@@ -70,6 +71,7 @@ describe('settings', () => {
     await settings.load();
     expect(settings.effective()).toEqual({
       orsApiKey: undefined,
+      maptilerApiKey: undefined,
       serviceContact: '',
       outputDir: join(dir, 'Videos'),
       renderGl: 'angle',
@@ -85,6 +87,18 @@ describe('settings', () => {
     // The window learns that there is a key, never the key itself.
     expect(again.forWindow()).toMatchObject({ orsApiKeySet: true, serviceContact: 'github.com/n' });
     expect(JSON.stringify(again.forWindow())).not.toContain('geheim');
+  });
+
+  it('keeps the MapTiler key sealed next to the other one', async () => {
+    const settings = store();
+    await settings.update({ maptilerApiKey: 'sat-456' });
+    expect(await readFile(join(dir, 'settings.json'), 'utf8')).not.toContain('sat-456');
+    const again = store();
+    await again.load();
+    expect(again.effective()).toMatchObject({ maptilerApiKey: 'sat-456', orsApiKey: undefined });
+    expect(again.forWindow()).toMatchObject({ maptilerApiKeySet: true, orsApiKeySet: false });
+    await again.update({ maptilerApiKey: null });
+    expect(again.effective().maptilerApiKey).toBeUndefined();
   });
 
   it('removes the key and goes back to the default folder on null', async () => {

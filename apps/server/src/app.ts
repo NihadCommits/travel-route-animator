@@ -10,6 +10,7 @@ import { createFileCache } from './lib/fileCache';
 import { createGeocoder } from './geocoding/geocoder';
 import { GeocodingUnavailableError, type GeocodingProvider } from './geocoding/provider';
 import { registerGeocodingRoutes } from './geocoding/routes';
+import { rejectOtherSites } from './lib/localOnly';
 import { createThrottle } from './lib/throttle';
 import { createProjectStore } from './projects/projectStore';
 import { registerProjectRoutes } from './projects/routes';
@@ -90,6 +91,8 @@ export function buildApp({
     // Projects carry computed route geometry; the default 1 MB limit is too tight for long trips.
     bodyLimit: 10 * 1024 * 1024,
   });
+  // First, so no route ever answers another web site.
+  rejectOtherSites(app);
 
   app.get('/api/health', () => ({ status: 'ok' }));
 

@@ -94,6 +94,7 @@ async function launchServer(port = APP_PORT): Promise<RunningServer> {
     // The same settings the web version reads from .env.
     services: resolveServiceConfig({
       ORS_API_KEY: current.orsApiKey,
+      MAPTILER_API_KEY: current.maptilerApiKey,
       SERVICE_CONTACT: current.serviceContact,
     }),
     render: {
@@ -349,6 +350,11 @@ async function start(): Promise<void> {
   });
   await settings.load();
   await ensureAirports(paths.airportsFile, paths.dataDir);
+  // The very first start brings the example trip along: something to open, play and render
+  // right away, without a key. Only once, so a deleted example stays deleted.
+  if (!settings.importOffered()) {
+    await importProjects(paths.exampleDir, paths.dataDir).catch(() => undefined);
+  }
 
   // The editor needs nothing from the browser that asks for permission, except writing
   // to the clipboard ("Pfad kopieren").
