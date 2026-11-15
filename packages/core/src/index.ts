@@ -32,6 +32,8 @@ export * from './import/parse';
 export * from './import/importTrack';
 export * from './import/fingerprint';
 export * from './import/exif';
+export * from './import/fit';
+export * from './import/archive';
 export * from './pins/pins';
 export * from './pins/edit';
 export * from './templates/template';
