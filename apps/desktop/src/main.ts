@@ -94,6 +94,7 @@ async function launchServer(port = APP_PORT): Promise<RunningServer> {
     // The same settings the web version reads from .env.
     services: resolveServiceConfig({
       ORS_API_KEY: current.orsApiKey,
+      MAPTILER_API_KEY: current.maptilerApiKey,
       SERVICE_CONTACT: current.serviceContact,
     }),
     render: {

@@ -8,6 +8,7 @@ import { installFakeServer } from '@/test/fakeServer';
 
 const SETTINGS: DesktopSettings = {
   orsApiKeySet: true,
+  maptilerApiKeySet: false,
   serviceContact: 'https://github.com/NihadCommits',
   outputDir: 'C:\\Users\\n\\Videos\\Routen-Animator',
   defaultOutputDir: 'C:\\Users\\n\\Videos\\Routen-Animator',
@@ -98,6 +99,20 @@ describe('desktop settings', () => {
     await user.click(dialog().getByRole('button', { name: 'Speichern' }));
     await waitFor(() =>
       expect(bridge.updateSettings).toHaveBeenLastCalledWith({ orsApiKey: null }),
+    );
+  });
+
+  it('takes a MapTiler key for satellite imagery, next to the other one', async () => {
+    const bridge = fakeBridge();
+    window.desktop = bridge;
+    const user = renderApp();
+    await user.click(await screen.findByRole('button', { name: /Einstellungen/ }));
+    const field = await dialog().findByLabelText('MapTiler-Key (Satellit)');
+    expect(field).toHaveValue('');
+    await user.type(field, 'sat-key');
+    await user.click(dialog().getByRole('button', { name: 'Speichern' }));
+    await waitFor(() =>
+      expect(bridge.updateSettings).toHaveBeenLastCalledWith({ maptilerApiKey: 'sat-key' }),
     );
   });
 

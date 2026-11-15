@@ -54,10 +54,10 @@ export function DesktopSettingsHost() {
 }
 
 function SettingsForm({ bridge, onDone }: { bridge: DesktopBridge; onDone: () => void }) {
-  const ids = { key: useId(), contact: useId() };
+  const ids = { contact: useId() };
   const [saved, setSaved] = useState<DesktopSettings>();
-  const [key, setKey] = useState('');
-  const [removeKey, setRemoveKey] = useState(false);
+  const [orsKey, setOrsKey] = useState<KeyInput>(NO_CHANGE);
+  const [maptilerKey, setMaptilerKey] = useState<KeyInput>(NO_CHANGE);
   const [contact, setContact] = useState('');
   const [outputDir, setOutputDir] = useState('');
   const [renderGl, setRenderGl] = useState('angle');
@@ -86,8 +86,10 @@ function SettingsForm({ bridge, onDone }: { bridge: DesktopBridge; onDone: () =>
     if (!saved) return;
     // Only what changed: an empty key field keeps the stored key.
     const patch: DesktopSettingsPatch = {};
-    if (removeKey) patch.orsApiKey = null;
-    else if (key.trim()) patch.orsApiKey = key.trim();
+    const ors = keyChange(orsKey);
+    if (ors !== undefined) patch.orsApiKey = ors;
+    const maptiler = keyChange(maptilerKey);
+    if (maptiler !== undefined) patch.maptilerApiKey = maptiler;
     if (contact.trim() !== saved.serviceContact) patch.serviceContact = contact.trim();
     if (outputDir !== saved.outputDir) {
       patch.outputDir = outputDir === saved.defaultOutputDir ? null : outputDir;
@@ -123,35 +125,20 @@ function SettingsForm({ bridge, onDone }: { bridge: DesktopBridge; onDone: () =>
           <DialogDescription>{de.settings.description}</DialogDescription>
         </DialogHeader>
 
-        <div className="grid min-w-0 grid-cols-1 gap-1.5">
-          <label htmlFor={ids.key} className="text-muted-foreground text-xs">
-            {de.settings.orsKey}
-          </label>
-          <div className="flex gap-2">
-            <Input
-              id={ids.key}
-              type="password"
-              autoComplete="off"
-              spellCheck={false}
-              value={key}
-              disabled={removeKey}
-              onChange={(event) => setKey(event.target.value)}
-            />
-            {saved?.orsApiKeySet && !removeKey && (
-              <Button type="button" variant="outline" onClick={() => setRemoveKey(true)}>
-                {de.settings.orsKeyRemove}
-              </Button>
-            )}
-          </div>
-          <p className="text-muted-foreground text-xs">
-            {removeKey
-              ? de.settings.orsKeyRemoved
-              : saved?.orsApiKeySet
-                ? de.settings.orsKeySet
-                : de.settings.orsKeyMissing}{' '}
-            {de.settings.orsKeyHint}
-          </p>
-        </div>
+        <KeyField
+          label={de.settings.orsKey}
+          hint={de.settings.orsKeyHint}
+          stored={saved?.orsApiKeySet ?? false}
+          input={orsKey}
+          onChange={setOrsKey}
+        />
+        <KeyField
+          label={de.settings.maptilerKey}
+          hint={de.settings.maptilerKeyHint}
+          stored={saved?.maptilerApiKeySet ?? false}
+          input={maptilerKey}
+          onChange={setMaptilerKey}
+        />
 
         <div className="grid min-w-0 grid-cols-1 gap-1.5">
           <label htmlFor={ids.contact} className="text-muted-foreground text-xs">
@@ -246,5 +233,70 @@ function SettingsForm({ bridge, onDone }: { bridge: DesktopBridge; onDone: () =>
         </DialogFooter>
       </form>
     </DialogContent>
+  );
+}
+
+/** What the user did with a key field: typed a new key, asked to remove it, or nothing. */
+interface KeyInput {
+  value: string;
+  remove: boolean;
+}
+const NO_CHANGE: KeyInput = { value: '', remove: false };
+
+/** The patch for one key: null removes it, a string replaces it, undefined keeps it. */
+function keyChange({ value, remove }: KeyInput): string | null | undefined {
+  if (remove) return null;
+  return value.trim() || undefined;
+}
+
+/** A key field: empty means "keep the stored key", which is never shown, only that it exists. */
+function KeyField({
+  label,
+  hint,
+  stored,
+  input,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  stored: boolean;
+  input: KeyInput;
+  onChange: (input: KeyInput) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="grid min-w-0 grid-cols-1 gap-1.5">
+      <label htmlFor={id} className="text-muted-foreground text-xs">
+        {label}
+      </label>
+      <div className="flex gap-2">
+        <Input
+          id={id}
+          type="password"
+          autoComplete="off"
+          spellCheck={false}
+          value={input.value}
+          disabled={input.remove}
+          onChange={(event) => onChange({ ...input, value: event.target.value })}
+        />
+        {stored && !input.remove && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => onChange({ value: '', remove: true })}
+          >
+            {de.settings.orsKeyRemove}
+          </Button>
+        )}
+      </div>
+      <p className="text-muted-foreground text-xs">
+        {input.remove
+          ? de.settings.orsKeyRemoved
+          : stored
+            ? de.settings.orsKeySet
+            : de.settings.orsKeyMissing}{' '}
+        {hint}
+      </p>
+    </div>
   );
 }

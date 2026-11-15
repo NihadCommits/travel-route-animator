@@ -5,6 +5,8 @@
 /** The app's settings as the window sees them. The openrouteservice key never comes back. */
 export interface DesktopSettings {
   orsApiKeySet: boolean;
+  /** Satellite imagery (ADR 0010); like the ORS key, the window only learns whether there is one. */
+  maptilerApiKeySet: boolean;
   serviceContact: string;
   /** Where videos go; defaultOutputDir unless changed. */
   outputDir: string;
@@ -22,6 +24,7 @@ export interface DesktopSettings {
  */
 export interface DesktopSettingsPatch {
   orsApiKey?: string | null;
+  maptilerApiKey?: string | null;
   serviceContact?: string;
   outputDir?: string | null;
   renderGl?: string;
