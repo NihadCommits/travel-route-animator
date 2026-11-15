@@ -349,6 +349,11 @@ async function start(): Promise<void> {
   });
   await settings.load();
   await ensureAirports(paths.airportsFile, paths.dataDir);
+  // The very first start brings the example trip along: something to open, play and render
+  // right away, without a key. Only once, so a deleted example stays deleted.
+  if (!settings.importOffered()) {
+    await importProjects(paths.exampleDir, paths.dataDir).catch(() => undefined);
+  }
 
   // The editor needs nothing from the browser that asks for permission, except writing
   // to the clipboard ("Pfad kopieren").

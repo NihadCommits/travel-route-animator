@@ -61,6 +61,7 @@ await build({
       { from: 'dist/resources/editor', to: 'editor' },
       { from: 'dist/resources/scene-bundle', to: 'scene-bundle' },
       { from: 'dist/resources/airports.json', to: 'airports.json' },
+      { from: 'dist/resources/example', to: 'example' },
     ],
     win: { icon: 'assets/icon.png' },
     nsis: {

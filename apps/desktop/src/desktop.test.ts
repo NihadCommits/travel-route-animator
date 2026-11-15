@@ -45,6 +45,7 @@ describe('appPaths', () => {
   it('finds its resources next to main.mjs when started from the build', () => {
     const paths = appPaths({ ...inputs, isPackaged: false });
     expect(paths.sceneBundleDir).toBe(join(inputs.mainDir, 'resources', 'scene-bundle'));
+    expect(paths.exampleDir).toBe(join(inputs.mainDir, 'resources', 'example'));
     expect(paths.browserExecutable).toBeUndefined();
     expect(paths.binariesDirectory).toBeUndefined();
   });
