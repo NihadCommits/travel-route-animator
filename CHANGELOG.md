@@ -69,6 +69,6 @@ Built module by module, one pull request each, from 20 October to 15 November 20
 | M12 Terrain and elevation          | #20           | 2026-11-13 |
 | M13 Export Pro                     | #21           | 2026-11-14 |
 | M14 Import, pins and templates     | #22           | 2026-11-15 |
-| M15 Portfolio polish and release   | #23           |            |
+| M15 Portfolio polish and release   | #23, #24      | 2026-11-15 |
 
 [1.0.0]: https://github.com/NihadCommits/travel-route-animator/releases/tag/v1.0.0
