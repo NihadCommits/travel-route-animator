@@ -1,6 +1,6 @@
 {
   "name": "@travel-route-animator/core",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Shared types and pure logic: geo math, timeline, frame state. No UI, no browser APIs.",
   "type": "module",

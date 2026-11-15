@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Project files carry their own `schemaVersion`
 (currently 7); older files are migrated when they are opened.
 
+## [1.0.1] - 2026-11-15
+
+### Fixed
+
+- Satellite maps stayed empty: the app asked MapTiler for a tileset that does not exist for
+  regular keys. It now uses `satellite-v2`, checked with a real key.
+- The example trip "Portugal 2026" now brings its road routes, so it opens and renders without
+  an openrouteservice key, as the quick start promises.
+
+### Changed
+
+- Satellite requests name the tool in their user agent, like the other services.
+
 ## [1.0.0] - 2026-11-15
 
 The first release: everything needed to go from a trip plan to a finished map animation in
@@ -71,4 +84,5 @@ Built module by module, one pull request each, from 20 October to 15 November 20
 | M14 Import, pins and templates     | #22           | 2026-11-15 |
 | M15 Portfolio polish and release   | #23, #24      | 2026-11-15 |
 
+[1.0.1]: https://github.com/NihadCommits/travel-route-animator/releases/tag/v1.0.1
 [1.0.0]: https://github.com/NihadCommits/travel-route-animator/releases/tag/v1.0.0

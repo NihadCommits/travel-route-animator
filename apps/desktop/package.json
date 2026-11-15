@@ -1,6 +1,6 @@
 {
   "name": "@travel-route-animator/desktop",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "The Windows app: Electron shell around the editor and the local server (M7b).",
   "author": "NihadCommits",
