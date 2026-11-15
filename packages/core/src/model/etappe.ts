@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { CameraModeSchema, ViewModeSchema } from './enums';
 import { reportIssue } from './issues';
+import { AssetIdSchema } from './assets';
 import { IdSchema, LngLatSchema } from './primitives';
 import { MapStyleRefSchema } from './style';
 import { TrackSchema } from './track';
@@ -106,6 +107,42 @@ export const OverlaySettingsSchema = z.strictObject({
 });
 export type OverlaySettings = z.infer<typeof OverlaySettingsSchema>;
 
+/**
+ * When a pin opens (ADR 0014): as the stage's profile vehicle passes it, or at a set time
+ * (seconds into the main part).
+ */
+export const PinTriggerSchema = z.discriminatedUnion('mode', [
+  z.strictObject({ mode: z.literal('pass') }),
+  z.strictObject({ mode: z.literal('time'), atSec: z.number().min(0) }),
+]);
+export type PinTrigger = z.infer<typeof PinTriggerSchema>;
+
+/** A photo or a place name that pops up along the route and goes again (M14, ADR 0014). */
+export const PinSchema = z
+  .strictObject({
+    id: IdSchema,
+    kind: z.enum(['photo', 'place']),
+    lngLat: LngLatSchema,
+    /** The place's name, or a caption under the photo. */
+    title: z.string(),
+    /** Photos: the picture, an image asset of the project. */
+    assetId: AssetIdSchema.optional(),
+    trigger: PinTriggerSchema,
+    /** How long it stays open. */
+    durationSec: z.number().positive(),
+  })
+  .superRefine((pin, ctx) => {
+    if (pin.kind === 'photo' && pin.assetId === undefined) {
+      reportIssue(ctx, {
+        path: ['assetId'],
+        input: pin.assetId,
+        code: 'pin.photoNeedsAsset',
+        message: 'A photo pin needs its picture (assetId)',
+      });
+    }
+  });
+export type Pin = z.infer<typeof PinSchema>;
+
 // A stage may be unfinished while editing (no vehicle yet, timing longer than the stage after
 // shortening it, camera following a deleted track). Those checks live in readiness.ts (ADR 0002).
 export const EtappeSchema = z.strictObject({
@@ -120,5 +157,7 @@ export const EtappeSchema = z.strictObject({
   overlays: OverlaySettingsSchema,
   /** Tracks run in parallel. */
   tracks: z.array(TrackSchema),
+  /** Photos and places that pop up along the way (ADR 0014). */
+  pins: z.array(PinSchema),
 });
 export type Etappe = z.infer<typeof EtappeSchema>;

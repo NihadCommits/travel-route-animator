@@ -82,15 +82,39 @@ function readGif(bytes: Uint8Array): ImageInfo | 'broken' {
   return frameCount > 0 ? { mimeType: 'image/gif', widthPx, heightPx, frameCount } : 'broken';
 }
 
+/**
+ * A JPEG's size from its frame header (SOF0 to SOF15, except the markers that share the
+ * range): segments follow each other, each with its length, until one of those.
+ */
+function readJpeg(bytes: Uint8Array): ImageInfo | 'broken' {
+  let pos = 2;
+  while (pos + 9 < bytes.length) {
+    if (bytes[pos] !== 0xff) return 'broken';
+    const marker = bytes[pos + 1]!;
+    const length = (bytes[pos + 2]! << 8) | bytes[pos + 3]!;
+    const isFrame = marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
+    if (isFrame) {
+      const heightPx = (bytes[pos + 5]! << 8) | bytes[pos + 6]!;
+      const widthPx = (bytes[pos + 7]! << 8) | bytes[pos + 8]!;
+      if (widthPx === 0 || heightPx === 0) return 'broken';
+      return { mimeType: 'image/jpeg', widthPx, heightPx, frameCount: 1 };
+    }
+    if (marker === 0xda || length < 2) return 'broken';
+    pos += 2 + length;
+  }
+  return 'broken';
+}
+
 export function readImageInfo(bytes: Uint8Array): ImageInfo | 'unsupported' | 'broken' {
   if (startsWith(bytes, PNG_SIGNATURE)) return readPng(bytes);
+  if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return readJpeg(bytes);
   if (startsWith(bytes, ascii('GIF87a')) || startsWith(bytes, ascii('GIF89a'))) {
     return readGif(bytes);
   }
   return 'unsupported';
 }
 
-/** Whether an image may become a vehicle icon: PNG or GIF, and within IMAGE_LIMITS. */
+/** Whether an image may be used: PNG, GIF or JPEG (photos, M14), and within IMAGE_LIMITS. */
 export function checkImage(bytes: Uint8Array): ImageCheck {
   if (bytes.length > IMAGE_LIMITS.bytes) {
     return {

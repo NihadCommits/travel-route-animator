@@ -13,6 +13,7 @@ import type { Group, Project } from '../model/project';
 import type { Track } from '../model/track';
 import { isRoutingAllowed, recommendViewMode, VEHICLE_CATALOG } from '../model/vehicles';
 import { defaultFlightOptions, defaultPitch, defaultView, TRACK_COLORS } from '../model/defaults';
+import { lineFingerprint } from '../import/fingerprint';
 import { insertAt, removeAt, replaceAt } from './arrays';
 import { locateItem, requireLocation, type ItemLocation } from './locate';
 
@@ -335,7 +336,8 @@ function copyTrack(track: Track, ctx: FactoryContext): Track {
   };
 }
 
-function copyEtappe(etappe: Etappe, ctx: FactoryContext): Etappe {
+/** A stage with fresh IDs everywhere (tracks, waypoints, pins), e.g. from a template. */
+export function copyEtappe(etappe: Etappe, ctx: FactoryContext = defaultFactoryContext): Etappe {
   const newTrackIds = new Map<Id, Id>();
   const tracks = etappe.tracks.map((track) => {
     const copy = copyTrack(track, ctx);
@@ -347,7 +349,56 @@ function copyEtappe(etappe: Etappe, ctx: FactoryContext): Etappe {
     followTrackId === undefined
       ? etappe.view.camera
       : { ...etappe.view.camera, followTrackId: newTrackIds.get(followTrackId) ?? followTrackId };
-  return { ...etappe, id: ctx.createId('e'), tracks, view: { ...etappe.view, camera } };
+  return {
+    ...etappe,
+    id: ctx.createId('e'),
+    tracks,
+    pins: etappe.pins.map((pin) => ({ ...pin, id: ctx.createId('pin') })),
+    view: { ...etappe.view, camera },
+  };
+}
+
+/** The same track the other way round; its route is computed anew (one-way streets). */
+function reversedTrack(track: Track): Track {
+  const { computed: _route, imported, ...rest } = track;
+  const backwards = imported && {
+    ...imported,
+    line: [...imported.line].reverse(),
+    ...(imported.elevationsM && { elevationsM: [...imported.elevationsM].reverse() }),
+    fingerprint: lineFingerprint([...imported.line].reverse()),
+  };
+  return {
+    ...rest,
+    waypoints: [...track.waypoints].reverse(),
+    ...(backwards && { imported: backwards }),
+  };
+}
+
+/**
+ * A return trip (M14): a copy of the stage right after it, every vehicle going the other way.
+ * Stops keep their holds and names; routes are computed again, as a road back is not always
+ * the same road.
+ */
+export function reverseEtappe(
+  project: Project,
+  etappeId: Id,
+  { nameSuffix = ' (return)', ctx = defaultFactoryContext }: DuplicateOptions = {},
+): Added {
+  const location = requireLocation(project, etappeId, 'etappe');
+  const original = project.groups[location.groupIndex]!.etappen[location.etappeIndex]!;
+  const copy = copyEtappe(original, ctx);
+  const reversed: Etappe = {
+    ...copy,
+    name: original.name + nameSuffix,
+    tracks: copy.tracks.map(reversedTrack),
+  };
+  return {
+    project: updateGroup(project, location.groupIndex, (group) => ({
+      ...group,
+      etappen: insertAt(group.etappen, location.etappeIndex + 1, reversed),
+    })),
+    id: reversed.id,
+  };
 }
 
 /** Puts a copy right after the original and returns its ID. */

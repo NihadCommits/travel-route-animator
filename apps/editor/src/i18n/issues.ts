@@ -33,7 +33,11 @@ const ISSUE_TEXTS: Record<IssueCode, Translate> = {
     'Das Bild für das Fahrzeug fehlt im Projekt. Wähle ein anderes Bild oder das Standard-Icon.',
   'style.onlyThemedBases': () => 'Themes gibt es nur bei Vektor- und Geländekarten.',
   'output.transparentNeedsProres': () =>
-    'Ein transparentes Overlay braucht den Codec ProRes 4444 (mit Alphakanal).',
+    'Ein transparentes Overlay braucht einen Codec mit Alphakanal: ProRes 4444 oder PNG-Sequenz.',
+  'track.importOnlyGpx': () => 'Eine importierte Linie gehört zum Routing „Aus Datei (GPX)“.',
+  'track.importElevations': () => 'Die importierte Linie braucht eine Höhe pro Punkt.',
+  'pin.photoNeedsAsset': () => 'Ein Foto-Pin braucht sein Bild.',
+  'pin.assetMissing': (v) => `Das Foto „${v.assetId}“ fehlt in den Dateien des Projekts.`,
   'view.flat2d': () => 'Die 2D-Ansicht schaut gerade von oben, die Neigung muss 0° sein.',
   'project.duplicateId': (v) => `Die ID „${v.id}“ kommt doppelt vor.`,
   'etappe.noTracks': () => 'Noch kein Fahrzeug. Füge mit „+ Fahrzeug“ eines hinzu.',

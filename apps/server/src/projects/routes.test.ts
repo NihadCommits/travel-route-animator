@@ -389,12 +389,32 @@ describe('project API', () => {
         413,
         'image.tooLarge',
       ]);
-      expect(await problem(upload(project.id, png(10, 10), 'x.jpg', 'image/jpeg'))).toEqual([
+      expect(await problem(upload(project.id, png(10, 10), 'x.webp', 'image/webp'))).toEqual([
         415,
         'image.unsupported',
       ]);
       expect((await upload('p_nope', png(10, 10))).statusCode).toBe(404);
       expect(await readdir(join(dataDir, 'projects', 'trip'))).toEqual(['project.json']);
+    });
+
+    it('stores a JPEG photo and serves it back as one (pins, ADR 0014)', async () => {
+      const project = await createViaApi('Trip');
+      // SOI, a tiny APP0, then SOF0 with height 300 and width 400, EOI.
+      const jpeg = Buffer.from([
+        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x4a, 0x46, 0xff, 0xc0, 0x00, 0x11, 0x08, 0x01, 0x2c,
+        0x01, 0x90, 0x03, 0x01, 0x22, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, 0xff, 0xd9,
+      ]);
+      const response = await upload(project.id, jpeg, 'Blick.jpg', 'image/jpeg');
+      expect(response.statusCode).toBe(201);
+      const asset = response.json<ImageAsset>();
+      expect(asset).toMatchObject({ mimeType: 'image/jpeg', widthPx: 400, heightPx: 300 });
+      const served = await app.inject({
+        method: 'GET',
+        url: `/api/projects/${project.id}/assets/${asset.id}.jpg`,
+      });
+      expect(served.statusCode).toBe(200);
+      expect(served.headers['content-type']).toBe('image/jpeg');
+      expect(served.rawPayload.equals(jpeg)).toBe(true);
     });
 
     it('serves nothing but the files it stored', async () => {

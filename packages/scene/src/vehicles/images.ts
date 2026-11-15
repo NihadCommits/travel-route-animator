@@ -41,6 +41,30 @@ export function stageImages(
 export const imageFrameId = (assetId: string, frame: number) => `asset:${assetId}:${frame}`;
 /** The MapLibre image name of an image's shadow on the ground (flights). */
 export const imageShadowId = (assetId: string) => `asset-shadow:${assetId}`;
+/** The MapLibre image name of an image as a photo pin: framed in white (ADR 0014). */
+export const pinPhotoId = (assetId: string) => `pin-photo:${assetId}`;
+
+/** A white frame and rounded corners around the picture, like a printed photo. */
+export function framedPhoto(picture: ImageData): ImageData {
+  const border = Math.round(Math.max(picture.width, picture.height) * 0.04);
+  const width = picture.width + 2 * border;
+  const height = picture.height + 2 * border;
+  const canvas = new OffscreenCanvas(width, height);
+  const context = canvas.getContext('2d')!;
+  context.fillStyle = '#ffffff';
+  context.beginPath();
+  context.roundRect(0, 0, width, height, border * 1.5);
+  context.fill();
+  const inner = new OffscreenCanvas(picture.width, picture.height);
+  inner.getContext('2d')!.putImageData(picture, 0, 0);
+  context.save();
+  context.beginPath();
+  context.roundRect(border, border, picture.width, picture.height, border * 0.75);
+  context.clip();
+  context.drawImage(inner, border, border);
+  context.restore();
+  return context.getImageData(0, 0, width, height);
+}
 
 function rasterize(picture: VideoFrame): ImageData {
   const scale = IMAGE_RASTER_PX / Math.max(picture.displayWidth, picture.displayHeight);

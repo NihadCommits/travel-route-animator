@@ -79,7 +79,9 @@ describe('readImageInfo', () => {
   });
 
   it('knows a broken file from one of another type', () => {
-    expect(readImageInfo(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('unsupported');
+    // A BMP is another type; a JPEG cut off before its frame header is a broken one (M14).
+    expect(readImageInfo(new Uint8Array([...ascii('BM'), 0, 0, 0, 0]))).toBe('unsupported');
+    expect(readImageInfo(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe('broken');
     expect(readImageInfo(new Uint8Array(ascii('<svg>')))).toBe('unsupported');
     expect(readImageInfo(png(10, 10).subarray(0, 20))).toBe('broken');
     expect(readImageInfo(png(0, 10))).toBe('broken');

@@ -56,8 +56,16 @@ export class AssetNotFoundError extends Error {
   }
 }
 
-/** Asset files are named <id>.png or <id>.gif (ADR 0009); nothing else is ever served. */
-const ASSET_FILE = /^[A-Za-z0-9_-]{1,64}\.(png|gif)$/;
+/**
+ * Asset files are named <id>.png, <id>.gif (ADR 0009) or <id>.jpg (photos, ADR 0014); nothing
+ * else is ever served.
+ */
+const ASSET_FILE = /^[A-Za-z0-9_-]{1,64}\.(png|gif|jpg)$/;
+const ASSET_TYPES: Record<string, string> = {
+  png: 'image/png',
+  gif: 'image/gif',
+  jpg: 'image/jpeg',
+};
 
 /** The project exists on disk, but its file is broken (hand-edited, older app, …). */
 export class ProjectFileInvalidError extends Error {
@@ -241,7 +249,7 @@ export function createProjectStore({
       if (!match) throw new AssetNotFoundError(file);
       const path = join(projectsDir, (await findOrThrow(id)).slug, ASSETS_DIR, file);
       try {
-        return { bytes: await readFile(path), mimeType: `image/${match[1]}` };
+        return { bytes: await readFile(path), mimeType: ASSET_TYPES[match[1]!]! };
       } catch (error) {
         if (isNotFound(error)) throw new AssetNotFoundError(file);
         throw error;

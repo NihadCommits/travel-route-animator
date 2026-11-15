@@ -89,11 +89,15 @@ describe('parseProjectFile', () => {
   });
 
   it('reports a file from a newer app as an issue instead of throwing', () => {
-    const result = parseProjectFile({ ...sampleProject(), schemaVersion: 7 });
+    const newer = CURRENT_SCHEMA_VERSION + 1;
+    const result = parseProjectFile({ ...sampleProject(), schemaVersion: newer });
     expect(result).toEqual({
       success: false,
       issues: [
-        { path: 'schemaVersion', message: expect.stringContaining('file format 7') as string },
+        {
+          path: 'schemaVersion',
+          message: expect.stringContaining(`file format ${newer}`) as string,
+        },
       ],
     });
   });

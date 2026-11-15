@@ -15,7 +15,12 @@ import { unwrapLongitudes } from './unwrap';
  * is simplified on its own: the leg boundaries stay where they are.
  */
 export function simplifyLine(line: readonly LngLat[], toleranceM: number): LngLat[] {
-  if (line.length <= 2) return line.map((point) => [...point]);
+  return simplifyLineIndices(line, toleranceM).map((i) => [...line[i]!]);
+}
+
+/** Like simplifyLine, but the indices of the points kept, so data per point can follow. */
+export function simplifyLineIndices(line: readonly LngLat[], toleranceM: number): number[] {
+  if (line.length <= 2) return line.map((_, i) => i);
 
   const projected = unwrapLongitudes(line).map(toMercator);
   const keep = new Array<boolean>(line.length).fill(false);
@@ -43,5 +48,5 @@ export function simplifyLine(line: readonly LngLat[], toleranceM: number): LngLa
       stack.push([start, furthest], [furthest, end]);
     }
   }
-  return line.filter((_, i) => keep[i]).map((point) => [...point]);
+  return keep.flatMap((kept, i) => (kept ? [i] : []));
 }

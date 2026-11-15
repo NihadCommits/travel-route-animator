@@ -123,5 +123,6 @@ export function createEtappe(input: CreateEtappeInput, ctx = defaultFactoryConte
     outro: { type: 'none' },
     overlays: defaultOverlays(),
     tracks,
+    pins: [],
   };
 }

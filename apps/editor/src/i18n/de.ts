@@ -27,6 +27,7 @@ export const de = {
     retry: 'Erneut versuchen',
     actions: 'Aktionen',
     copySuffix: ' (Kopie)',
+    returnSuffix: ' (Rückfahrt)',
   },
   overview: {
     title: 'Projekte',
@@ -100,6 +101,64 @@ export const de = {
       end === undefined ? `von ${start} bis zum Etappenende` : `von ${start} bis ${end}`,
     barHint:
       'Ziehen verschiebt den Start, die Enden ändern Start und Dauer; mit Umschalt rastet es auf Frames ein. Pfeiltasten: 0,1 s, mit Umschalt 1 s.',
+  },
+  templates: {
+    open: 'Aus Vorlage …',
+    title: 'Vorlagen',
+    save: 'Als Vorlage speichern',
+    saved: (name: string) => `„${name}“ ist als Vorlage gespeichert.`,
+    saveFailed: 'Die Vorlage konnte nicht gespeichert werden. Läuft der Server?',
+    whereStage: (group: string) =>
+      `Eine Etappe kommt in die Gruppe „${group}“, eine Gruppe ans Ende des Projekts. Eigene Bilder und Fotos sind in Vorlagen nicht dabei.`,
+    noGroup: 'Eine Gruppe kommt ans Ende des Projekts. Für Etappen braucht es erst eine Gruppe.',
+    empty: 'Noch keine Vorlagen. Rechtsklick auf eine Etappe oder Gruppe: „Als Vorlage speichern“.',
+    unavailable: 'Die Vorlagen lassen sich nicht laden. Läuft der Server?',
+    kinds: { etappe: 'Etappe', group: 'Gruppe' },
+    remove: (name: string) => `Vorlage „${name}“ löschen`,
+  },
+  pins: {
+    title: 'Fotos und Orte',
+    hint: 'Fotos mit GPS und Ortsnamen gehen kurz auf, wenn ein Fahrzeug vorbeikommt.',
+    addPhoto: 'Foto hinzufügen',
+    uploading: 'Wird hochgeladen …',
+    photoFile: 'Foto (JPEG mit GPS)',
+    searchPlace: 'Ort hinzufügen',
+    searchPlaceholder: 'z. B. Puch bei Hallein',
+    results: 'Gefundene Orte',
+    near: (km: string) => `${km} km von der Route`,
+    far: (km: string) => `⚠ ${km} km weg`,
+    kinds: { photo: 'Foto', place: 'Ort' },
+    trigger: 'Geht auf',
+    triggers: { pass: 'Beim Vorbeifahren', time: 'Zu fester Zeit' },
+    atSec: 'Ab',
+    duration: 'Dauer',
+    remove: (title: string) => `„${title}“ entfernen`,
+    farWarning: (km: string) =>
+      `Liegt ${km} km von jeder Route weg. Richtiger Ort? (Das Video rendert trotzdem.)`,
+    noGps: (title: string) =>
+      `„${title}“ hat keine GPS-Daten und liegt vorerst in der Mitte der Route. Stelle es auf „Zu fester Zeit“.`,
+    needsRoute: 'Das Foto hat keine GPS-Daten, und die Etappe hat noch keine Route.',
+    photoFailed: (reason: string) => `Das Foto ließ sich nicht hinzufügen: ${reason}`,
+  },
+  importTrack: {
+    open: 'Aus Datei importieren (GPX, DJI) …',
+    title: 'Track importieren',
+    description:
+      'Eine GPX-Datei (Rad, Wanderung, Uhr) oder die Untertiteldatei (.SRT) einer DJI-Drohne wird ein Fahrzeug dieser Etappe. Die Datei bleibt auf deinem Rechner.',
+    file: 'Datei (.gpx oder .srt)',
+    summary: (name: string, km: number, points: number, heights: boolean) =>
+      `„${name}“: ${km.toLocaleString('de-AT', { maximumFractionDigits: 1 })} km aus ${points.toLocaleString('de-AT')} Punkten${heights ? ', mit Höhen' : ', ohne Höhen (die kommen dann aus dem Gelände)'}.`,
+    vehicle: 'Fahrzeug',
+    droneHint: 'Eine Drohne hat kein eigenes Fahrzeug; „Wandern“ passt meist zum Tempo.',
+    withStops: (count: number) =>
+      count > 0
+        ? `${count} Stopps vorschlagen (Pausen, Wegpunkte)`
+        : 'Keine Pausen oder Wegpunkte gefunden',
+    import: 'Importieren',
+    unreadable: (reason: string) => `Die Datei lässt sich nicht lesen: ${reason}`,
+    stopNames: { start: 'Start', end: 'Ziel', pause: 'Pause' },
+    importedFrom: (name: string, source: string) =>
+      `Linie aus „${name}“ (${source === 'dji-srt' ? 'DJI-Untertitel' : 'GPX'}). Stopps rasten auf ihr ein.`,
   },
   render: {
     open: 'Rendern',
@@ -239,6 +298,7 @@ export const de = {
     collapse: 'Zuklappen',
     notReady: 'Noch nicht renderbar:',
     vehiclePickerTitle: 'Fahrzeug wählen',
+    reverse: 'Rückfahrt anlegen',
     deleteTitle: (name: string) => `„${name}“ löschen?`,
     deleteGroupDescription: (count: number) =>
       count === 0
@@ -298,6 +358,13 @@ export const de = {
         'top-right': 'Oben rechts',
         'top-left': 'Oben links',
       },
+      distanceCounter: 'Kilometer-Zähler',
+      timeCounter: 'Zeit-Zähler',
+      manualDuration: 'Zeit (statt Routing)',
+      manualDurationPlaceholder: 'z. B. 2 h 35 min',
+      timeCounterNoSource:
+        'Ohne Routing-Dauer (Flug, Zug, Import) zählt die Zeit nur mit einem eingetragenen Wert.',
+      timeCounterUnreadable: 'Lässt sich nicht lesen. Beispiele: „2 h 35 min“, „1:20 h“, „45 min“.',
       elevationProfile: 'Höhenprofil',
       elevationCounter: 'Höhenmeter',
       elevation: {
@@ -315,7 +382,8 @@ export const de = {
       presentAsOptions: 'Als Optionen darstellen',
       presentAsOptionsHint:
         'Gestrichelte Linien in eigenen Farben und ein gemeinsamer Start. Fahrzeuge ohne Wegpunkte starten am Startpunkt des ersten.',
-      later: 'Weitere Zähler (Kilometer, Zeit) kommen mit ihren Modulen dazu.',
+      later:
+        'Rechtsklick auf die Etappe im Baum: „Rückfahrt anlegen“ oder „Als Vorlage speichern“.',
     },
     ends: {
       title: 'Anfang und Ende',

@@ -7,7 +7,7 @@ import { HexColorSchema, IdSchema, IsoDateTimeSchema } from './primitives';
 import { MapStyleRefSchema, TransitionSettingsSchema } from './style';
 
 /** Bump together with a new migration in migrations/migrations.ts. */
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
 
 export const ProjectDefaultsSchema = z.strictObject({
   /** Default look, overridable per group and stage. */
@@ -82,6 +82,18 @@ export const ProjectSchema = z
           track.waypoints.forEach((waypoint, w) => {
             check(waypoint.id, ['groups', g, 'etappen', e, 'tracks', t, 'waypoints', w]);
           });
+        });
+        etappe.pins.forEach((pin, p) => {
+          check(pin.id, ['groups', g, 'etappen', e, 'pins', p]);
+          if (pin.assetId !== undefined && !assetIds.has(pin.assetId)) {
+            reportIssue(ctx, {
+              path: ['groups', g, 'etappen', e, 'pins', p, 'assetId'],
+              input: pin.assetId,
+              code: 'pin.assetMissing',
+              message: `The photo "${pin.assetId}" is not among the project's assets`,
+              values: { assetId: pin.assetId },
+            });
+          }
         });
       });
     });

@@ -1,4 +1,5 @@
 import {
+  formatTravelTime,
   routingCredits,
   type Corner,
   type FrameState,
@@ -42,7 +43,7 @@ export const Overlays: FC<{
   credits: readonly string[];
 }> = ({ timeline, state, credits: mapCredits }) => {
   const { overlays, viewport, scale } = timeline;
-  const { distanceKm } = state.counters;
+  const { distanceKm, travelSec } = state.counters;
   const credits = [...mapCredits, ...routingCredits(timeline.tracks.map((t) => t.provider))];
   // Heights only once the route has them (ADR 0012); the editor fetches them in the background.
   const reading = state.elevation;
@@ -88,8 +89,15 @@ export const Overlays: FC<{
           gap: 16,
         }}
       >
-        {distanceKm !== undefined && (
-          <div style={{ ...pill, fontSize: 44 }}>{kilometres.format(distanceKm)} km</div>
+        {(distanceKm !== undefined || travelSec !== undefined) && (
+          <div style={{ display: 'flex', gap: 16 }}>
+            {distanceKm !== undefined && (
+              <div style={{ ...pill, fontSize: 44 }}>{kilometres.format(distanceKm)} km</div>
+            )}
+            {travelSec !== undefined && (
+              <div style={{ ...pill, fontSize: 44 }}>{formatTravelTime(travelSec)}</div>
+            )}
+          </div>
         )}
         {showClimb && (
           <div style={{ ...pill, fontSize: 40, whiteSpace: 'pre' }}>{climbText(reading)}</div>

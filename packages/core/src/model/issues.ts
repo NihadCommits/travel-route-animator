@@ -16,6 +16,10 @@ export type IssueCode =
   | 'track.iconAssetMissing'
   | 'style.onlyThemedBases'
   | 'output.transparentNeedsProres'
+  | 'track.importOnlyGpx'
+  | 'track.importElevations'
+  | 'pin.photoNeedsAsset'
+  | 'pin.assetMissing'
   | 'view.flat2d'
   | 'project.duplicateId'
   // Checked before preview and export ("renderable", ADR 0002)

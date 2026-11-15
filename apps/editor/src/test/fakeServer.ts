@@ -8,6 +8,7 @@ import {
   type RenderJob,
   type RenderRequest,
   type RouteRequest,
+  type Template,
   type Theme,
 } from '@travel-route-animator/core';
 import { vi } from 'vitest';
@@ -76,6 +77,7 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
   const projects = new Map(initial.map((project) => [project.id, project]));
   const renders: RenderJob[] = [];
   const themes = new Map<string, Theme>();
+  const templates = new Map<string, Template>();
   const calls: { method: string; path: string; body?: unknown }[] = [];
   let failAll = false;
 
@@ -155,6 +157,19 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
             },
           };
       return Promise.resolve(json(answer.status, answer.body));
+    }
+
+    if (searchUrl.pathname === '/templates') {
+      return Promise.resolve(json(200, [...templates.values()]));
+    }
+    const templateId = /^\/templates\/([^/]+)$/.exec(searchUrl.pathname)?.[1];
+    if (templateId && method === 'PUT') {
+      templates.set(templateId, body as Template);
+      return Promise.resolve(json(200, body));
+    }
+    if (templateId && method === 'DELETE') {
+      templates.delete(templateId);
+      return Promise.resolve(new Response(null, { status: 204 }));
     }
 
     if (searchUrl.pathname === '/capabilities') {

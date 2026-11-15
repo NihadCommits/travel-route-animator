@@ -63,13 +63,14 @@ function etappe(
       elevationCounter: false,
     },
     tracks,
+    pins: [],
     ...overrides,
   };
 }
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',
