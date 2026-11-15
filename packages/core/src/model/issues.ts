@@ -20,6 +20,9 @@ export type IssueCode =
   | 'track.importElevations'
   | 'pin.photoNeedsAsset'
   | 'pin.assetMissing'
+  | 'recording.channelLength'
+  | 'recording.goesBack'
+  | 'clock.timeZone'
   | 'view.flat2d'
   | 'project.duplicateId'
   // Checked before preview and export ("renderable", ADR 0002)

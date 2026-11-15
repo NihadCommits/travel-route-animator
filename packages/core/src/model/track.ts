@@ -64,6 +64,13 @@ export const TrackTimingSchema = z.strictObject({
   /** Missing means: drive until the stage ends. */
   durationSec: z.number().positive().optional(),
   easing: EasingSchema,
+  /**
+   * 'recorded': an imported track with a recording moves like the trip did, squeezed into the
+   * track's time (M16, ADR 0017); the easing does not apply then. Missing means 'eased'.
+   */
+  pace: z.enum(['eased', 'recorded']).optional(),
+  /** With the recorded pace: leave out the stretches where the trip stood still for long. */
+  skipPauses: z.boolean().optional(),
 });
 export type TrackTiming = z.infer<typeof TrackTimingSchema>;
 
@@ -131,12 +138,55 @@ export const RouteElevationSchema = z.strictObject({
 export type RouteElevation = z.infer<typeof RouteElevationSchema>;
 
 /**
+ * What a watch or app recorded along an imported line (M16, ADR 0017): one sample every
+ * `stepSec` seconds of real time, with how far along the line the trip was by then. Samples at
+ * even steps keep the pauses and changes of pace that a simplified line would lose.
+ */
+export const RecordingSchema = z
+  .strictObject({
+    /** When the first sample was taken; missing for DJI subtitles, which count from the video. */
+    startedAt: IsoDateTimeSchema.optional(),
+    stepSec: z.number().positive(),
+    /** Metres along the line at each sample, never decreasing. */
+    atM: z.array(z.number().min(0)).min(2),
+    /** Per sample; null where the sensor had nothing. */
+    heartRateBpm: z.array(z.number().min(0).nullable()).optional(),
+    cadenceRpm: z.array(z.number().min(0).nullable()).optional(),
+  })
+  .superRefine((recording, ctx) => {
+    const { atM } = recording;
+    for (const key of ['heartRateBpm', 'cadenceRpm'] as const) {
+      const channel = recording[key];
+      if (channel && channel.length !== atM.length) {
+        reportIssue(ctx, {
+          path: [key],
+          input: channel.length,
+          code: 'recording.channelLength',
+          message: `${key} needs one value per sample (${atM.length})`,
+          values: { samples: atM.length },
+        });
+      }
+    }
+    const back = atM.findIndex((value, i) => i > 0 && value < atM[i - 1]!);
+    if (back > 0) {
+      reportIssue(ctx, {
+        path: ['atM', back],
+        input: atM[back],
+        code: 'recording.goesBack',
+        message: 'A recording never goes back along its line',
+      });
+    }
+  });
+export type Recording = z.infer<typeof RecordingSchema>;
+
+/**
  * A line read from a file (ADR 0014): a GPX track or the GPS of a DJI drone's subtitle file.
  * The route of a `gpx` track is built from it, with the stops laid onto it, so editing a stop
  * never loses the line.
  */
 export const ImportedLineSchema = z.strictObject({
-  source: z.enum(['gpx', 'dji-srt']),
+  /** GPX, TCX and FIT come from watches and apps (FIT and TCX since M16), DJI subtitles from drones. */
+  source: z.enum(['gpx', 'dji-srt', 'tcx', 'fit']),
   /** The file it came from, to recognise it in the editor. */
   name: z.string(),
   /** Simplified like router routes (5 m, ADR 0005). */
@@ -145,6 +195,8 @@ export const ImportedLineSchema = z.strictObject({
   elevationsM: z.array(z.number()).optional(),
   /** SHA-256 over the line; part of the route's input hash. */
   fingerprint: z.string().min(1),
+  /** Time, heart rate and cadence along the line, when the file had timestamps (M16). */
+  recording: RecordingSchema.optional(),
 });
 export type ImportedLine = z.infer<typeof ImportedLineSchema>;
 
@@ -169,6 +221,8 @@ export const ComputedRouteSchema = z.strictObject({
   computedAt: IsoDateTimeSchema,
   /** Filled in later, and only where a stage needs heights; goes with the geometry it belongs to. */
   elevation: RouteElevationSchema.optional(),
+  /** An imported recording cut to this route: metres from its first stop, time from there (M16). */
+  recording: RecordingSchema.optional(),
 });
 export type ComputedRoute = z.infer<typeof ComputedRouteSchema>;
 
