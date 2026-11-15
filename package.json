@@ -1,6 +1,6 @@
 {
   "name": "travel-route-animator",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Animated travel route maps for vlogs, previewed and rendered with Remotion and MapLibre",
   "license": "MIT",
