@@ -6,7 +6,9 @@ import { writeFileAtomic } from '../fs/writeFileAtomic';
 // ever see our URLs, the MapTiler key stays here. Tiles are kept on disk, so a stage drawn
 // again (preview, then export) costs the quota once.
 
-const MAPTILER = 'https://api.maptiler.com/tiles/satellite-v4';
+// MapTiler's satellite tileset. Checked with a real key (2026-11-15): satellite-v2 answers with
+// 512 px JPEG tiles; satellite-v4, the example in MapTiler's API docs, answers 404 there.
+const MAPTILER = 'https://api.maptiler.com/tiles/satellite-v2';
 
 export class SatelliteUnavailableError extends Error {
   override name = 'SatelliteUnavailableError';
@@ -26,19 +28,26 @@ export interface SatelliteSource {
 export interface MapTilerOptions {
   apiKey: string;
   cacheDir: string;
+  /** Like the other services; lets the key be limited to this tool in MapTiler's settings. */
+  userAgent?: string;
   fetchImpl?: typeof fetch;
 }
 
 export function createMapTilerSatellite({
   apiKey,
   cacheDir,
+  userAgent,
   fetchImpl = fetch,
 }: MapTilerOptions): SatelliteSource {
+  const init = userAgent ? { headers: { 'user-agent': userAgent } } : {};
   let upstream: Promise<TileJson> | undefined;
 
   function load(): Promise<TileJson> {
     upstream ??= (async () => {
-      const response = await fetchImpl(`${MAPTILER}/tiles.json?key=${encodeURIComponent(apiKey)}`);
+      const response = await fetchImpl(
+        `${MAPTILER}/tiles.json?key=${encodeURIComponent(apiKey)}`,
+        init,
+      );
       if (!response.ok) {
         // Never echo the URL: it holds the key.
         throw new SatelliteUnavailableError(`MapTiler answered ${response.status}`);
@@ -74,7 +83,7 @@ export function createMapTilerSatellite({
         .replace('{z}', String(z))
         .replace('{x}', String(x))
         .replace('{y}', String(y));
-      const response = await fetchImpl(url);
+      const response = await fetchImpl(url, init);
       if (!response.ok) throw new SatelliteUnavailableError(`MapTiler answered ${response.status}`);
       const bytes = Buffer.from(await response.arrayBuffer());
       await mkdir(dirname(file), { recursive: true });

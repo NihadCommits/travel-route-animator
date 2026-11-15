@@ -98,6 +98,7 @@ export async function startServer({
       satellite: createMapTilerSatellite({
         apiKey: services.maptilerApiKey,
         cacheDir: join(dataDir, 'cache', 'tiles', 'satellite'),
+        userAgent: services.userAgent,
       }),
     }),
     routingProviders: {

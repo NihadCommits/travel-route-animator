@@ -75,12 +75,14 @@ describe('satellite tiles', () => {
   });
 
   it('come through this server with the key hidden, and are fetched once', async () => {
-    const fetchImpl = vi.fn((url: string) => {
+    const fetchImpl = vi.fn((url: string, init?: RequestInit) => {
       const text = url;
+      // The source names itself on every request (checked below).
+      expect(init).toBeDefined();
       if (text.includes('tiles.json')) {
         return Promise.resolve(
           Response.json({
-            tiles: ['https://api.maptiler.com/tiles/satellite-v4/{z}/{x}/{y}.jpg?key=SECRET'],
+            tiles: ['https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}?key=SECRET'],
             attribution: '© MapTiler',
             maxzoom: 20,
           }),
@@ -95,6 +97,7 @@ describe('satellite tiles', () => {
     const satellite = createMapTilerSatellite({
       apiKey: 'SECRET',
       cacheDir: join(dataDir, 'cache', 'tiles'),
+      userAgent: 'travel-route-animator (test)',
       // Our fake only takes the URL string the source sends.
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
@@ -116,9 +119,9 @@ describe('satellite tiles', () => {
     }
     const tileCalls = fetchImpl.mock.calls.filter(([url]) => url.includes('/3/4/5'));
     expect(tileCalls).toHaveLength(1);
-    expect(tileCalls[0]![0]).toBe(
-      'https://api.maptiler.com/tiles/satellite-v4/3/4/5.jpg?key=SECRET',
-    );
+    expect(tileCalls[0]![0]).toBe('https://api.maptiler.com/tiles/satellite-v2/3/4/5?key=SECRET');
+    // The tool names itself, as with the other services.
+    expect(tileCalls[0]![1]).toEqual({ headers: { 'user-agent': 'travel-route-animator (test)' } });
     expect(
       (await app.inject({ method: 'GET', url: '/api/tiles/satellite/2/4/0' })).statusCode,
     ).toBe(400);

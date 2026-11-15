@@ -1,4 +1,4 @@
-import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import {
@@ -36,8 +36,8 @@ const renderer: StageRenderer = {
 beforeEach(async () => {
   dataDir = await mkdtemp(join(tmpdir(), 'tra-render-'));
   outputDir = join(dataDir, 'videos');
-  // The example: "Wien – Porto" is a flight, ready at once; "Lissabon – Algarve" is a car
-  // whose road route the file does not hold yet.
+  // The example: "Wien – Porto" is a flight, ready at once. It ships its road routes too; the
+  // tests that need a missing one take it out (dropRoad).
   await cp(EXAMPLE_DIR, join(dataDir, 'projects', 'portugal-2026'), { recursive: true });
   renders = [];
   revealFile = vi.fn<RevealFile>(() => true);
@@ -206,7 +206,21 @@ describe('POST /api/render', () => {
     expect(sample).toHaveBeenCalledTimes(1);
   });
 
+  /** Takes the computed road routes out of the example's stages, as before routing ran. */
+  async function dropRoads(...etappeIds: string[]) {
+    const file = join(dataDir, 'projects', 'portugal-2026', 'project.json');
+    const project = JSON.parse(await readFile(file, 'utf8')) as Project;
+    for (const etappe of project.groups.flatMap((group) => group.etappen)) {
+      if (!etappeIds.includes(etappe.id)) continue;
+      for (const track of etappe.tracks) {
+        if (track.routing.mode === 'road') delete track.computed;
+      }
+    }
+    await writeFile(file, JSON.stringify(project));
+  }
+
   it('renders several stages as one video and names it after them', async () => {
+    await dropRoads('e_flughafen_hotel');
     const response = await startRender({
       projectId: 'p_portugal26',
       etappeIds: ['e_sbg_wien', 'e_wien_porto'],
@@ -233,6 +247,7 @@ describe('POST /api/render', () => {
   });
 
   it('refuses a stage whose road route is not there yet', async () => {
+    await dropRoads('e_lissabon_algarve');
     const response = await startRender({ ...wienPorto, etappeId: 'e_lissabon_algarve' });
     expect(response.statusCode).toBe(409);
     expect(response.json()).toMatchObject({
