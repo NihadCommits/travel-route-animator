@@ -172,7 +172,7 @@ describe('Inspector', () => {
     const user = userEvent.setup();
     await selectRow('Westbahn');
 
-    await user.click(inspector().getByRole('switch', { name: 'Höhenprofil' }));
+    await user.selectOptions(inspector().getByLabelText('Baustein hinzufügen'), 'Höhenprofil');
     expect(await inspector().findByText('Zug: ↑ 400 m, ↓ 200 m')).toBeInTheDocument();
     expect(server.calls.filter((call) => call.path === '/elevation')).toHaveLength(1);
   });

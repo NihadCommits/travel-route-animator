@@ -9,6 +9,7 @@ import { de } from '@/i18n/de';
 import { SelectField } from './fields/SelectField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
+import { OverlayStyleSection } from '@/features/overlays/OverlayStyleSection';
 import { MapStyleSection } from './MapStyleSection';
 import { TransitionSection } from './TransitionSection';
 import { FormHeading, LaterNote, optionsOf, Row, Section } from './parts';
@@ -90,6 +91,7 @@ export function ProjectForm({ project }: { project: Project }) {
       </Section>
 
       <MapStyleSection project={project} level={{ kind: 'project' }} edit={edit} />
+      <OverlayStyleSection project={project} level={{ kind: 'project' }} edit={edit} />
       <TransitionSection project={project} edit={edit} />
 
       <LaterNote text={de.inspector.project.later} />

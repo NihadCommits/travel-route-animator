@@ -3,6 +3,7 @@ import { de } from '@/i18n/de';
 import { selectProject, useEditor } from '@/state/editorStore';
 import { ColorField } from './fields/ColorField';
 import { TextField } from './fields/TextField';
+import { OverlayStyleSection } from '@/features/overlays/OverlayStyleSection';
 import { MapStyleSection } from './MapStyleSection';
 import { TransitionSection } from './TransitionSection';
 import { FormHeading, LaterNote } from './parts';
@@ -36,6 +37,7 @@ export function GroupForm({ group, location }: { group: Group; location: ItemLoc
         }
       />
       <MapStyleSection project={project} level={{ kind: 'group', group }} edit={edit} />
+      <OverlayStyleSection project={project} level={{ kind: 'group', group }} edit={edit} />
       <TransitionSection project={project} group={group} edit={edit} />
       <LaterNote text={de.inspector.group.later} />
     </>

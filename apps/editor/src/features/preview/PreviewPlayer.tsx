@@ -17,6 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formatSec } from '@/features/timeline/scale';
 import { de } from '@/i18n/de';
 import { useOwnThemes } from '@/features/inspector/mapStyles';
+import { useOwnOverlayStyles } from '@/features/overlays/ownStyles';
 import { assetUrl } from '@/lib/api';
 import { selectProject, useEditor, type PreviewSettings } from '@/state/editorStore';
 import { usePlayerBridge, usePreviewFrame, usePreviewPlaying } from './playerBridge';
@@ -61,6 +62,7 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
   );
   // Own themes come from the server; satellite tiles too, through the editor's own origin.
   const themes = useOwnThemes();
+  const overlayStyles = useOwnOverlayStyles();
   const common = useMemo(
     () => ({
       project,
@@ -68,9 +70,10 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
       guides: project.defaults.output.safeAreaGuides,
       assetUrls,
       themes: { ...themes },
+      overlayStyles: [...overlayStyles],
       serverUrl: window.location.origin,
     }),
-    [project, quality, assetUrls, themes],
+    [project, quality, assetUrls, themes, overlayStyles],
   );
   const etappeProps = useMemo<EtappeProps>(() => ({ ...common, etappeId }), [common, etappeId]);
   const sequenceProps = useMemo<SequenceProps>(

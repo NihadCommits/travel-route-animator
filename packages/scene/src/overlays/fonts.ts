@@ -68,6 +68,8 @@ const loading = new Map<OverlayFont, Promise<void>>();
 
 function load(font: Exclude<OverlayFont, 'system'>): Promise<void> {
   let promise = loading.get(font);
+  // Test DOMs have no font loading; they draw with the stand-in font.
+  if (typeof FontFace === 'undefined') return Promise.resolve();
   if (!promise) {
     const { family, weight, files } = BUNDLED[font];
     const faces = files.map(
@@ -91,7 +93,7 @@ function load(font: Exclude<OverlayFont, 'system'>): Promise<void> {
  * drawn with a stand-in font. Returns whether they are ready (the preview draws in the
  * meantime with the system font, which is fine for a moment).
  */
-export function useOverlayFonts(fonts: readonly OverlayFont[]): boolean {
+export function useOverlayFonts(fonts: readonly OverlayFont[], holdRender = true): boolean {
   const key = [...new Set(fonts)]
     .filter((font) => font !== 'system')
     .sort()
@@ -100,17 +102,18 @@ export function useOverlayFonts(fonts: readonly OverlayFont[]): boolean {
   useEffect(() => {
     if (key === '') return;
     let cancelled = false;
-    const handle = delayRender(`Loading overlay fonts ${key}`);
+    // Outside a video (the inspector's sample) there is no render to hold.
+    const handle = holdRender ? delayRender(`Loading overlay fonts ${key}`) : undefined;
     const wanted = key.split('|') as Exclude<OverlayFont, 'system'>[];
     Promise.all(wanted.map(load))
       .catch((error: unknown) => console.error('Overlay fonts failed to load', error))
       .finally(() => {
         if (!cancelled) setReady(true);
-        continueRender(handle);
+        if (handle !== undefined) continueRender(handle);
       });
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, holdRender]);
   return ready;
 }

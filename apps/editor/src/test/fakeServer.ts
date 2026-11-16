@@ -2,6 +2,7 @@ import {
   createProject,
   defaultOutput,
   type ImageAsset,
+  type OverlayStyle,
   type Place,
   type ElevationRequest,
   type Project,
@@ -77,6 +78,7 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
   const projects = new Map(initial.map((project) => [project.id, project]));
   const renders: RenderJob[] = [];
   const themes = new Map<string, Theme>();
+  const overlayStyles = new Map<string, OverlayStyle>();
   const templates = new Map<string, Template>();
   const calls: { method: string; path: string; body?: unknown }[] = [];
   let failAll = false;
@@ -186,6 +188,15 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
       return Promise.resolve(new Response(null, { status: 204 }));
     }
 
+    if (searchUrl.pathname === '/overlay-styles') {
+      return Promise.resolve(json(200, [...overlayStyles.values()]));
+    }
+    const styleId = /^\/overlay-styles\/([^/]+)$/.exec(searchUrl.pathname)?.[1];
+    if (styleId && method === 'PUT') {
+      overlayStyles.set(styleId, body as OverlayStyle);
+      return Promise.resolve(json(200, body));
+    }
+
     const upload = /^\/projects\/([^/]+)\/assets$/.exec(searchUrl.pathname);
     if (upload && method === 'POST') {
       const name = searchUrl.searchParams.get('name') ?? 'image';
@@ -230,6 +241,7 @@ export function installFakeServer(initial: Project[] = [], search: FakeSearch = 
     projects,
     renders,
     themes,
+    overlayStyles,
     calls,
     fetchMock,
     /** Simulates a stopped server. */
