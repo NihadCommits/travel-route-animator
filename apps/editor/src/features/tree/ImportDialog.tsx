@@ -1,8 +1,9 @@
 import {
   importTrack,
   measureLine,
-  parseTrackFile,
+  parseTrackBytes,
   suggestStops,
+  unpackTrackFile,
   toImportedLine,
   VEHICLE_TYPES,
   vehicleForActivity,
@@ -25,6 +26,7 @@ import { SelectField } from '@/features/inspector/fields/SelectField';
 import { SwitchField } from '@/features/inspector/fields/SwitchField';
 import { optionsOf } from '@/features/inspector/parts';
 import { de } from '@/i18n/de';
+import { browserUnpacker } from '@/lib/unpack';
 
 interface ImportDialogProps {
   /** The stage the track goes into; null closes the dialog. */
@@ -40,6 +42,9 @@ interface Preview {
   lengthKm: number;
   points: number;
   hasHeights: boolean;
+  /** Timestamps and heart rate (M16): real pace, speed, clock and pulse. */
+  hasTime: boolean;
+  hasHeartRate: boolean;
   stops: number;
 }
 
@@ -50,8 +55,9 @@ const STOP_NAMES = {
 };
 
 /**
- * "Aus Datei importieren": a GPX track or the GPS of a DJI drone's subtitle file becomes a
- * vehicle of the stage (ADR 0014). The file is read in the browser; nothing goes to a server.
+ * "Aus Datei importieren": a GPX, FIT or TCX recording (also zipped, as Garmin Connect and
+ * Strava export them) or the GPS of a DJI drone's subtitle file becomes a vehicle of the stage
+ * (ADR 0014, M16). The file is read in the browser; nothing goes to a server.
  */
 export function ImportDialog({ etappeId, onClose, onImport }: ImportDialogProps) {
   const fileId = useId();
@@ -69,13 +75,20 @@ export function ImportDialog({ etappeId, onClose, onImport }: ImportDialogProps)
   async function read(file: File) {
     reset();
     try {
-      const data = parseTrackFile(await file.text(), file.name);
+      const unpacked = await unpackTrackFile(
+        new Uint8Array(await file.arrayBuffer()),
+        file.name,
+        browserUnpacker,
+      );
+      const data = parseTrackBytes(unpacked.bytes, unpacked.fileName);
       const line = toImportedLine(data);
       setPreview({
         data,
         lengthKm: measureLine(line.line).lengthM / 1000,
         points: data.points.length,
         hasHeights: line.elevationsM !== undefined,
+        hasTime: line.recording !== undefined,
+        hasHeartRate: line.recording?.heartRateBpm !== undefined,
         stops: suggestStops(data, STOP_NAMES).length,
       });
       setVehicle(vehicleForActivity(data));
@@ -114,7 +127,7 @@ export function ImportDialog({ etappeId, onClose, onImport }: ImportDialogProps)
           <input
             id={fileId}
             type="file"
-            accept=".gpx,.srt,application/gpx+xml"
+            accept=".gpx,.fit,.tcx,.zip,.gz,.srt,application/gpx+xml"
             className="text-sm"
             onChange={(event) => {
               const file = event.target.files?.[0];
@@ -135,7 +148,8 @@ export function ImportDialog({ etappeId, onClose, onImport }: ImportDialogProps)
                 preview.lengthKm,
                 preview.points,
                 preview.hasHeights,
-              )}
+              )}{' '}
+              {de.importTrack.measured(preview.hasTime, preview.hasHeartRate)}
             </p>
             <SelectField
               label={de.importTrack.vehicle}

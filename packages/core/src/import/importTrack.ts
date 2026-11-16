@@ -227,7 +227,13 @@ export function trackFromImport(
     },
     ctx,
   );
-  return { ...base, routing: { mode: 'gpx' }, imported: toImportedLine(data) };
+  const imported = toImportedLine(data);
+  // With timestamps the track moves like the trip did, without the long breaks (M16); the
+  // inspector switches back to an even pace.
+  const timing = imported.recording
+    ? { ...base.timing, pace: 'recorded' as const, skipPauses: true }
+    : base.timing;
+  return { ...base, routing: { mode: 'gpx' }, imported, timing };
 }
 
 /** Adds an imported track to a stage; the editor computes its route like any local one. */

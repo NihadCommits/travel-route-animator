@@ -5,7 +5,8 @@
   "description": "Shared types and pure logic: geo math, timeline, frame state. No UI, no browser APIs.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

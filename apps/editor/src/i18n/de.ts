@@ -141,13 +141,17 @@ export const de = {
     photoFailed: (reason: string) => `Das Foto ließ sich nicht hinzufügen: ${reason}`,
   },
   importTrack: {
-    open: 'Aus Datei importieren (GPX, DJI) …',
+    open: 'Aus Datei importieren (GPX, FIT, DJI) …',
     title: 'Track importieren',
     description:
-      'Eine GPX-Datei (Rad, Wanderung, Uhr) oder die Untertiteldatei (.SRT) einer DJI-Drohne wird ein Fahrzeug dieser Etappe. Die Datei bleibt auf deinem Rechner.',
-    file: 'Datei (.gpx oder .srt)',
+      'Eine Aufzeichnung von Uhr oder App (GPX, FIT, TCX, auch das ZIP aus „Export Original“ von Garmin Connect oder Strava) oder die Untertiteldatei (.SRT) einer DJI-Drohne wird ein Fahrzeug dieser Etappe. Die Datei bleibt auf deinem Rechner.',
+    file: 'Datei (.gpx, .fit, .tcx, .zip oder .srt)',
     summary: (name: string, km: number, points: number, heights: boolean) =>
       `„${name}“: ${km.toLocaleString('de-AT', { maximumFractionDigits: 1 })} km aus ${points.toLocaleString('de-AT')} Punkten${heights ? ', mit Höhen' : ', ohne Höhen (die kommen dann aus dem Gelände)'}.`,
+    measured: (time: boolean, heartRate: boolean) =>
+      time
+        ? `Mit Zeitstempeln${heartRate ? ' und Puls' : ''}: Das Fahrzeug fährt im echten Tempo, Geschwindigkeit, Uhrzeit${heartRate ? ' und Puls' : ''} lassen sich einblenden.`
+        : 'Ohne Zeitstempel: Das Fahrzeug fährt gleichmäßig.',
     vehicle: 'Fahrzeug',
     droneHint: 'Eine Drohne hat kein eigenes Fahrzeug; „Wandern“ passt meist zum Tempo.',
     withStops: (count: number) =>
@@ -158,7 +162,7 @@ export const de = {
     unreadable: (reason: string) => `Die Datei lässt sich nicht lesen: ${reason}`,
     stopNames: { start: 'Start', end: 'Ziel', pause: 'Pause' },
     importedFrom: (name: string, source: string) =>
-      `Linie aus „${name}“ (${source === 'dji-srt' ? 'DJI-Untertitel' : 'GPX'}). Stopps rasten auf ihr ein.`,
+      `Linie aus „${name}“ (${source === 'dji-srt' ? 'DJI-Untertitel' : source.toUpperCase()}). Stopps rasten auf ihr ein.`,
   },
   render: {
     open: 'Rendern',
@@ -368,6 +372,22 @@ export const de = {
       timeCounterNoSource:
         'Ohne Routing-Dauer (Flug, Zug, Import) zählt die Zeit nur mit einem eingetragenen Wert.',
       timeCounterUnreadable: 'Lässt sich nicht lesen. Beispiele: „2 h 35 min“, „1:20 h“, „45 min“.',
+      speedCounter: 'Geschwindigkeit',
+      heartRateCounter: 'Puls',
+      clockCounter: 'Uhrzeit',
+      measured: {
+        noRecording:
+          'Nur mit einer Aufzeichnung mit Zeitstempeln (GPX, FIT, TCX einer Uhr oder App); bei geplanten Routen gibt es kein echtes Tempo.',
+        noHeartRate: 'Die Aufzeichnung hat keinen Puls.',
+        source: 'Uhrzeit aus',
+        sources: { manual: 'Eingetragener Abfahrt', recorded: 'Der Aufzeichnung' },
+        departure: 'Abfahrt',
+        timeZone: 'Zeitzone',
+        needsDeparture: 'Trag die Abfahrt ein, dann läuft die Uhr mit der Reisezeit mit.',
+        standsStill:
+          'Ohne Reisezeit (Routing, Aufzeichnung oder eingetragene Dauer) bleibt die Uhr bei der Abfahrt stehen.',
+        recordedFrom: (time: string) => `Die Aufzeichnung beginnt um ${time}.`,
+      },
       elevationProfile: 'Höhenprofil',
       elevationCounter: 'Höhenmeter',
       elevation: {
@@ -549,6 +569,10 @@ export const de = {
       untilEnd: 'Fährt bis zum Etappenende',
       duration: 'Dauer',
       easing: 'Tempo',
+      recordedPace: 'Wie aufgezeichnet',
+      recordedPaceHint:
+        'Folgt der Aufzeichnung: langsamer bergauf, schneller bergab, auf die Dauer des Fahrzeugs gestaucht.',
+      skipPauses: 'Lange Pausen überspringen (über 1 Minute)',
       style: 'Linie und Fahrzeug',
       lineColor: 'Linienfarbe',
       lineWidth: 'Linienbreite',

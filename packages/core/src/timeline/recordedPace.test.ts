@@ -101,7 +101,12 @@ describe('the recorded pace', () => {
     const plan = skipping.tracks[0]!;
     // Without the rest: up in 15 s, down in 5 s.
     expect(distanceAt(plan, 15) / plan.line.lengthM).toBeCloseTo(0.5, 1);
-    const eased = compileTimeline(...(Object.values(project()) as [Project, string]));
+    const eased = compileTimeline(
+      ...(Object.values(
+        // An import with timestamps starts at the recorded pace; switched back to an even one.
+        project((track) => ({ ...track, timing: { ...track.timing, pace: 'eased' } })),
+      ) as [Project, string]),
+    );
     expect(eased.tracks[0]!.easing).toBe('ease-in-out');
     expect(distanceAt(eased.tracks[0]!, 10) / eased.tracks[0]!.line.lengthM).toBeCloseTo(0.5, 2);
   });

@@ -10,6 +10,8 @@ export interface TextFieldProps {
   hint?: string | undefined;
   labelHidden?: boolean | undefined;
   className?: string | undefined;
+  /** 'datetime-local': the browser's own picker; the value reads "2026-07-14T08:30". */
+  inputType?: 'text' | 'datetime-local' | undefined;
 }
 
 const keep = (text: string) => ({ value: text });
@@ -22,6 +24,7 @@ export function TextField({
   hint,
   labelHidden,
   className,
+  inputType = 'text',
 }: TextFieldProps) {
   const id = useId();
   const messageId = `${id}-message`;
@@ -39,7 +42,7 @@ export function TextField({
     >
       <input
         {...controlProps(id, messageId, field.error, hint !== undefined)}
-        type="text"
+        type={inputType}
         className={CONTROL_CLASS}
         value={field.text}
         placeholder={placeholder}
