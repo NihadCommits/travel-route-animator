@@ -85,6 +85,8 @@ export const OverlayStyleRefSchema = z.strictObject({
   /** A built-in style (BUILT_IN_OVERLAY_STYLES) or the ID of an own one. */
   styleId: z.string().min(1),
   overrides: OverlayStyleTokensSchema.partial().optional(),
+  /** Metric or imperial for a group or stage; missing means the project's (defaults.units). */
+  units: UnitsSchema.optional(),
 });
 export type OverlayStyleRef = z.infer<typeof OverlayStyleRefSchema>;
 

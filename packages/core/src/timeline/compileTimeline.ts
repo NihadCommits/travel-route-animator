@@ -138,7 +138,7 @@ export interface Timeline {
   overview: Bounds | undefined;
   /** The time of day the stage shows (M16); the departure worked out once, not per frame. */
   clock: TimelineClock | undefined;
-  /** The project's units, for blocks without their own (M17). */
+  /** The stage's units, for blocks without their own: from its style, else the project's (M17). */
   units: Units;
   /** The look of the stage's blocks, inherited from group or project (M17). */
   overlayStyle: OverlayStyleRef;
@@ -434,7 +434,7 @@ export function compileTimeline(
       etappe.view.camera.mode === 'follow' ? etappe.view.camera.followTrackId : undefined,
     ),
     overview: boundsOf(tracks.flatMap((track) => track.line.points)),
-    units: fresh.defaults.units,
+    units: resolveOverlayStyle(fresh, etappeId).value.units ?? fresh.defaults.units,
     overlayStyle: resolveOverlayStyle(fresh, etappeId).value,
     clock: etappe.clock && {
       source: etappe.clock.source,

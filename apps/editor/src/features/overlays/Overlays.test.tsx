@@ -140,6 +140,30 @@ describe('overlay blocks in the inspector', () => {
     });
   });
 
+  it('gives a group imperial units and a font of its own, for all its stages', async () => {
+    const { user, saved } = await open(trip());
+    const row = await screen.findByRole('treeitem', { name: /Hinreise/ });
+    act(() => row.focus());
+    const styleSection = within(
+      inspector().getByRole('region', { name: 'Stil der Einblendungen' }),
+    );
+    await user.selectOptions(styleSection.getByLabelText('Einheiten'), 'Imperial (mi, ft)');
+    await user.selectOptions(styleSection.getByLabelText('Schrift'), 'Montserrat');
+    const stored = await saved((p) => p.groups[0]!.overlayStyle?.overrides?.font === 'montserrat');
+    expect(stored.groups[0]!.overlayStyle).toEqual({
+      styleId: 'classic',
+      units: 'imperial',
+      overrides: { font: 'montserrat' },
+    });
+    expect(stored.defaults.units).toBe('metric');
+
+    // The stage inherits both.
+    await selectStage();
+    const stage = within(inspector().getByRole('region', { name: 'Stil der Einblendungen' }));
+    expect(stage.getByLabelText('Einheiten')).toHaveDisplayValue('Imperial (mi, ft)');
+    expect(stage.getByLabelText('Schrift')).toHaveDisplayValue('Montserrat');
+  });
+
   it('styles the project, lets a stage inherit it and keeps a look as an own style', async () => {
     const { server, user, saved } = await open(trip());
     // Nothing selected: the project's form.

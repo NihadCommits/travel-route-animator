@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { addEtappe, addGroup, editGroup } from '../edit/operations';
+import { createProject } from '../model/factories';
 import { assembleComputedRoute } from '../routing/assemble';
 import { trip } from '../testing/trip';
 import { compileTimeline } from './compileTimeline';
@@ -7,6 +9,21 @@ import { compileTimeline } from './compileTimeline';
 const A: [number, number] = [-9.0, 38.0];
 const B: [number, number] = [-8.9, 38.0];
 const C: [number, number] = [-8.7, 38.0];
+
+describe('overlay units', () => {
+  it('come from the style of the group, else from the project', () => {
+    const group = addGroup(createProject('Trip'), 'USA');
+    const stage = addEtappe(group.project, group.id, 'Route 66');
+    expect(compileTimeline(stage.project, stage.id).units).toBe('metric');
+    const imperial = editGroup(stage.project, group.id, (g) => ({
+      ...g,
+      overlayStyle: { styleId: 'sport', units: 'imperial' },
+    }));
+    const timeline = compileTimeline(imperial, stage.id);
+    expect(timeline.units).toBe('imperial');
+    expect(timeline.overlayStyle.styleId).toBe('sport');
+  });
+});
 
 describe('compileTimeline', () => {
   it('knows the video format and has one frame more than its length, for the arrival', () => {

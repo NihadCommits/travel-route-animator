@@ -147,6 +147,8 @@ export function OverlayStyleSection({ project, level, edit }: OverlayStyleSectio
   const { own, inherited } = stylesAt(project, level);
   const style = own ?? inherited!.style;
   const tokens = overlayTokensOf(style, ownStyles);
+  // The project's units live in its defaults; a group or stage keeps its own with its style.
+  const units = (level.kind === 'project' ? undefined : style.units) ?? project.defaults.units;
   const field =
     level.kind === 'project'
       ? 'defaults.overlayStyle'
@@ -176,7 +178,7 @@ export function OverlayStyleSection({ project, level, edit }: OverlayStyleSectio
       .then(async () => {
         await queryClient.invalidateQueries({ queryKey: OVERLAY_STYLES_QUERY_KEY });
         setNaming(false);
-        const problem = setStyle({ styleId: saved.id });
+        const problem = setStyle({ styleId: saved.id, ...(style.units && { units: style.units }) });
         if (problem) setSaveError(problem);
       })
       .catch((caught: unknown) =>
@@ -205,23 +207,23 @@ export function OverlayStyleSection({ project, level, edit }: OverlayStyleSectio
           )}
         </div>
       )}
-      {level.kind === 'project' && (
-        <SelectField
-          label={texts.units}
-          value={project.defaults.units}
-          options={optionsOf(UnitsSchema.options, texts.unitNames)}
-          onCommit={(units) =>
-            edit('defaults.units', (p) => ({ ...p, defaults: { ...p.defaults, units } }))
-          }
-        />
-      )}
+      <SelectField
+        label={texts.units}
+        value={units}
+        options={optionsOf(UnitsSchema.options, texts.unitNames)}
+        onCommit={(next) =>
+          level.kind === 'project'
+            ? edit('defaults.units', (p) => ({ ...p, defaults: { ...p.defaults, units: next } }))
+            : setStyle({ ...style, units: next })
+        }
+      />
       <SelectField
         label={texts.style}
         value={style.styleId}
         options={styleOptions}
         hint={known ? undefined : texts.styleMissing}
         // A new style starts clean: changes made to the old one would hide what it looks like.
-        onCommit={(styleId) => setStyle({ styleId })}
+        onCommit={(styleId) => setStyle({ styleId, ...(style.units && { units: style.units }) })}
       />
       <StyleSample tokens={tokens} />
       <SelectField
@@ -277,7 +279,10 @@ export function OverlayStyleSection({ project, level, edit }: OverlayStyleSectio
           variant="outline"
           size="sm"
           className="w-full"
-          onClick={() => setStyle({ styleId: style.styleId })}
+          onClick={() => {
+            const { overrides: _old, ...rest } = style;
+            return setStyle(rest);
+          }}
         >
           {texts.resetOverrides}
         </Button>
