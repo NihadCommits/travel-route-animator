@@ -64,6 +64,8 @@ export * from './frame/flight';
 export * from './frame/computeFrameState';
 export * from './frame/duration';
 export * from './time/zone';
+export * from './recording/recording';
+export * from './timeline/recordedPace';
 export * from './frame/animation';
 export * from './files/slug';
 export * from './files/videoName';

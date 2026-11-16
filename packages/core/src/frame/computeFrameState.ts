@@ -18,6 +18,8 @@ import {
 } from './flight';
 import { headingAt } from './heading';
 import { distanceAt } from './position';
+import { channelAt, speedAt, timeAtDistance } from '../recording/recording';
+import { recordedSecAt } from '../timeline/recordedPace';
 
 /** What a flight adds to its track's frame (ADR 0007). */
 export interface FlightFrame {
@@ -77,7 +79,15 @@ export interface FrameState {
   tracks: TrackFrame[];
   labels: LabelFrame[];
   /** Kilometres and travel time so far, when the stage counts them. */
-  counters: { distanceKm?: number; travelSec?: number };
+  counters: {
+    distanceKm?: number;
+    travelSec?: number;
+    /** Real speed from a recording (M16). */
+    speedKmh?: number;
+    heartRateBpm?: number;
+    /** The time of day as milliseconds since 1970; shown in `timeline.clock.timeZone`. */
+    clockMs?: number;
+  };
   /** Height and metres climbed on the profile track, when the stage shows them (ADR 0012). */
   elevation: (ElevationReading & { trackId: Id }) | undefined;
   /** The photos and places open in this frame (ADR 0014). */
@@ -181,19 +191,43 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
   const camera = cameraAt(timeline, sec);
   const counted = counterTrack(timeline);
 
-  let distanceKm: number | undefined;
-  let travelSec: number | undefined;
+  const counters: FrameState['counters'] = {};
   if (counted) {
+    const { overlays, clock } = timeline;
     const { lengthM } = counted.line;
-    const share = lengthM > 0 ? distanceAt(counted, sec) / lengthM : 0;
+    const s = distanceAt(counted, sec);
+    const share = lengthM > 0 ? s / lengthM : 0;
     // Scaled to the route's own distance, so the counter ends at what the inspector shows.
-    if (timeline.overlays.distanceCounter) distanceKm = (share * counted.distanceM) / 1000;
-    // A typed duration wins over the router's estimate; without either there is nothing to count.
-    const { manualDurationText } = timeline.overlays;
-    const total =
-      (manualDurationText !== undefined ? parseDurationText(manualDurationText) : undefined) ??
-      counted.durationS;
-    if (timeline.overlays.timeCounter && total !== undefined) travelSec = share * total;
+    if (overlays.distanceCounter) counters.distanceKm = (share * counted.distanceM) / 1000;
+    // Where the recording was when it got here: real time, speed and heart rate (M16).
+    const { recording } = counted;
+    // With the recorded pace the phases know the recording's time, also while resting.
+    const recordedSec =
+      recording && (recordedSecAt(counted.phases, sec) ?? timeAtDistance(recording, s));
+    // A typed duration wins, then what was recorded, then the router's estimate.
+    const { manualDurationText } = overlays;
+    const typed =
+      manualDurationText !== undefined ? parseDurationText(manualDurationText) : undefined;
+    const travel =
+      typed !== undefined
+        ? share * typed
+        : (recordedSec ??
+          (counted.durationS !== undefined ? share * counted.durationS : undefined));
+    if (overlays.timeCounter && travel !== undefined) counters.travelSec = travel;
+    if (recording && recordedSec !== undefined) {
+      if (overlays.speedCounter) counters.speedKmh = speedAt(recording, recordedSec) * 3.6;
+      const heartRate = channelAt(recording, 'heartRateBpm', recordedSec);
+      if (overlays.heartRateCounter && heartRate !== undefined) counters.heartRateBpm = heartRate;
+    }
+    if (overlays.clockCounter && clock) {
+      const start =
+        clock.source === 'recorded' && recording?.startedAt
+          ? Date.parse(recording.startedAt)
+          : clock.departureMs;
+      // A recorded clock runs with the recording; a typed departure with the travel time.
+      const elapsed = clock.source === 'recorded' && recording?.startedAt ? recordedSec : travel;
+      if (start !== undefined) counters.clockMs = start + (elapsed ?? 0) * 1000;
+    }
   }
 
   const flightStyle = flightStyleFor(timeline.view.pitchDeg);
@@ -208,10 +242,7 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     camera,
     tracks: timeline.tracks.map((plan) => trackFrame(plan, sec, camera, onTerrain)),
     labels: labelsAt(timeline, sec),
-    counters: {
-      ...(distanceKm !== undefined && { distanceKm }),
-      ...(travelSec !== undefined && { travelSec }),
-    },
+    counters,
     elevation: elevationReading(timeline, sec),
     pins: pinsAt(timeline.pins, sec),
     effects: sectionEffects(timeline, sec),

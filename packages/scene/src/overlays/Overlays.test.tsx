@@ -15,7 +15,11 @@ import { Overlays } from './Overlays';
 // frame shows can be read as text, without a browser or a map.
 
 /** A train from Porto to Lisboa, ten seconds long, with these overlays. */
-function frameAt(overlays: Partial<Etappe['overlays']>, at: 'start' | 'end') {
+function frameAt(
+  overlays: Partial<Etappe['overlays']>,
+  at: 'start' | 'end',
+  clock?: Etappe['clock'],
+) {
   const base = createTrack({
     vehicleType: 'train',
     waypoints: [
@@ -34,7 +38,9 @@ function frameAt(overlays: Partial<Etappe['overlays']>, at: 'start' | 'end') {
       {
         id: 'g',
         name: 'G',
-        etappen: [{ ...etappe, overlays: { ...etappe.overlays, ...overlays } }],
+        etappen: [
+          { ...etappe, overlays: { ...etappe.overlays, ...overlays }, ...(clock && { clock }) },
+        ],
       },
     ],
   };
@@ -60,6 +66,23 @@ describe('Overlays', () => {
     const end = frameAt(counters, 'end').text;
     expect(end).toMatch(/\b27\d km\b/);
     expect(end).toContain('3:05 h');
+  });
+
+  it("shows the time of day in the stage's time zone, and nothing for speed without a recording", () => {
+    const { text } = frameAt(
+      {
+        clockCounter: true,
+        speedCounter: true,
+        heartRateCounter: true,
+        manualDurationText: '1 h',
+      },
+      'end',
+      { source: 'manual', departure: '2026-07-14T08:30', timeZone: 'Europe/Lisbon' },
+    );
+    // Departure 08:30 plus the typed hour.
+    expect(text).toContain('09:30');
+    expect(text).not.toContain('km/h');
+    expect(text).not.toContain('♥');
   });
 
   it('leaves out what is switched off', () => {

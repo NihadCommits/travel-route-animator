@@ -24,12 +24,14 @@ import type { Id } from '../model/primitives';
 import type { Project } from '../model/project';
 import { MAX_HOLD_SHARE } from '../model/readiness';
 import type { MapStyleRef } from '../model/style';
-import type { Track, TrackStyle } from '../model/track';
+import type { Track, TrackStyle, Recording } from '../model/track';
 import { findEtappe, resolveMapStyle, resolveOutput } from '../resolve/resolve';
 import { canonicalJson } from '../routing/canonicalJson';
 import { isRouteStale } from '../routing/inputHash';
 import { refreshLocalRoutes } from '../routing/refresh';
 import { invertEase } from './easing';
+import { planRecordedPhases, type Hold } from './recordedPace';
+import { zonedTimeToEpochMs } from '../time/zone';
 import { outputSize } from './outputSize';
 
 /**
@@ -42,6 +44,11 @@ export interface Phase {
   endSec: number;
   fromM: number;
   toM: number;
+  /**
+   * With the recorded pace (M16): the stretch of the recording this phase plays, in seconds.
+   * While the vehicle rests, the recording's time still runs on (clock, heart rate).
+   */
+  recordedSec?: { from: number; to: number };
 }
 
 export interface StopPlan {
@@ -78,6 +85,8 @@ export interface TrackPlan {
   stops: StopPlan[];
   /** Planes only: the height profile; it lands at every stop (ADR 0007). */
   flight: FlightPlan | undefined;
+  /** What a watch recorded along this route, for speed, heart rate and the clock (M16). */
+  recording: Recording | undefined;
 }
 
 /**
@@ -121,6 +130,15 @@ export interface Timeline {
   pins: PinPlan[];
   /** Box around every route of the stage, for the overview camera. */
   overview: Bounds | undefined;
+  /** The time of day the stage shows (M16); the departure worked out once, not per frame. */
+  clock: TimelineClock | undefined;
+}
+
+export interface TimelineClock {
+  source: 'manual' | 'recorded';
+  timeZone: string;
+  /** A typed departure as milliseconds since 1970. */
+  departureMs: number | undefined;
 }
 
 /** What a stage changes about its map style; all of it goes into `mapStyleKey`. */
@@ -188,23 +206,30 @@ function waypointIndices(track: Track, line: MeasuredLine, routed: boolean): num
  * shared out by distance, and each stretch between two holds gets its own easing, so the
  * vehicle pulls away and brakes at every stop instead of crawling through it.
  */
-function planPhases(
+function holdsOf(
   track: Track,
   atM: number[],
-  lengthM: number,
-  startSec: number,
   totalSec: number,
-): Phase[] {
-  const holds = track.waypoints
+): { holds: Hold[]; drivingSec: number } {
+  const all = track.waypoints
     .map((waypoint, i) => ({ atM: atM[i]!, sec: waypoint.kind === 'stop' ? waypoint.holdSec : 0 }))
     .filter((hold) => hold.sec > 0);
-  const holdTotal = holds.reduce((sum, hold) => sum + hold.sec, 0);
+  const holdTotal = all.reduce((sum, hold) => sum + hold.sec, 0);
   // Holds that leave (almost) no time to drive are reported by the readiness check
   // (track.holdsTooLong); until they are fixed the stage still plays, with shortened holds.
   const maxHoldSec = totalSec * MAX_HOLD_SHARE;
   const holdScale = holdTotal > maxHoldSec ? maxHoldSec / holdTotal : 1;
-  const drivingSec = totalSec - holdTotal * holdScale;
+  return {
+    holds: all.map((hold) => ({ atM: hold.atM, sec: hold.sec * holdScale })),
+    drivingSec: totalSec - holdTotal * holdScale,
+  };
+}
 
+function planPhases(
+  { holds, drivingSec }: { holds: Hold[]; drivingSec: number },
+  lengthM: number,
+  startSec: number,
+): Phase[] {
   const phases: Phase[] = [];
   let time = startSec;
   let position = 0;
@@ -217,7 +242,7 @@ function planPhases(
   };
   for (const hold of holds) {
     driveTo(hold.atM);
-    const sec = hold.sec * holdScale;
+    const { sec } = hold;
     phases.push({
       kind: 'hold',
       startSec: time,
@@ -261,8 +286,22 @@ function planTrack(
   const atM = indices.map((index) => line.cumulative[index]!);
   const startSec = track.timing.startOffsetSec;
   const totalSec = Math.max(0, track.timing.durationSec ?? arriveBySec - startSec);
-  const phases = planPhases(track, atM, line.lengthM, startSec, totalSec);
-  const { easing } = track.timing;
+  const stopHolds = holdsOf(track, atM, totalSec);
+  // The recording cut to this route, when the route is up to date (M16).
+  const recording = routed ? track.computed!.recording : undefined;
+  const recordedPhases =
+    track.timing.pace === 'recorded' && recording
+      ? planRecordedPhases(
+          recording,
+          stopHolds.holds,
+          startSec,
+          stopHolds.drivingSec,
+          track.timing.skipPauses === true,
+        )
+      : undefined;
+  const phases = recordedPhases ?? planPhases(stopHolds, line.lengthM, startSec);
+  // The recorded pace is the speed curve itself; an easing on top would distort it.
+  const easing: Easing = recordedPhases ? 'linear' : track.timing.easing;
 
   const stops = track.waypoints.flatMap((waypoint, i): StopPlan[] => {
     if (waypoint.kind !== 'stop') return [];
@@ -310,6 +349,7 @@ function planTrack(
     phases,
     stops,
     flight,
+    recording,
   };
 }
 
@@ -384,6 +424,14 @@ export function compileTimeline(
       etappe.view.camera.mode === 'follow' ? etappe.view.camera.followTrackId : undefined,
     ),
     overview: boundsOf(tracks.flatMap((track) => track.line.points)),
+    clock: etappe.clock && {
+      source: etappe.clock.source,
+      timeZone: etappe.clock.timeZone,
+      departureMs:
+        etappe.clock.departure === undefined
+          ? undefined
+          : zonedTimeToEpochMs(etappe.clock.departure, etappe.clock.timeZone),
+    },
   };
 }
 
