@@ -6,6 +6,7 @@ import {
   addWidget,
   editWidget,
   etappeOfWidget,
+  findWidget,
   movedOffsets,
   placeForNewWidget,
   removeWidget,
@@ -44,6 +45,8 @@ describe('overlay blocks', () => {
     const { project, etappeId } = stage();
     const added = addWidget(project, etappeId, 'speed', ctx);
     expect(etappeOfWidget(added.project, added.id)).toBe(etappeId);
+    expect(findWidget(added.project, added.id)?.kind).toBe('speed');
+    expect(findWidget(added.project, 'nope')).toBeUndefined();
     const edited = editWidget(added.project, added.id, (w) => ({ ...w, unit: 'imperial' }));
     expect(edited.groups[0]!.etappen[0]!.overlays.widgets[0]!.unit).toBe('imperial');
     expect(editWidget(edited, 'nope', (w) => w)).toBe(edited);

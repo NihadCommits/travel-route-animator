@@ -63,6 +63,17 @@ export function etappeOfWidget(project: Project, widgetId: Id): Id | undefined {
   return undefined;
 }
 
+/** A block wherever it is in the project. */
+export function findWidget(project: Project, widgetId: Id): Widget | undefined {
+  for (const group of project.groups) {
+    for (const etappe of group.etappen) {
+      const widget = etappe.overlays.widgets.find((w) => w.id === widgetId);
+      if (widget) return widget;
+    }
+  }
+  return undefined;
+}
+
 /** Changes one block wherever it is; a project without it comes back unchanged. */
 export function editWidget(
   project: Project,

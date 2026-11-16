@@ -1,6 +1,12 @@
 import '@/features/map/maplibreWorker';
 import { Player, type PlayerRef } from '@remotion/player';
-import type { Id, Project } from '@travel-route-animator/core';
+import {
+  editWidget,
+  findWidget,
+  movedOffsets,
+  type Id,
+  type Project,
+} from '@travel-route-animator/core';
 import {
   EtappeComposition,
   SequenceComposition,
@@ -20,6 +26,7 @@ import { useOwnThemes } from '@/features/inspector/mapStyles';
 import { useOwnOverlayStyles } from '@/features/overlays/ownStyles';
 import { assetUrl } from '@/lib/api';
 import { selectProject, useEditor, type PreviewSettings } from '@/state/editorStore';
+import { useBlockDrag } from './blockDrag';
 import { usePlayerBridge, usePreviewFrame, usePreviewPlaying } from './playerBridge';
 
 const PREVIEW_SCALE = { half: 0.5, full: 1 } as const;
@@ -53,6 +60,15 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
   const loop = useEditor((state) => state.preview.loop);
   const bridge = usePlayerBridge();
   const [player, setPlayer] = useState<PlayerRef | null>(null);
+  const applyIfValid = useEditor((state) => state.applyIfValid);
+  // A block dragged in the picture keeps its anchor; only its offsets change (M17).
+  const blockDrag = useBlockDrag((widgetId, deltaX, deltaY) =>
+    applyIfValid((p) => {
+      const widget = findWidget(p, widgetId);
+      if (!widget) return p;
+      return editWidget(p, widgetId, (w) => ({ ...w, ...movedOffsets(widget, deltaX, deltaY) }));
+    }),
+  );
 
   // The preview loads the project's images from the server; a render gets them inside its props.
   const { assets } = project;
@@ -122,7 +138,7 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="bg-muted min-h-0 flex-1">
+      <div className="bg-muted min-h-0 flex-1" {...blockDrag}>
         {target.kind === 'group' ? (
           <Player
             ref={setPlayer}
