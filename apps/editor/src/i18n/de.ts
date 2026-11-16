@@ -266,6 +266,8 @@ export const de = {
     textColor: 'Textfarbe',
     fromStyle: 'Wie der Stil',
     noCadence: 'Die Aufzeichnung hat keine Trittfrequenz.',
+    flagNote:
+      'Das Land kommt aus mitgelieferten Grenzen (Natural Earth, offline) und wechselt an der Grenze auf ein paar Kilometer genau.',
   },
   render: {
     open: 'Rendern',

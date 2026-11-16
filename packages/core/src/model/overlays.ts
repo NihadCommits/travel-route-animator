@@ -167,9 +167,11 @@ export const BUILT_IN_OVERLAY_STYLES: Record<string, OverlayStyleTokens> = {
     weight: 600,
     size: 42,
     background: 'glass',
-    backgroundColor: '#ffffff',
-    backgroundOpacity: 0.18,
+    // Dark frosted glass: a light one leaves white text unreadable on bright maps.
+    backgroundColor: '#0f172a',
+    backgroundOpacity: 0.32,
     radius: 18,
+    shadow: true,
   },
   sport: {
     ...CLASSIC,

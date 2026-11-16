@@ -97,6 +97,8 @@ export interface FrameState {
     progress?: number;
     /** The last stop the counted track reached (the first before it sets off). */
     place?: string;
+    /** Where the counted vehicle is, e.g. for the flag of the country it is in. */
+    lngLat?: LngLat;
   };
   /** Height and metres climbed on the profile track, when the stage shows them (ADR 0012). */
   elevation: (ElevationReading & { trackId: Id }) | undefined;
@@ -208,6 +210,7 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     const s = distanceAt(counted, sec);
     const share = lengthM > 0 ? s / lengthM : 0;
     counters.progress = share;
+    counters.lngLat = pointAt(counted.line, s);
     // Scaled to the route's own distance, so the counter ends at what the inspector shows.
     counters.distanceKm = (share * counted.distanceM) / 1000;
     const reached = counted.stops.filter((stop) => stop.isStart || stop.arrivalSec <= sec).at(-1);

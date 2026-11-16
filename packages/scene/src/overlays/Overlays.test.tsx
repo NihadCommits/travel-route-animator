@@ -168,4 +168,12 @@ describe('placing blocks', () => {
     expect(presenceOf(block('distance', { fromSec: 2 }), 2)).toBe(1);
     expect(presenceOf(block('distance'), -1)).toBe(1);
   });
+
+  it('shows the flag of the country the vehicle is in, with nothing to download', () => {
+    const flag = { widgets: [block('flag', { anchor: 'top-left', label: 'Land' })] };
+    const { html, text } = frameAt(flag, 'start');
+    expect(text).toContain('Land');
+    // Porto lies in Portugal; the flag is a file of the bundle (flag-icons).
+    expect(html).toMatch(/<img[^>]+src="[^"]*flags\/4x3\/pt\.svg"/);
+  });
 });

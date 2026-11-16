@@ -14,6 +14,8 @@ import {
 } from '@travel-route-animator/core';
 import { useMemo, type CSSProperties, type FC, type ReactNode } from 'react';
 import { ElevationProfileChart } from './ElevationProfile';
+import { flagAt } from './flags';
+import { HeldImage } from './HeldImage';
 import { fontFamilyOf, useOverlayFonts } from './fonts';
 
 // HTML on top of the map, in the same reference size (1080 pixels on the short side) and
@@ -195,6 +197,27 @@ export const Overlays: FC<{
             ...(box.textShadow && { textShadow: box.textShadow }),
           }}
         />
+      );
+    }
+    if (widget.kind === 'flag') {
+      const { lngLat } = state.counters;
+      const url = lngLat && flagAt(lngLat);
+      if (!url) return null;
+      const k = tokens.size / 44;
+      return (
+        <div style={boxStyleOf(tokens)}>
+          {widget.label && <div style={{ fontSize: tokens.size * 0.45 }}>{widget.label}</div>}
+          <HeldImage
+            src={url}
+            style={{
+              display: 'block',
+              height: tokens.size * 1.1,
+              aspectRatio: '4 / 3',
+              borderRadius: 4 * k,
+              boxShadow: '0 0 0 1px rgba(0, 0, 0, 0.2)',
+            }}
+          />
+        </div>
       );
     }
     if (widget.kind === 'progress') {

@@ -90,6 +90,7 @@ export function WidgetsSection({
       if (kind === 'cadence' && !recording.cadenceRpm) return texts.noCadence;
     }
     if (HEIGHT_KINDS.has(kind)) return elevationNote;
+    if (kind === 'flag') return texts.flagNote;
     if (kind === 'travelTime' && !hasTravelTime) return de.inspector.etappe.timeCounterNoSource;
     return undefined;
   };

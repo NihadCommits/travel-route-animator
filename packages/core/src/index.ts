@@ -1,5 +1,6 @@
 export type { LngLat } from './geo/lngLat';
 export * from './geo/closestSegment';
+export * from './geo/countries';
 export * from './geo/distance';
 export * from './geo/greatCircle';
 export * from './geo/mercator';
