@@ -27,7 +27,7 @@ Travel Route Animator turns a trip into map animations for travel videos: a trai
 
 - A project tree of groups, stages, vehicles and waypoints, with drag and drop, autosave, undo and redo, and checks right at the field.
 - Waypoints from a place search, airport codes (`VIE`, `OPO`) or a click on the map; points drag on the map, and a click on the line bends the route.
-- Tracks imported from the GPX file of a bike ride or hike, or from the subtitle file a DJI drone writes, with stops suggested from breaks and named waypoints.
+- Tracks imported from a watch or app (GPX, FIT or TCX, also the ZIP of Garmin Connect's or Strava's "Export Original") or from the subtitle file a DJI drone writes, with stops suggested from breaks and named waypoints. From 1.2.0: FIT, TCX and the export ZIPs, and with timestamps the recorded pace: slower uphill, faster downhill, long breaks left out on request.
 - Templates for stages and groups, usable in every project, and a return trip in one click.
 
 **Routes and vehicles**
@@ -47,7 +47,7 @@ Travel Route Animator turns a trip into map animations for travel videos: a trai
 - A whole group of stages as one video on a single map, with cuts, camera flights or fades in between.
 - A 3D arrival that circles the destination, a dive straight down onto it for a hard cut to your footage, or a dive-out at the start.
 - Photos with GPS data and place names that pop up as pins along the way.
-- Counters for kilometres, travel time and metres climbed, a height profile with a moving point, and a title.
+- Counters for kilometres, travel time and metres climbed, a height profile with a moving point, and a title; from 1.2.0 also the real speed and heart rate of a recording, and a clock with the time of day in the stage's own time zone, from the recording or a typed departure.
 
 **Preview and export**
 
@@ -256,7 +256,7 @@ Travel Route Animator verwandelt eine Reise in Kartenanimationen für Reisevideo
 
 - Ein Projektbaum aus Gruppen, Etappen, Fahrzeugen und Wegpunkten, mit Drag & Drop, automatischem Speichern, Rückgängig und Wiederholen und Prüfungen direkt am Feld.
 - Wegpunkte per Ortssuche, Flughafen-Code (`VIE`, `OPO`) oder Klick auf die Karte; Punkte lassen sich auf der Karte ziehen, und ein Klick auf die Linie lenkt die Route.
-- Tracks aus der GPX-Datei einer Radtour oder Wanderung oder aus der Untertiteldatei einer DJI-Drohne, mit vorgeschlagenen Stopps aus Pausen und benannten Wegpunkten.
+- Tracks aus Uhr oder App (GPX, FIT oder TCX, auch das ZIP aus „Export Original“ von Garmin Connect oder Strava) oder aus der Untertiteldatei einer DJI-Drohne, mit vorgeschlagenen Stopps aus Pausen und benannten Wegpunkten. Ab 1.2.0: FIT, TCX und die Export-ZIPs, und mit Zeitstempeln das echte Tempo: langsamer bergauf, schneller bergab, lange Pausen auf Wunsch übersprungen.
 - Vorlagen für Etappen und Gruppen, in jedem Projekt nutzbar, und die Rückfahrt mit einem Klick.
 
 **Routen und Fahrzeuge**
@@ -276,7 +276,7 @@ Travel Route Animator verwandelt eine Reise in Kartenanimationen für Reisevideo
 - Eine ganze Gruppe von Etappen als ein Video auf einer einzigen Karte, mit Schnitt, Kameraflug oder Abblenden dazwischen.
 - Eine 3D-Ankunft, die das Ziel umkreist, ein Sturzflug senkrecht auf das Ziel für einen harten Schnitt auf das eigene Footage, oder ein Dive-out am Anfang.
 - Fotos mit GPS-Daten und Ortsnamen, die als Pins entlang der Strecke aufgehen.
-- Zähler für Kilometer, Reisezeit und Höhenmeter, ein Höhenprofil mit mitlaufendem Punkt und ein Titel.
+- Zähler für Kilometer, Reisezeit und Höhenmeter, ein Höhenprofil mit mitlaufendem Punkt und ein Titel; ab 1.2.0 auch echte Geschwindigkeit und Puls einer Aufzeichnung, dazu eine Uhr mit der Tageszeit in der Zeitzone der Etappe, aus der Aufzeichnung oder einer eingetragenen Abfahrt.
 
 **Vorschau und Export**
 

@@ -171,6 +171,21 @@ describe('an imported track', () => {
     expect(route.elevation!.elevationsM.at(-1)).toBe(530);
   });
 
+  it('keeps what the device recorded, with the break, cut to the route (M16)', () => {
+    const { project } = imported();
+    const track = trackOf(project);
+    const recording = track.imported!.recording!;
+    expect(recording.startedAt).toBe('2026-07-04T08:00:00.000Z');
+    // 110 points 5 s apart and a 10 minute break: 1150 s.
+    expect((recording.atM.length - 1) * recording.stepSec).toBe(1150);
+    const route = track.computed!.recording!;
+    expect(route.atM[0]).toBe(0);
+    expect(route.atM.at(-1)).toBeCloseTo(measureLine(track.computed!.geometry).lengthM, 0);
+    // During the break the trip hardly moves: the GPS jitters by centimetres, not metres.
+    const atBreak = route.atM.findIndex((at, i) => i > 0 && at - route.atM[i - 1]! < 0.1);
+    expect(route.atM[atBreak + 300]! - route.atM[atBreak]!).toBeLessThan(1);
+  });
+
   it('keeps the line when a stop is moved: the stop is laid onto it again', () => {
     const { project, id } = imported(false);
     const moved = editTrack(project, id, (track) => ({

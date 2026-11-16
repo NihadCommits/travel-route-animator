@@ -1,4 +1,5 @@
 import {
+  formatClock,
   formatTravelTime,
   routingCredits,
   type Corner,
@@ -43,7 +44,21 @@ export const Overlays: FC<{
   credits: readonly string[];
 }> = ({ timeline, state, credits: mapCredits }) => {
   const { overlays, viewport, scale } = timeline;
-  const { distanceKm, travelSec } = state.counters;
+  const { distanceKm, travelSec, speedKmh, heartRateBpm, clockMs } = state.counters;
+  // The counters in one row, in this order; each only where the frame has a value (M16).
+  const pills: [key: string, text: string | undefined][] = [
+    ['distance', distanceKm !== undefined ? `${kilometres.format(distanceKm)} km` : undefined],
+    ['travel', travelSec !== undefined ? formatTravelTime(travelSec) : undefined],
+    [
+      'clock',
+      clockMs !== undefined && timeline.clock
+        ? formatClock(clockMs, timeline.clock.timeZone)
+        : undefined,
+    ],
+    ['speed', speedKmh !== undefined ? `${kilometres.format(speedKmh)} km/h` : undefined],
+    ['heart', heartRateBpm !== undefined ? `♥ ${heartRateBpm}` : undefined],
+  ];
+  const shown = pills.filter((entry): entry is [string, string] => entry[1] !== undefined);
   const credits = [...mapCredits, ...routingCredits(timeline.tracks.map((t) => t.provider))];
   // Heights only once the route has them (ADR 0012); the editor fetches them in the background.
   const reading = state.elevation;
@@ -89,14 +104,13 @@ export const Overlays: FC<{
           gap: 16,
         }}
       >
-        {(distanceKm !== undefined || travelSec !== undefined) && (
-          <div style={{ display: 'flex', gap: 16 }}>
-            {distanceKm !== undefined && (
-              <div style={{ ...pill, fontSize: 44 }}>{kilometres.format(distanceKm)} km</div>
-            )}
-            {travelSec !== undefined && (
-              <div style={{ ...pill, fontSize: 44 }}>{formatTravelTime(travelSec)}</div>
-            )}
+        {shown.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+            {shown.map(([key, text]) => (
+              <div key={key} style={{ ...pill, fontSize: 44 }}>
+                {text}
+              </div>
+            ))}
           </div>
         )}
         {showClimb && (

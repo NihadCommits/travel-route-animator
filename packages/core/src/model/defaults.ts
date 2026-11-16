@@ -51,6 +51,9 @@ export function defaultOverlays(): OverlaySettings {
     attributionCorner: 'bottom-right',
     elevationProfile: false,
     elevationCounter: false,
+    speedCounter: false,
+    heartRateCounter: false,
+    clockCounter: false,
   };
 }
 

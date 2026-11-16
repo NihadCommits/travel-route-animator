@@ -1,3 +1,4 @@
+import { measureLine } from '../geo/along';
 import { distanceM } from '../geo/distance';
 import type { LngLat } from '../geo/lngLat';
 import { simplifyLineIndices } from '../geo/simplify';
@@ -14,6 +15,7 @@ import type { ImportedLine, Track } from '../model/track';
 import { SIMPLIFY_TOLERANCE_M } from '../routing/assemble';
 import type { Added } from '../edit/operations';
 import { editEtappe } from '../edit/operations';
+import { buildRecording } from '../recording/recording';
 import { lineFingerprint } from './fingerprint';
 import type { ImportedTrackData, ImportPoint } from './parse';
 
@@ -22,19 +24,55 @@ import type { ImportedTrackData, ImportPoint } from './parse';
 
 const round6 = (value: number) => Math.round(value * 1e6) / 1e6;
 
-/** Leaves out points that repeat the previous one: a GPS standing still writes many. */
-function moving(points: readonly ImportPoint[]): ImportPoint[] {
-  return points.filter(
-    (point, i) =>
+/**
+ * Leaves out points that repeat the previous one: a GPS standing still writes many. `of[k]` is
+ * the index in `points` of the moving point that raw point k is at.
+ */
+function moving(raw: readonly ImportPoint[]): { points: ImportPoint[]; of: number[] } {
+  const points: ImportPoint[] = [];
+  const of = raw.map((point, i) => {
+    const previous = raw[i - 1];
+    if (
       i === 0 ||
-      point.lngLat[0] !== points[i - 1]!.lngLat[0] ||
-      point.lngLat[1] !== points[i - 1]!.lngLat[1],
-  );
+      point.lngLat[0] !== previous!.lngLat[0] ||
+      point.lngLat[1] !== previous!.lngLat[1]
+    ) {
+      points.push(point);
+    }
+    return points.length - 1;
+  });
+  return { points, of };
+}
+
+/**
+ * How far along the simplified line each point is. A point between two kept ones lies the same
+ * share of the way along that piece of line as it did along the original track.
+ */
+function alongLine(
+  points: readonly ImportPoint[],
+  kept: readonly number[],
+  line: LngLat[],
+): number[] {
+  const raw = [0];
+  for (let j = 1; j < points.length; j++) {
+    raw.push(raw[j - 1]! + distanceM(points[j - 1]!.lngLat, points[j]!.lngLat));
+  }
+  const { cumulative } = measureLine(line);
+  const along = points.map(() => 0);
+  for (let q = 0; q + 1 < kept.length; q++) {
+    const [a, b] = [kept[q]!, kept[q + 1]!];
+    const span = raw[b]! - raw[a]!;
+    const piece = cumulative[q + 1]! - cumulative[q]!;
+    for (let j = a; j <= b; j++) {
+      along[j] = cumulative[q]! + (span > 0 ? ((raw[j]! - raw[a]!) / span) * piece : 0);
+    }
+  }
+  return along;
 }
 
 /** The line of an import as stored in the track: simplified like a router's route (ADR 0005). */
 export function toImportedLine(data: ImportedTrackData): ImportedLine {
-  const points = moving(data.points);
+  const { points, of } = moving(data.points);
   const kept = simplifyLineIndices(
     points.map((point) => point.lngLat),
     SIMPLIFY_TOLERANCE_M,
@@ -50,12 +88,23 @@ export function toImportedLine(data: ImportedTrackData): ImportedLine {
     ? heights.map((h) => Math.round(h * 10) / 10)
     : undefined;
   if (elevationsM && elevationsM.length < line.length) elevationsM.push(elevationsM[0]!);
+  // Time, heart rate and cadence of every raw point, standing still included (M16).
+  const along = alongLine(points, kept, line);
+  const recording = buildRecording(
+    data.points.flatMap((point, k) =>
+      point.time === undefined
+        ? []
+        : [{ time: point.time, atM: along[of[k]!]!, hr: point.hr, cad: point.cad }],
+    ),
+    data.source !== 'dji-srt',
+  );
   return {
     source: data.source,
     name: data.name,
     line,
     ...(elevationsM && { elevationsM }),
     fingerprint: lineFingerprint(line),
+    ...(recording && { recording }),
   };
 }
 
@@ -178,7 +227,13 @@ export function trackFromImport(
     },
     ctx,
   );
-  return { ...base, routing: { mode: 'gpx' }, imported: toImportedLine(data) };
+  const imported = toImportedLine(data);
+  // With timestamps the track moves like the trip did, without the long breaks (M16); the
+  // inspector switches back to an even pace.
+  const timing = imported.recording
+    ? { ...base.timing, pace: 'recorded' as const, skipPauses: true }
+    : base.timing;
+  return { ...base, routing: { mode: 'gpx' }, imported, timing };
 }
 
 /** Adds an imported track to a stage; the editor computes its route like any local one. */

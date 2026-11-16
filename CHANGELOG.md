@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows
 [Semantic Versioning](https://semver.org/). Project files carry their own `schemaVersion`
 (currently 7); older files are migrated when they are opened.
 
+## [Unreleased]
+
+Coming with 1.2.0 (modules M16 to M18).
+
+### Added
+
+- Recordings from watches and apps: FIT and TCX files, heart rate and cadence from GPX, and
+  the ZIP and gzip files Garmin Connect and Strava export; nothing to unpack by hand.
+- The recorded pace: an imported track moves like the trip did, squeezed into its time, with
+  long breaks left out on request.
+- Counters for the real speed and the heart rate, and a clock with the time of day in the
+  stage's own time zone, from the recording or a typed departure.
+
+### Changed
+
+- Project files are format 8; older files are migrated when they are opened.
+
 ## [1.0.1] - 2026-11-15
 
 ### Fixed

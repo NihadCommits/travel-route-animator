@@ -34,6 +34,7 @@ import { TextField } from './fields/TextField';
 import { PinsSection } from '@/features/pins/PinsSection';
 import { EndsSection } from './EndsSection';
 import { MapStyleSection } from './MapStyleSection';
+import { MeasuredCounters } from './MeasuredCounters';
 import { useOwnThemes, useSatelliteAvailable } from './mapStyles';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
 import { useEdit } from './useEdit';
@@ -58,7 +59,14 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
   const { camera } = view;
   const issues = useMemo(() => checkEtappeReadiness(etappe), [etappe]);
   const elevationJobs = useEditor((state) => state.elevationJobs);
-  // Without a router's estimate the time counter only counts a typed duration.
+  // The track the counters show, and whether its travel time is known: from the router or a
+  // recording (M16). Without either the time counter only counts a typed duration.
+  const counted =
+    etappe.tracks.find((track) => track.id === camera.followTrackId) ?? etappe.tracks[0];
+  const hasTravelTime =
+    overlays.manualDurationText !== undefined ||
+    counted?.computed?.durationS !== undefined ||
+    counted?.computed?.recording !== undefined;
   const timeCounterHint = (() => {
     const typed = overlays.manualDurationText;
     if (typed !== undefined) {
@@ -66,11 +74,7 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
         ? de.inspector.etappe.timeCounterUnreadable
         : undefined;
     }
-    const counted =
-      etappe.tracks.find((track) => track.id === camera.followTrackId) ?? etappe.tracks[0];
-    return counted?.computed?.durationS === undefined
-      ? de.inspector.etappe.timeCounterNoSource
-      : undefined;
+    return hasTravelTime ? undefined : de.inspector.etappe.timeCounterNoSource;
   })();
   const elevationNote = useMemo(() => {
     if (!showsElevation(etappe)) return undefined;
@@ -262,6 +266,20 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
             }
           />
         )}
+        <MeasuredCounters
+          etappe={etappe}
+          counted={counted}
+          setOverlay={setOverlay}
+          setClock={(clock) => change('clock', (e) => ({ ...e, clock }), true)}
+          setClockCounter={(on, clock) =>
+            change('overlays.clockCounter', (e) => ({
+              ...e,
+              overlays: { ...e.overlays, clockCounter: on },
+              ...(clock && { clock }),
+            }))
+          }
+          hasTravelTime={hasTravelTime}
+        />
         <SwitchField
           label={de.inspector.etappe.elevationProfile}
           checked={overlays.elevationProfile}

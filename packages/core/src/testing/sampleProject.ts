@@ -61,6 +61,9 @@ function etappe(
       attributionCorner: 'bottom-right',
       elevationProfile: false,
       elevationCounter: false,
+      speedCounter: false,
+      heartRateCounter: false,
+      clockCounter: false,
     },
     tracks,
     pins: [],
@@ -70,7 +73,7 @@ function etappe(
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',

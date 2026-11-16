@@ -79,21 +79,31 @@ Drag the MP4 file into your video editor.
 
 ### 7. What else it can do
 
-| Feature                                     | Where                                                                                                                                   |
-| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| A flight with a 3D plane over the globe     | Vehicle **Flugzeug** (plane), waypoints by airport code (`VIE`, `OPO`), stage view **Globus**                                           |
-| Several vehicles, or route options          | More vehicles in the same stage; on the stage **Als Optionen darstellen** (show as options)                                             |
-| GPX from Strava, Komoot, a watch or a drone | When choosing a vehicle: **Aus Datei importieren (GPX, DJI) …** (import from file)                                                      |
-| Photos and place names that pop up          | On the stage, **Fotos und Orte**: **Foto hinzufügen** (phone photo with location) or **Ort hinzufügen**                                 |
-| Kilometres, travel time, metres climbed     | On the stage under **Einblendungen** (overlays)                                                                                         |
-| Map looks, your own theme                   | **Kartenstil** (map style): pick a theme or **Theme bearbeiten …**; map **Gelände** (terrain) or **Satellit**                           |
-| 3D terrain for mountains                    | View **3D geneigt** (tilted), switch on **3D-Gelände**                                                                                  |
-| 3D arrival, dive onto the destination       | On the stage, **Anfang und Ende** (start and end)                                                                                       |
-| A whole group as one video with transitions | Select the group, **Rendern**, **Ganze Gruppe als ein Video**; the transition is set on the group                                       |
-| Return trips and templates                  | Right-click a stage: **Rückfahrt anlegen** (return trip), **Als Vorlage speichern** (save as template); **Aus Vorlage …** at the bottom |
-| Your own image or GIF as the vehicle        | On the vehicle under **Fahrzeug-Icon**                                                                                                  |
-| A transparent overlay for Premiere          | When rendering, preset **Overlay ProRes 4444 (transparent)**                                                                            |
-| Credits for the video description           | A `.credits.txt` file next to every video                                                                                               |
+| Feature                                                                 | Where                                                                                                                                   |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| A flight with a 3D plane over the globe                                 | Vehicle **Flugzeug** (plane), waypoints by airport code (`VIE`, `OPO`), stage view **Globus**                                           |
+| Several vehicles, or route options                                      | More vehicles in the same stage; on the stage **Als Optionen darstellen** (show as options)                                             |
+| A recording from a watch, Strava, Garmin or a drone                     | When choosing a vehicle: **Aus Datei importieren (GPX, FIT, DJI) …** (import from file, see below)                                      |
+| Photos and place names that pop up                                      | On the stage, **Fotos und Orte**: **Foto hinzufügen** (phone photo with location) or **Ort hinzufügen**                                 |
+| Kilometres, travel time, metres climbed, speed, heart rate, time of day | On the stage under **Einblendungen** (overlays)                                                                                         |
+| Map looks, your own theme                                               | **Kartenstil** (map style): pick a theme or **Theme bearbeiten …**; map **Gelände** (terrain) or **Satellit**                           |
+| 3D terrain for mountains                                                | View **3D geneigt** (tilted), switch on **3D-Gelände**                                                                                  |
+| 3D arrival, dive onto the destination                                   | On the stage, **Anfang und Ende** (start and end)                                                                                       |
+| A whole group as one video with transitions                             | Select the group, **Rendern**, **Ganze Gruppe als ein Video**; the transition is set on the group                                       |
+| Return trips and templates                                              | Right-click a stage: **Rückfahrt anlegen** (return trip), **Als Vorlage speichern** (save as template); **Aus Vorlage …** at the bottom |
+| Your own image or GIF as the vehicle                                    | On the vehicle under **Fahrzeug-Icon**                                                                                                  |
+| A transparent overlay for Premiere                                      | When rendering, preset **Overlay ProRes 4444 (transparent)**                                                                            |
+| Credits for the video description                                       | A `.credits.txt` file next to every video                                                                                               |
+
+#### A hike or ride from your watch or app (from version 1.2.0)
+
+How to bring a real recording with time, height and heart rate into the tool:
+
+- **Garmin Connect** (in the browser): open the activity, the gear at the top right, **Export Original**. Import the ZIP as it is, no need to unpack it.
+- **Strava** (in the browser): open the activity, the **…** menu, **Export Original** (or **Export GPX**).
+- **Komoot and other apps:** download the tour as **GPX**.
+
+With timestamps the vehicle moves at the recorded pace (on the vehicle under **Tempo**: "Wie aufgezeichnet", as recorded), and the stage can show **Geschwindigkeit** (speed), **Puls** (heart rate) and **Uhrzeit** (time of day). For planned routes without a recording, the clock runs from a typed **Abfahrt** (departure).
 
 ### 8. If something does not work
 

@@ -6,6 +6,7 @@ import type { LngLat } from '../geo/lngLat';
 import { smoothLine } from '../geo/smooth';
 import type { RoutingMode } from '../model/enums';
 import type { ComputedRoute, ImportedLine, RouteElevation } from '../model/track';
+import { cutRecording } from '../recording/recording';
 import { assembleComputedRoute, type LegShape } from './assemble';
 import type { RouteInput } from './inputHash';
 
@@ -101,8 +102,19 @@ function importedRoute(
     return { line: [start.point, ...line.slice(start.index + 1, to.index + 1), to.point] };
   });
   const route = assembleComputedRoute(track, { provider: imported.source, legs }, computedAt);
-  const elevation = importedElevation(imported, positions[0]!, measureLine(route.geometry).lengthM);
-  return elevation ? { ...route, elevation } : route;
+  const { lengthM } = measureLine(route.geometry);
+  const elevation = importedElevation(imported, positions[0]!, lengthM);
+  // The recording from the first stop to the last, in the route's own metres (M16).
+  const measured = measureLine(imported.line);
+  const offsetOf = ({ index, t }: LinePosition) =>
+    measured.cumulative[index]! +
+    t *
+      ((measured.cumulative[index + 1] ?? measured.cumulative[index]!) -
+        measured.cumulative[index]!);
+  const recording =
+    imported.recording &&
+    cutRecording(imported.recording, offsetOf(positions[0]!), offsetOf(positions.at(-1)!), lengthM);
+  return { ...route, ...(elevation && { elevation }), ...(recording && { recording }) };
 }
 
 /**

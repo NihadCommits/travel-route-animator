@@ -1,19 +1,24 @@
 import type { LngLat } from '../geo/lngLat';
 
 // Reading tracks from files (M14, ADR 0014): GPX from bike computers, watches and apps, and
-// the subtitle files (SRT) DJI drones write next to each video. Plain text parsing without a
-// DOM, so the same code runs in the editor and in Node.
+// the subtitle files (SRT) DJI drones write next to each video. Since M16 also TCX (Garmin's
+// XML) and FIT (binary, in fit.ts), with heart rate and cadence where the file has them. Plain
+// text parsing without a DOM, so the same code runs in the editor and in Node.
 
 export interface ImportPoint {
   lngLat: LngLat;
   /** Metres above sea level (GPX `ele`, DJI `abs_alt`). */
   ele?: number;
-  /** Milliseconds: since 1970 for GPX, since the start of the video for DJI. */
+  /** Milliseconds: since 1970 for GPX, TCX and FIT, since the start of the video for DJI. */
   time?: number;
+  /** Heart rate in beats per minute (M16). */
+  hr?: number;
+  /** Cadence in revolutions or steps per minute (M16). */
+  cad?: number;
 }
 
 export interface ImportedTrackData {
-  source: 'gpx' | 'dji-srt';
+  source: 'gpx' | 'dji-srt' | 'tcx' | 'fit';
   /** The track's name in the file, else the file name. */
   name: string;
   points: ImportPoint[];
@@ -71,7 +76,24 @@ function pointOf(open: string, body: string): ImportPoint | undefined {
     lngLat: [lon, lat],
     ...(Number.isFinite(ele) && { ele }),
     ...(Number.isFinite(time) && { time }),
+    ...sensors(body),
   };
+}
+
+/** A positive number in `text`, else nothing. */
+function positive(text: string | undefined): number | undefined {
+  const value = text === undefined ? Number.NaN : Number(text);
+  return Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+/**
+ * Heart rate and cadence from a GPX point's extensions: Garmin's TrackPointExtension
+ * (`gpxtpx:hr`, `gpxtpx:cad`), which Strava, Komoot and most watches write.
+ */
+function sensors(body: string): Pick<ImportPoint, 'hr' | 'cad'> {
+  const hr = positive(childText(body, 'hr'));
+  const cad = positive(childText(body, 'cad'));
+  return { ...(hr !== undefined && { hr }), ...(cad !== undefined && { cad }) };
 }
 
 /**
@@ -162,9 +184,56 @@ export function parseDjiSrt(text: string, fileName: string): ImportedTrackData {
   return { source: 'dji-srt', name: fileName.replace(/\.srt$/i, ''), points, waypoints: [] };
 }
 
-/** GPX or DJI subtitles, by the file's name and content. */
+/**
+ * A TCX file (Garmin's Training Center XML): the trackpoints of all laps of an activity, or of
+ * a course, with heart rate and cadence. Points without a position (a paused GPS) are left out.
+ */
+export function parseTcx(text: string, fileName: string): ImportedTrackData {
+  if (!/<(?:\w+:)?TrainingCenterDatabase\b/.test(text))
+    throw new ImportError('This is not a TCX file');
+  const points: ImportPoint[] = [];
+  for (const { body } of elements(text, 'Trackpoint')) {
+    const lat = Number(childText(body, 'LatitudeDegrees'));
+    const lon = Number(childText(body, 'LongitudeDegrees'));
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lon) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lon) > 180
+    ) {
+      continue;
+    }
+    const ele = Number(childText(body, 'AltitudeMeters') ?? Number.NaN);
+    const time = Date.parse(childText(body, 'Time') ?? '');
+    const hr = positive(childText(childText(body, 'HeartRateBpm') ?? '', 'Value'));
+    const cad = positive(childText(body, 'Cadence') ?? childText(body, 'RunCadence'));
+    points.push({
+      lngLat: [lon, lat],
+      ...(Number.isFinite(ele) && { ele }),
+      ...(Number.isFinite(time) && { time }),
+      ...(hr !== undefined && { hr }),
+      ...(cad !== undefined && { cad }),
+    });
+  }
+  if (points.length < 2) throw new ImportError('The TCX file holds no track with two points');
+  const sport = /<(?:\w+:)?Activity\b[^>]*\bSport\s*=\s*["']([^"']+)["']/.exec(text)?.[1];
+  const course = [...elements(text, 'Course')][0];
+  const courseName =
+    course && childText(course.body.replace(/<(?:\w+:)?Track\b[\s\S]*/, ''), 'Name');
+  return {
+    source: 'tcx',
+    name: courseName || fileName.replace(/\.tcx$/i, ''),
+    points,
+    waypoints: [],
+    ...(sport && sport !== 'Other' && { activity: sport }),
+  };
+}
+
+/** GPX, TCX or DJI subtitles, by the file's name and content. FIT files go to parseTrackBytes. */
 export function parseTrackFile(text: string, fileName: string): ImportedTrackData {
   if (/\.srt$/i.test(fileName) || /-->/.test(text.slice(0, 2000)))
     return parseDjiSrt(text, fileName);
+  if (/\.tcx$/i.test(fileName) || /<(?:\w+:)?TrainingCenterDatabase\b/.test(text.slice(0, 2000)))
+    return parseTcx(text, fileName);
   return parseGpx(text, fileName);
 }

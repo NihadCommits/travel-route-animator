@@ -3,6 +3,7 @@ import { CameraModeSchema, ViewModeSchema } from './enums';
 import { reportIssue } from './issues';
 import { AssetIdSchema } from './assets';
 import { IdSchema, LngLatSchema } from './primitives';
+import { isTimeZone } from '../time/zone';
 import { MapStyleRefSchema } from './style';
 import { TrackSchema } from './track';
 
@@ -104,6 +105,12 @@ export const OverlaySettingsSchema = z.strictObject({
   elevationProfile: z.boolean(),
   /** Metres climbed and descended so far. */
   elevationCounter: z.boolean(),
+  /** The real speed from a recording; generated routes have none (M16). */
+  speedCounter: z.boolean(),
+  /** The heart rate from a recording (M16). */
+  heartRateCounter: z.boolean(),
+  /** The time of day, running along with the trip (M16, see `etappe.clock`). */
+  clockCounter: z.boolean(),
 });
 export type OverlaySettings = z.infer<typeof OverlaySettingsSchema>;
 
@@ -143,6 +150,34 @@ export const PinSchema = z
   });
 export type Pin = z.infer<typeof PinSchema>;
 
+/**
+ * The time of day a stage shows (M16, ADR 0017). 'manual': from a typed departure, running on
+ * with the travel time (typed duration, recording or router). 'recorded': from when the
+ * recording of the counted track started.
+ */
+export const ClockSchema = z
+  .strictObject({
+    source: z.enum(['manual', 'recorded']),
+    /** Local date and time of departure, e.g. "2026-07-14T08:30". */
+    departure: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/)
+      .optional(),
+    /** The IANA time zone the clock is in, e.g. "Europe/Vienna". */
+    timeZone: z.string().min(1),
+  })
+  .superRefine((clock, ctx) => {
+    if (!isTimeZone(clock.timeZone)) {
+      reportIssue(ctx, {
+        path: ['timeZone'],
+        input: clock.timeZone,
+        code: 'clock.timeZone',
+        message: `Unknown time zone "${clock.timeZone}"`,
+      });
+    }
+  });
+export type Clock = z.infer<typeof ClockSchema>;
+
 // A stage may be unfinished while editing (no vehicle yet, timing longer than the stage after
 // shortening it, camera following a deleted track). Those checks live in readiness.ts (ADR 0002).
 export const EtappeSchema = z.strictObject({
@@ -159,5 +194,6 @@ export const EtappeSchema = z.strictObject({
   tracks: z.array(TrackSchema),
   /** Photos and places that pop up along the way (ADR 0014). */
   pins: z.array(PinSchema),
+  clock: ClockSchema.optional(),
 });
 export type Etappe = z.infer<typeof EtappeSchema>;

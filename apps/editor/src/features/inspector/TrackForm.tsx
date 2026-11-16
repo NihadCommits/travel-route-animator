@@ -210,12 +210,47 @@ export function TrackForm({
           checked={timing.durationSec === undefined}
           onCommit={setUntilEnd}
         />
-        <SelectField
-          label={de.inspector.track.easing}
-          value={timing.easing}
-          options={optionsOf(EasingSchema.options, de.inspector.easings)}
-          onCommit={(easing) => setTiming('easing', easing)}
-        />
+        {track.imported?.recording ? (
+          // A recording adds its own pace to the easings (M16): one choice for "how it moves".
+          <>
+            <SelectField
+              label={de.inspector.track.easing}
+              value={timing.pace === 'recorded' ? 'recorded' : timing.easing}
+              options={[
+                { value: 'recorded', label: de.inspector.track.recordedPace },
+                ...optionsOf(EasingSchema.options, de.inspector.easings),
+              ]}
+              hint={timing.pace === 'recorded' ? de.inspector.track.recordedPaceHint : undefined}
+              onCommit={(value) =>
+                change(
+                  'timing.pace',
+                  (t) => ({
+                    ...t,
+                    timing:
+                      value === 'recorded'
+                        ? { ...t.timing, pace: 'recorded' }
+                        : { ...t.timing, pace: 'eased', easing: value },
+                  }),
+                  true,
+                )
+              }
+            />
+            {timing.pace === 'recorded' && (
+              <SwitchField
+                label={de.inspector.track.skipPauses}
+                checked={timing.skipPauses === true}
+                onCommit={(skip) => setTiming('skipPauses', skip)}
+              />
+            )}
+          </>
+        ) : (
+          <SelectField
+            label={de.inspector.track.easing}
+            value={timing.easing}
+            options={optionsOf(EasingSchema.options, de.inspector.easings)}
+            onCommit={(easing) => setTiming('easing', easing)}
+          />
+        )}
       </Section>
 
       <Section title={de.inspector.track.style}>
