@@ -7,6 +7,7 @@ import { v4ToV5 } from './v4-to-v5';
 import { v5ToV6 } from './v5-to-v6';
 import { v6ToV7 } from './v6-to-v7';
 import { v7ToV8 } from './v7-to-v8';
+import { v8ToV9 } from './v8-to-v9';
 
 /**
  * One step of the file format, e.g. version 1 → 2. A migration receives plain JSON (not a
@@ -30,6 +31,7 @@ export const MIGRATIONS: readonly Migration[] = [
   v5ToV6,
   v6ToV7,
   v7ToV8,
+  v8ToV9,
 ];
 
 export class MigrationError extends Error {

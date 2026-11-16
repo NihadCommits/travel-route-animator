@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { OverlayStyleRefSchema, UnitsSchema } from './overlays';
 import { AssetSchema } from './assets';
 import { EtappeSchema } from './etappe';
 import { reportIssue } from './issues';
@@ -7,7 +8,7 @@ import { HexColorSchema, IdSchema, IsoDateTimeSchema } from './primitives';
 import { MapStyleRefSchema, TransitionSettingsSchema } from './style';
 
 /** Bump together with a new migration in migrations/migrations.ts. */
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;
 
 export const ProjectDefaultsSchema = z.strictObject({
   /** Default look, overridable per group and stage. */
@@ -15,6 +16,10 @@ export const ProjectDefaultsSchema = z.strictObject({
   output: OutputSettingsSchema,
   /** Default transition between chained stages, overridable per group. */
   transition: TransitionSettingsSchema,
+  /** Default look of the overlays, overridable per group and stage (M17). */
+  overlayStyle: OverlayStyleRefSchema,
+  /** Kilometres and metres, or miles and feet; a block can differ (M17). */
+  units: UnitsSchema,
 });
 export type ProjectDefaults = z.infer<typeof ProjectDefaultsSchema>;
 
@@ -25,6 +30,7 @@ export const GroupSchema = z.strictObject({
   color: HexColorSchema.optional(),
   mapStyle: MapStyleRefSchema.optional(),
   transition: TransitionSettingsSchema.optional(),
+  overlayStyle: OverlayStyleRefSchema.optional(),
   etappen: z.array(EtappeSchema),
 });
 export type Group = z.infer<typeof GroupSchema>;

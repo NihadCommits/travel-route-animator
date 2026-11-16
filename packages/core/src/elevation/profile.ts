@@ -84,8 +84,12 @@ export function profileTrackOf(etappe: Pick<Etappe, 'view' | 'tracks'>): Track |
   return etappe.tracks.find(isGroundTrack);
 }
 
+/** Whether the stage needs heights: a profile, the metres climbed or the height (M17: blocks). */
 export function showsElevation(etappe: Pick<Etappe, 'overlays'>): boolean {
-  return etappe.overlays.elevationProfile || etappe.overlays.elevationCounter;
+  return etappe.overlays.widgets.some(
+    (widget) =>
+      widget.kind === 'elevationProfile' || widget.kind === 'climb' || widget.kind === 'altitude',
+  );
 }
 
 /**

@@ -122,7 +122,7 @@ describe('the time counter', () => {
         ...group,
         etappen: group.etappen.map((etappe) => ({
           ...etappe,
-          overlays: { ...etappe.overlays, timeCounter: true, manualDurationText: '2 h 30 min' },
+          overlays: { ...etappe.overlays, manualDurationText: '2 h 30 min' },
         })),
       })),
     };
@@ -130,6 +130,7 @@ describe('the time counter', () => {
     expect(computeFrameState(timeline, 0).counters.travelSec).toBe(0);
     const last = computeFrameState(timeline, timeline.durationInFrames - 1).counters;
     expect(last.travelSec).toBeCloseTo(9000, 6);
-    expect(last.distanceKm).toBeUndefined();
+    // The frame works out every value; which ones show is up to the blocks (M17).
+    expect(last.distanceKm).toBeGreaterThan(0);
   });
 });

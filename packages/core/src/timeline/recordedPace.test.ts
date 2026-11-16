@@ -128,20 +128,14 @@ describe('what a recording shows', () => {
     return computeFrameState(timeline, Math.round((sec + timeline.introSec) * timeline.fps))
       .counters;
   };
-  const on = {
+  const on: Partial<Etappe> = {
     overlays: {
       labels: true,
-      distanceCounter: true,
-      timeCounter: true,
       attribution: true,
       attributionCorner: 'bottom-right',
-      elevationProfile: false,
-      elevationCounter: false,
-      speedCounter: true,
-      heartRateCounter: true,
-      clockCounter: true,
+      widgets: [],
     },
-  } as const;
+  };
 
   it('gives the real speed, heart rate and elapsed time where the hiker is', () => {
     const trip = project(recorded(), on);

@@ -25,13 +25,19 @@ import type { Project } from '../model/project';
 import { MAX_HOLD_SHARE } from '../model/readiness';
 import type { MapStyleRef } from '../model/style';
 import type { Track, TrackStyle, Recording } from '../model/track';
-import { findEtappe, resolveMapStyle, resolveOutput } from '../resolve/resolve';
+import {
+  findEtappe,
+  resolveMapStyle,
+  resolveOutput,
+  resolveOverlayStyle,
+} from '../resolve/resolve';
 import { canonicalJson } from '../routing/canonicalJson';
 import { isRouteStale } from '../routing/inputHash';
 import { refreshLocalRoutes } from '../routing/refresh';
 import { invertEase } from './easing';
 import { planRecordedPhases, type Hold } from './recordedPace';
 import { zonedTimeToEpochMs } from '../time/zone';
+import type { OverlayStyleRef, Units } from '../model/overlays';
 import { outputSize } from './outputSize';
 
 /**
@@ -132,6 +138,10 @@ export interface Timeline {
   overview: Bounds | undefined;
   /** The time of day the stage shows (M16); the departure worked out once, not per frame. */
   clock: TimelineClock | undefined;
+  /** The project's units, for blocks without their own (M17). */
+  units: Units;
+  /** The look of the stage's blocks, inherited from group or project (M17). */
+  overlayStyle: OverlayStyleRef;
 }
 
 export interface TimelineClock {
@@ -424,6 +434,8 @@ export function compileTimeline(
       etappe.view.camera.mode === 'follow' ? etappe.view.camera.followTrackId : undefined,
     ),
     overview: boundsOf(tracks.flatMap((track) => track.line.points)),
+    units: fresh.defaults.units,
+    overlayStyle: resolveOverlayStyle(fresh, etappeId).value,
     clock: etappe.clock && {
       source: etappe.clock.source,
       timeZone: etappe.clock.timeZone,

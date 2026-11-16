@@ -92,19 +92,20 @@ export function fitBounds(
 }
 
 /**
- * Bands the overlays take: the title at the top, the kilometre counter at the bottom (see
- * packages/scene/src/overlays). Fits keep routes and vehicles out of them.
+ * The band a row of overlay blocks takes at the top or the bottom of the picture (see
+ * packages/scene/src/overlays). Fits keep routes and vehicles out of it.
  */
 export const OVERLAY_BAND_PX = 130;
 
-/** The camera's padding plus the bands of the overlays this stage shows. */
+/** The camera's padding plus a band at the top and the bottom where blocks sit there (M17). */
 export function framePadding(timeline: Timeline): Padding {
   const { paddingPx } = timeline.view.camera;
-  const { title, distanceCounter } = timeline.overlays;
+  const { widgets } = timeline.overlays;
+  const at = (side: 'top' | 'bottom') => widgets.some((widget) => widget.anchor.startsWith(side));
   return {
-    top: paddingPx + (title ? OVERLAY_BAND_PX : 0),
+    top: paddingPx + (at('top') ? OVERLAY_BAND_PX : 0),
     right: paddingPx,
-    bottom: paddingPx + (distanceCounter ? OVERLAY_BAND_PX : 0),
+    bottom: paddingPx + (at('bottom') ? OVERLAY_BAND_PX : 0),
     left: paddingPx,
   };
 }

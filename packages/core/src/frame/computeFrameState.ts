@@ -79,14 +79,24 @@ export interface FrameState {
   tracks: TrackFrame[];
   labels: LabelFrame[];
   /** Kilometres and travel time so far, when the stage counts them. */
+  /**
+   * The values the overlay blocks show, in metric units; the scene formats them for each block
+   * (M17). Computed whether a block shows them or not: they are cheap, and a block of any kind
+   * may come and go along the stage.
+   */
   counters: {
     distanceKm?: number;
     travelSec?: number;
     /** Real speed from a recording (M16). */
     speedKmh?: number;
     heartRateBpm?: number;
+    cadenceRpm?: number;
     /** The time of day as milliseconds since 1970; shown in `timeline.clock.timeZone`. */
     clockMs?: number;
+    /** How much of the counted track is done, 0 to 1. */
+    progress?: number;
+    /** The last stop the counted track reached (the first before it sets off). */
+    place?: string;
   };
   /** Height and metres climbed on the profile track, when the stage shows them (ADR 0012). */
   elevation: (ElevationReading & { trackId: Id }) | undefined;
@@ -197,8 +207,11 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
     const { lengthM } = counted.line;
     const s = distanceAt(counted, sec);
     const share = lengthM > 0 ? s / lengthM : 0;
+    counters.progress = share;
     // Scaled to the route's own distance, so the counter ends at what the inspector shows.
-    if (overlays.distanceCounter) counters.distanceKm = (share * counted.distanceM) / 1000;
+    counters.distanceKm = (share * counted.distanceM) / 1000;
+    const reached = counted.stops.filter((stop) => stop.isStart || stop.arrivalSec <= sec).at(-1);
+    if (reached) counters.place = reached.name;
     // Where the recording was when it got here: real time, speed and heart rate (M16).
     const { recording } = counted;
     // With the recorded pace the phases know the recording's time, also while resting.
@@ -213,13 +226,15 @@ export function computeFrameState(timeline: Timeline, frame: number): FrameState
         ? share * typed
         : (recordedSec ??
           (counted.durationS !== undefined ? share * counted.durationS : undefined));
-    if (overlays.timeCounter && travel !== undefined) counters.travelSec = travel;
+    if (travel !== undefined) counters.travelSec = travel;
     if (recording && recordedSec !== undefined) {
-      if (overlays.speedCounter) counters.speedKmh = speedAt(recording, recordedSec) * 3.6;
+      counters.speedKmh = speedAt(recording, recordedSec) * 3.6;
       const heartRate = channelAt(recording, 'heartRateBpm', recordedSec);
-      if (overlays.heartRateCounter && heartRate !== undefined) counters.heartRateBpm = heartRate;
+      if (heartRate !== undefined) counters.heartRateBpm = heartRate;
+      const cadence = channelAt(recording, 'cadenceRpm', recordedSec);
+      if (cadence !== undefined) counters.cadenceRpm = cadence;
     }
-    if (overlays.clockCounter && clock) {
+    if (clock) {
       const start =
         clock.source === 'recorded' && recording?.startedAt
           ? Date.parse(recording.startedAt)
