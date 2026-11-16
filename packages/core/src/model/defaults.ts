@@ -39,21 +39,21 @@ export function defaultTransition(): TransitionSettings {
 }
 
 export function defaultProjectSettings(): ProjectDefaults {
-  return { mapStyle: defaultMapStyle(), output: defaultOutput(), transition: defaultTransition() };
+  return {
+    mapStyle: defaultMapStyle(),
+    output: defaultOutput(),
+    transition: defaultTransition(),
+    overlayStyle: { styleId: 'classic' },
+    units: 'metric',
+  };
 }
 
 export function defaultOverlays(): OverlaySettings {
   return {
     labels: true,
-    distanceCounter: false,
-    timeCounter: false,
     attribution: true,
     attributionCorner: 'bottom-right',
-    elevationProfile: false,
-    elevationCounter: false,
-    speedCounter: false,
-    heartRateCounter: false,
-    clockCounter: false,
+    widgets: [],
   };
 }
 

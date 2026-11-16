@@ -70,6 +70,11 @@ step('Example trip');
 // Copied into the projects on the very first start, so there is something to open and render.
 await cp(join(repoRoot, 'examples/portugal-2026'), join(resources, 'example'), { recursive: true });
 
+step('Licenses');
+// The fonts, flags and borders the overlays bundle ask for their notices to travel with them.
+await cp(join(repoRoot, 'LICENSE'), join(resources, 'LICENSE'));
+await cp(join(repoRoot, 'THIRD-PARTY-NOTICES.md'), join(resources, 'THIRD-PARTY-NOTICES.md'));
+
 step('Main process and preload (esbuild)');
 const shared = {
   bundle: true,

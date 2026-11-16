@@ -55,15 +55,9 @@ function etappe(
     outro: { type: 'none' },
     overlays: {
       labels: true,
-      distanceCounter: false,
-      timeCounter: false,
       attribution: true,
       attributionCorner: 'bottom-right',
-      elevationProfile: false,
-      elevationCounter: false,
-      speedCounter: false,
-      heartRateCounter: false,
-      clockCounter: false,
+      widgets: [],
     },
     tracks,
     pins: [],
@@ -73,7 +67,7 @@ function etappe(
 
 export function sampleProject(): Project {
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     id: 'p_sample',
     name: 'Sample trip',
     createdAt: '2026-10-21T08:00:00.000Z',
@@ -89,6 +83,8 @@ export function sampleProject(): Project {
         safeAreaGuides: false,
       },
       transition: { type: 'camera-fly', durationSec: 1.5 },
+      overlayStyle: { styleId: 'classic' },
+      units: 'metric',
     },
     groups: [
       {

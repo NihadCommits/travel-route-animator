@@ -5,7 +5,6 @@ import {
   CornerSchema,
   editEtappe,
   measureLine,
-  parseDurationText,
   presentAsOptions,
   profileTrackOf,
   renameItem,
@@ -31,10 +30,11 @@ import { SelectField } from './fields/SelectField';
 import { SliderField } from './fields/SliderField';
 import { SwitchField } from './fields/SwitchField';
 import { TextField } from './fields/TextField';
+import { OverlayStyleSection } from '@/features/overlays/OverlayStyleSection';
+import { WidgetsSection } from '@/features/overlays/WidgetsSection';
 import { PinsSection } from '@/features/pins/PinsSection';
 import { EndsSection } from './EndsSection';
 import { MapStyleSection } from './MapStyleSection';
-import { MeasuredCounters } from './MeasuredCounters';
 import { useOwnThemes, useSatelliteAvailable } from './mapStyles';
 import { FormHeading, LaterNote, optionsOf, ReadinessNote, Row, Section, trackName } from './parts';
 import { useEdit } from './useEdit';
@@ -59,23 +59,14 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
   const { camera } = view;
   const issues = useMemo(() => checkEtappeReadiness(etappe), [etappe]);
   const elevationJobs = useEditor((state) => state.elevationJobs);
-  // The track the counters show, and whether its travel time is known: from the router or a
-  // recording (M16). Without either the time counter only counts a typed duration.
+  // The track the blocks count along, and whether its travel time is known: from the router or
+  // a recording (M16). Without either the travel time only counts a typed duration.
   const counted =
     etappe.tracks.find((track) => track.id === camera.followTrackId) ?? etappe.tracks[0];
   const hasTravelTime =
     overlays.manualDurationText !== undefined ||
     counted?.computed?.durationS !== undefined ||
     counted?.computed?.recording !== undefined;
-  const timeCounterHint = (() => {
-    const typed = overlays.manualDurationText;
-    if (typed !== undefined) {
-      return parseDurationText(typed) === undefined
-        ? de.inspector.etappe.timeCounterUnreadable
-        : undefined;
-    }
-    return hasTravelTime ? undefined : de.inspector.etappe.timeCounterNoSource;
-  })();
   const elevationNote = useMemo(() => {
     if (!showsElevation(etappe)) return undefined;
     const texts = de.inspector.etappe.elevation;
@@ -218,79 +209,11 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
       <EndsSection etappe={etappe} edit={edit} />
 
       <Section title={de.inspector.etappe.overlays}>
-        <TextField
-          label={de.inspector.etappe.title}
-          value={overlays.title ?? ''}
-          placeholder={de.inspector.etappe.titlePlaceholder}
-          onCommit={(title) =>
-            change(
-              'overlays.title',
-              ({ overlays: { title: _old, ...rest }, ...e }) => ({
-                ...e,
-                overlays: title === '' ? rest : { ...rest, title },
-              }),
-              true,
-            )
-          }
-        />
         <SwitchField
           label={de.inspector.etappe.labels}
           checked={overlays.labels}
           onCommit={(on) => setOverlay('labels', on)}
         />
-        <SwitchField
-          label={de.inspector.etappe.distanceCounter}
-          checked={overlays.distanceCounter}
-          onCommit={(on) => setOverlay('distanceCounter', on)}
-        />
-        <SwitchField
-          label={de.inspector.etappe.timeCounter}
-          checked={overlays.timeCounter}
-          onCommit={(on) => setOverlay('timeCounter', on)}
-        />
-        {overlays.timeCounter && (
-          <TextField
-            label={de.inspector.etappe.manualDuration}
-            value={overlays.manualDurationText ?? ''}
-            placeholder={de.inspector.etappe.manualDurationPlaceholder}
-            hint={timeCounterHint}
-            onCommit={(text) =>
-              change(
-                'overlays.manualDurationText',
-                ({ overlays: { manualDurationText: _old, ...rest }, ...e }) => ({
-                  ...e,
-                  overlays: text.trim() === '' ? rest : { ...rest, manualDurationText: text },
-                }),
-                true,
-              )
-            }
-          />
-        )}
-        <MeasuredCounters
-          etappe={etappe}
-          counted={counted}
-          setOverlay={setOverlay}
-          setClock={(clock) => change('clock', (e) => ({ ...e, clock }), true)}
-          setClockCounter={(on, clock) =>
-            change('overlays.clockCounter', (e) => ({
-              ...e,
-              overlays: { ...e.overlays, clockCounter: on },
-              ...(clock && { clock }),
-            }))
-          }
-          hasTravelTime={hasTravelTime}
-        />
-        <SwitchField
-          label={de.inspector.etappe.elevationProfile}
-          checked={overlays.elevationProfile}
-          onCommit={(on) => setOverlay('elevationProfile', on)}
-        />
-        <SwitchField
-          label={de.inspector.etappe.elevationCounter}
-          checked={overlays.elevationCounter}
-          onCommit={(on) => setOverlay('elevationCounter', on)}
-        />
-        {elevationNote && <p className="text-muted-foreground text-xs">{elevationNote}</p>}
         <SwitchField
           label={de.inspector.etappe.attribution}
           checked={overlays.attribution}
@@ -308,6 +231,22 @@ export function EtappeForm({ etappe, location }: { etappe: Etappe; location: Ite
         </Button>
         <p className="text-muted-foreground text-xs">{de.inspector.etappe.creditsHint}</p>
       </Section>
+
+      <WidgetsSection
+        project={project}
+        etappe={etappe}
+        edit={edit}
+        counted={counted}
+        hasTravelTime={hasTravelTime}
+        elevationNote={elevationNote}
+      />
+      {group && (
+        <OverlayStyleSection
+          project={project}
+          level={{ kind: 'etappe', etappe, group }}
+          edit={edit}
+        />
+      )}
 
       <PinsSection etappe={etappe} edit={edit} />
 

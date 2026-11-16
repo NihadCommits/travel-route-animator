@@ -1,6 +1,13 @@
 import '@/features/map/maplibreWorker';
 import { Player, type PlayerRef } from '@remotion/player';
-import type { Id, Project } from '@travel-route-animator/core';
+import {
+  editWidget,
+  findWidget,
+  offsetsAt,
+  movedOffsets,
+  type Id,
+  type Project,
+} from '@travel-route-animator/core';
 import {
   EtappeComposition,
   SequenceComposition,
@@ -17,8 +24,10 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { formatSec } from '@/features/timeline/scale';
 import { de } from '@/i18n/de';
 import { useOwnThemes } from '@/features/inspector/mapStyles';
+import { useOwnOverlayStyles } from '@/features/overlays/ownStyles';
 import { assetUrl } from '@/lib/api';
 import { selectProject, useEditor, type PreviewSettings } from '@/state/editorStore';
+import { useBlockDrag } from './blockDrag';
 import { usePlayerBridge, usePreviewFrame, usePreviewPlaying } from './playerBridge';
 
 const PREVIEW_SCALE = { half: 0.5, full: 1 } as const;
@@ -52,6 +61,20 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
   const loop = useEditor((state) => state.preview.loop);
   const bridge = usePlayerBridge();
   const [player, setPlayer] = useState<PlayerRef | null>(null);
+  const applyIfValid = useEditor((state) => state.applyIfValid);
+  // A block dragged in the picture keeps its anchor; only its offsets change (M17).
+  const blockDrag = useBlockDrag((widgetId, deltaX, deltaY, dropped) =>
+    applyIfValid((p) => {
+      const widget = findWidget(p, widgetId);
+      if (!widget) return p;
+      return editWidget(p, widgetId, (w) => {
+        if (w.after === undefined) return { ...w, ...movedOffsets(w, deltaX, deltaY) };
+        // Dragged out of its row: it stays where it was dropped, with a place of its own.
+        const { after: _row, ...free } = w;
+        return { ...free, ...offsetsAt(w.anchor, dropped.box, dropped.layer) };
+      });
+    }),
+  );
 
   // The preview loads the project's images from the server; a render gets them inside its props.
   const { assets } = project;
@@ -61,6 +84,7 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
   );
   // Own themes come from the server; satellite tiles too, through the editor's own origin.
   const themes = useOwnThemes();
+  const overlayStyles = useOwnOverlayStyles();
   const common = useMemo(
     () => ({
       project,
@@ -68,9 +92,10 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
       guides: project.defaults.output.safeAreaGuides,
       assetUrls,
       themes: { ...themes },
+      overlayStyles: [...overlayStyles],
       serverUrl: window.location.origin,
     }),
-    [project, quality, assetUrls, themes],
+    [project, quality, assetUrls, themes, overlayStyles],
   );
   const etappeProps = useMemo<EtappeProps>(() => ({ ...common, etappeId }), [common, etappeId]);
   const sequenceProps = useMemo<SequenceProps>(
@@ -119,7 +144,7 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="bg-muted min-h-0 flex-1">
+      <div className="bg-muted min-h-0 flex-1" {...blockDrag}>
         {target.kind === 'group' ? (
           <Player
             ref={setPlayer}

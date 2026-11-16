@@ -3,6 +3,7 @@ import {
   isRenderJobFinished,
   outputExtensionOf,
   type OutputSettings,
+  type OverlayStyle,
   type Project,
   type RenderJob,
   type Theme,
@@ -42,6 +43,8 @@ export interface NewRenderJob {
   assetUrls?: Record<string, string>;
   /** The own theme the stage's style names (ADR 0010). */
   themes?: Record<string, Theme>;
+  /** The own overlay styles the stages name (M17). */
+  overlayStyles?: OverlayStyle[];
   /** This server, for satellite tiles. */
   serverUrl?: string;
   /** Also write where each vehicle is in every frame (M13). */
@@ -246,6 +249,7 @@ export function createRenderQueue({
             output: input.overrides,
             ...(input.assetUrls && { assetUrls: input.assetUrls }),
             ...(input.themes && { themes: input.themes }),
+            ...(input.overlayStyles && { overlayStyles: input.overlayStyles }),
             ...(input.serverUrl && { serverUrl: input.serverUrl }),
             ...(input.motionData && { motionData: true }),
           },

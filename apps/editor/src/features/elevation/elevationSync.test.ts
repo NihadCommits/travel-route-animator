@@ -2,6 +2,7 @@ import {
   addEtappe,
   addGroup,
   addTrack,
+  addWidget,
   addWaypoint,
   createProject,
   editEtappe,
@@ -30,10 +31,7 @@ function trainTrip(showProfile: boolean) {
     ids.push(added.id);
   }
   if (showProfile) {
-    project = editEtappe(project, stage.id, (e) => ({
-      ...e,
-      overlays: { ...e.overlays, elevationProfile: true },
-    }));
+    project = addWidget(project, stage.id, 'elevationProfile').project;
   }
   return { project, trainId: train.id, stageId: stage.id, ids };
 }

@@ -86,11 +86,11 @@ describe('return trips and templates', () => {
     );
   });
 
-  it('counts kilometres and time when switched on, with a typed duration', async () => {
+  it('counts the travel time from a typed duration when the route has none', async () => {
     const { user } = await open(trip());
     act(() => screen.getAllByRole('treeitem', { name: 'Salzburg – Linz' })[0]!.focus());
     const inspector = within(screen.getByRole('region', { name: 'Eigenschaften' }));
-    await user.click(inspector.getByRole('switch', { name: 'Zeit-Zähler' }));
+    await user.selectOptions(inspector.getByLabelText('Baustein hinzufügen'), 'Reisezeit');
     const typed = inspector.getByLabelText('Zeit (statt Routing)');
     expect(
       inspector.getByText(/zählt die Zeit nur mit einem eingetragenen Wert/),

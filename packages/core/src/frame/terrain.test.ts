@@ -151,7 +151,20 @@ describe('the height profile in the frames', () => {
   };
   const showProfile = (etappe: Etappe): Etappe => ({
     ...etappe,
-    overlays: { ...etappe.overlays, elevationProfile: true },
+    overlays: {
+      ...etappe.overlays,
+      widgets: [
+        {
+          id: 'w_profile',
+          kind: 'elevationProfile',
+          anchor: 'bottom-left',
+          dx: 48,
+          dy: 44,
+          scale: 1,
+          transition: 'none',
+        },
+      ],
+    },
   });
 
   it('reads height and metres climbed where the hiker is', () => {

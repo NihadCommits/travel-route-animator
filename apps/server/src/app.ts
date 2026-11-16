@@ -21,6 +21,7 @@ import { registerRenderRoutes } from './render/routes';
 import type { RoutingProvider } from './routing/provider';
 import { createRouter } from './routing/router';
 import { registerRoutingRoutes } from './routing/routes';
+import { createOverlayStyleStore, registerOverlayStyleRoutes } from './overlayStyles/overlayStyles';
 import { registerMapRoutes } from './themes/routes';
 import { createThemeStore } from './themes/themeStore';
 import { createTemplateStore, registerTemplateRoutes } from './templates/templates';
@@ -105,6 +106,11 @@ export function buildApp({
 
   const themes = createThemeStore({ dataDir, warn: (message) => app.log.warn(message) });
   registerMapRoutes(app, { themes, satellite });
+  const overlayStyles = createOverlayStyleStore({
+    dataDir,
+    warn: (message) => app.log.warn(message),
+  });
+  registerOverlayStyleRoutes(app, overlayStyles);
   registerTemplateRoutes(
     app,
     createTemplateStore({ dataDir, warn: (message) => app.log.warn(message) }),
@@ -146,6 +152,7 @@ export function buildApp({
     queue: renderQueue,
     store,
     themes,
+    overlayStyles,
     elevation,
     outputDir,
     now: now ?? (() => new Date()),

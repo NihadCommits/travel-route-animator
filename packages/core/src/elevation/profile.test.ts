@@ -137,7 +137,23 @@ describe('which tracks get heights', () => {
   it('asks for the profile track with the overlays, and for planes on 3D terrain', () => {
     const { etappe, planeId, hikeId } = stage('hike');
     expect(tracksAwaitingElevation(etappe)).toEqual([]);
-    const profiled = { ...etappe, overlays: { ...etappe.overlays, elevationProfile: true } };
+    const profiled = {
+      ...etappe,
+      overlays: {
+        ...etappe.overlays,
+        widgets: [
+          {
+            id: 'w_profile',
+            kind: 'elevationProfile' as const,
+            anchor: 'bottom-left' as const,
+            dx: 48,
+            dy: 44,
+            scale: 1,
+            transition: 'none' as const,
+          },
+        ],
+      },
+    };
     expect(tracksAwaitingElevation(profiled).map((t) => t.id)).toEqual([hikeId]);
     const terrain = {
       ...profiled,

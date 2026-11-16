@@ -244,16 +244,21 @@ describe('camera modes', () => {
       etappe: {
         overlays: {
           labels: true,
-          distanceCounter: false,
-          timeCounter: false,
           attribution: true,
           attributionCorner: 'bottom-right',
-          elevationProfile: false,
-          elevationCounter: false,
-          speedCounter: false,
-          heartRateCounter: false,
-          clockCounter: false,
-          title: 'Wohin morgen?',
+          // A title at the top: the camera keeps the routes out of its band.
+          widgets: [
+            {
+              id: 'w_title',
+              kind: 'text',
+              text: 'Wohin morgen?',
+              anchor: 'top-left',
+              dx: 48,
+              dy: 44,
+              scale: 1,
+              transition: 'none',
+            },
+          ],
         },
       },
     });

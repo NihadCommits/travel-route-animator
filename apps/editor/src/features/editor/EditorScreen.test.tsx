@@ -188,6 +188,9 @@ describe('EditorScreen', () => {
     await waitFor(() => expect(server.projects.get(project.id)?.groups).toHaveLength(1), {
       timeout: 3000,
     });
-    expect(screen.getByRole('status')).toHaveTextContent('Gespeichert');
+    const saveStatus = screen
+      .getAllByRole('status')
+      .find((s) => s.textContent?.includes('Gespeich'));
+    expect(saveStatus).toHaveTextContent('Gespeichert');
   });
 });

@@ -5,16 +5,10 @@ import { useId, useMemo, type CSSProperties, type FC } from 'react';
 // already walked in full colour, a point where the vehicle is. Everything comes from the
 // frame's reading, nothing is animated by the browser.
 
-const metres = new Intl.NumberFormat('de-AT', { maximumFractionDigits: 0 });
-
 /** The chart is drawn from at most this many points; a pixel would not show more. */
 const MAX_POINTS = 400;
 /** A flat route would turn every metre into a mountain; the chart spans at least this much. */
 const MIN_RANGE_M = 80;
-
-export function climbText({ gainM, lossM }: Pick<ElevationReading, 'gainM' | 'lossM'>): string {
-  return `↑ ${metres.format(gainM)} m   ↓ ${metres.format(lossM)} m`;
-}
 
 interface ChartGeometry {
   /** The profile's outline from start to end, in chart units. */
@@ -43,12 +37,17 @@ function chartOf(profile: ElevationProfile, width: number, height: number): Char
 export const ElevationProfileChart: FC<{
   profile: ElevationProfile;
   reading: ElevationReading;
+  /** The profile track's line colour. */
   color: string;
+  /** Text colour of the style (M17). */
+  textColor: string;
   width: number;
-  /** Also shows the metres climbed and descended. */
-  counter: boolean;
+  /** The height where the vehicle is, in the block's units ("1 770 m", "5 808 ft"). */
+  heightText: string;
+  /** Metres climbed and descended above the chart, when the block shows them. */
+  climbText?: string | undefined;
   style?: CSSProperties;
-}> = ({ profile, reading, color, width, counter, style }) => {
+}> = ({ profile, reading, color, textColor, width, heightText, climbText, style }) => {
   const clipId = useId();
   const chartWidth = width - 44;
   const chartHeight = 120;
@@ -68,14 +67,14 @@ export const ElevationProfileChart: FC<{
         padding: '16px 22px 18px',
         borderRadius: 18,
         backgroundColor: 'rgba(15, 23, 42, 0.72)',
-        color: '#ffffff',
+        color: textColor,
         boxSizing: 'border-box',
         ...style,
       }}
     >
-      {counter && (
+      {climbText && (
         <div style={{ fontSize: 34, fontWeight: 700, marginBottom: 10, whiteSpace: 'pre' }}>
-          {climbText(reading)}
+          {climbText}
         </div>
       )}
       <svg
@@ -109,12 +108,12 @@ export const ElevationProfileChart: FC<{
           x={labelLeft ? x + 18 : x - 18}
           y={Math.max(24, y - 14)}
           textAnchor={labelLeft ? 'start' : 'end'}
-          fill="#ffffff"
+          fill={textColor}
           fontSize={28}
           fontWeight={700}
           style={{ fontVariantNumeric: 'tabular-nums' }}
         >
-          {metres.format(reading.elevationM)} m
+          {heightText}
         </text>
       </svg>
     </div>

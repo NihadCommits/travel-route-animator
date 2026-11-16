@@ -35,6 +35,7 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
     guides,
     assetUrls,
     themes,
+    overlayStyles,
     serverUrl,
     motionData,
   } = props;
@@ -82,7 +83,12 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
         preload={timelines}
       />
       {!look.transparent && <MapFinish extras={look.extras} />}
-      <Overlays timeline={timeline} state={state} credits={look.credits} />
+      <Overlays
+        timeline={timeline}
+        state={state}
+        credits={look.credits}
+        ownStyles={overlayStyles}
+      />
       <EffectsOverlay effects={state.effects} dip={dip} transparent={look.transparent} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>

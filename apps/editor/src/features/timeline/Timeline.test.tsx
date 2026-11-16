@@ -141,6 +141,6 @@ describe('Timeline', () => {
     const group = await screen.findByRole('treeitem', { name: /Hinreise/ });
     act(() => group.focus());
     expect(screen.getByText(/um seine Timeline zu sehen/)).toBeInTheDocument();
-    expect(screen.queryByRole('slider')).not.toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Timeline' })).not.toBeInTheDocument();
   });
 });

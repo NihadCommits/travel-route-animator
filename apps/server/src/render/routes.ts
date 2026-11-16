@@ -25,6 +25,7 @@ import { fillElevations } from '../elevation/fill';
 import type { ElevationSampler } from '../elevation/sampler';
 import { ownUrl } from '../themes/routes';
 import type { ThemeStore } from '../themes/themeStore';
+import { overlayStylesOf, type OverlayStyleStore } from '../overlayStyles/overlayStyles';
 import {
   ProjectFileInvalidError,
   ProjectNotFoundError,
@@ -37,6 +38,7 @@ export interface RenderRouteOptions {
   queue: RenderQueue;
   store: ProjectStore;
   themes: ThemeStore;
+  overlayStyles: OverlayStyleStore;
   /** Fills in heights a stage needs and the file does not have yet (ADR 0012). */
   elevation: ElevationSampler;
   outputDir: string;
@@ -67,7 +69,16 @@ function videoTitle(project: Project, etappen: readonly Etappe[]): string {
 
 export function registerRenderRoutes(
   app: FastifyInstance,
-  { queue, store, themes, elevation, outputDir, now, revealFile }: RenderRouteOptions,
+  {
+    queue,
+    store,
+    themes,
+    overlayStyles,
+    elevation,
+    outputDir,
+    now,
+    revealFile,
+  }: RenderRouteOptions,
 ): void {
   void app.register((routes, _options, done) => {
     routes.setErrorHandler((error, _request, reply) => {
@@ -165,6 +176,7 @@ export function registerRenderRoutes(
           .map((id) => themes.get(id).catch(() => undefined)),
       );
       const usedThemes = ownThemes.filter((theme) => theme !== undefined);
+      const usedStyles = await overlayStylesOf(project, etappeIds, overlayStyles);
       const job = await queue.add({
         project,
         etappe: { id: etappeIds[0]!, name: title },
@@ -179,6 +191,7 @@ export function registerRenderRoutes(
         ...(usedThemes.length > 0 && {
           themes: Object.fromEntries(usedThemes.map((theme) => [theme.id, theme])),
         }),
+        ...(usedStyles.length > 0 && { overlayStyles: usedStyles }),
         serverUrl: ownUrl(request),
         ...(body.data.motionData && { motionData: true }),
       });

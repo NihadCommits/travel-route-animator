@@ -4,6 +4,7 @@ import { reportIssue } from './issues';
 import { AssetIdSchema } from './assets';
 import { IdSchema, LngLatSchema } from './primitives';
 import { isTimeZone } from '../time/zone';
+import { OverlayStyleRefSchema, WidgetSchema } from './overlays';
 import { MapStyleRefSchema } from './style';
 import { TrackSchema } from './track';
 
@@ -93,24 +94,16 @@ export const CornerSchema = z.enum(['bottom-right', 'bottom-left', 'top-right', 
 export type Corner = z.infer<typeof CornerSchema>;
 
 export const OverlaySettingsSchema = z.strictObject({
+  /** Stop names on the map. */
   labels: z.boolean(),
-  distanceCounter: z.boolean(),
-  timeCounter: z.boolean(),
-  /** For example "2 h 35 min"; overrides the duration from routing. */
+  /** For example "2 h 35 min"; overrides the duration from routing (travel time, clock). */
   manualDurationText: z.string().optional(),
-  title: z.string().optional(),
   attribution: z.boolean(),
   attributionCorner: CornerSchema,
-  /** The height profile of the profile track, with a point that moves along (ADR 0012). */
-  elevationProfile: z.boolean(),
-  /** Metres climbed and descended so far. */
-  elevationCounter: z.boolean(),
-  /** The real speed from a recording; generated routes have none (M16). */
-  speedCounter: z.boolean(),
-  /** The heart rate from a recording (M16). */
-  heartRateCounter: z.boolean(),
-  /** The time of day, running along with the trip (M16, see `etappe.clock`). */
-  clockCounter: z.boolean(),
+  /** The blocks on top of the map (M17, ADR 0017). */
+  widgets: z.array(WidgetSchema),
+  /** The stage's own look; missing means the group's or the project's. */
+  style: OverlayStyleRefSchema.optional(),
 });
 export type OverlaySettings = z.infer<typeof OverlaySettingsSchema>;
 

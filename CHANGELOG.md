@@ -17,10 +17,18 @@ Coming with 1.2.0 (modules M16 to M18).
   long breaks left out on request.
 - Counters for the real speed and the heart rate, and a clock with the time of day in the
   stage's own time zone, from the recording or a typed departure.
+- The overlay kit: overlays are blocks you add from a list and drag to their place in the
+  preview. New blocks for the current height, progress, the last stop, free text, cadence, the
+  date and the flag of the country the vehicle is in (offline, from Natural Earth borders).
+- Ten overlay styles with bundled open fonts, chosen per project, group or stage, with single
+  parts changed on top, and own styles kept for every project in `data/overlay-styles/`.
+- Metric or imperial units per project, group, stage or block.
+- Blocks can stand in a row; a number that grows pushes its neighbour along.
 
 ### Changed
 
-- Project files are format 8; older files are migrated when they are opened.
+- Project files are format 9; older files are migrated when they are opened, and their
+  counters, profile and title become blocks in the same places with the same look.
 
 ## [1.0.1] - 2026-11-15
 

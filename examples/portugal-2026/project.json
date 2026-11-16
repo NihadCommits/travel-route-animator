@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 8,
+  "schemaVersion": 9,
   "id": "p_portugal26",
   "name": "Portugal 2026",
   "createdAt": "2026-10-21T00:00:00.000Z",
@@ -14,7 +14,9 @@
       "transparentOverlay": false,
       "safeAreaGuides": false
     },
-    "transition": { "type": "camera-fly", "durationSec": 1.5 }
+    "transition": { "type": "camera-fly", "durationSec": 1.5 },
+    "overlayStyle": { "styleId": "classic" },
+    "units": "metric"
   },
   "groups": [
     {
@@ -45,15 +47,9 @@
           "outro": { "type": "none" },
           "overlays": {
             "labels": true,
-            "distanceCounter": false,
-            "timeCounter": false,
             "attribution": true,
             "attributionCorner": "bottom-right",
-            "elevationProfile": false,
-            "elevationCounter": false,
-            "speedCounter": false,
-            "heartRateCounter": false,
-            "clockCounter": false
+            "widgets": []
           },
           "tracks": [
             {
@@ -118,15 +114,19 @@
           "outro": { "type": "none" },
           "overlays": {
             "labels": true,
-            "distanceCounter": true,
-            "timeCounter": false,
             "attribution": true,
             "attributionCorner": "bottom-right",
-            "elevationProfile": false,
-            "elevationCounter": false,
-            "speedCounter": false,
-            "heartRateCounter": false,
-            "clockCounter": false
+            "widgets": [
+              {
+                "id": "w_e_wien_porto_distance",
+                "kind": "distance",
+                "anchor": "bottom-left",
+                "dx": 48,
+                "dy": 44,
+                "scale": 1,
+                "transition": "none"
+              }
+            ]
           },
           "tracks": [
             {
@@ -205,15 +205,9 @@
           },
           "overlays": {
             "labels": true,
-            "distanceCounter": false,
-            "timeCounter": false,
             "attribution": true,
             "attributionCorner": "bottom-right",
-            "elevationProfile": false,
-            "elevationCounter": false,
-            "speedCounter": false,
-            "heartRateCounter": false,
-            "clockCounter": false
+            "widgets": []
           },
           "tracks": [
             {
@@ -382,16 +376,30 @@
           "outro": { "type": "none" },
           "overlays": {
             "labels": true,
-            "distanceCounter": true,
-            "timeCounter": true,
             "manualDurationText": "3 h 10 min",
             "attribution": true,
             "attributionCorner": "bottom-right",
-            "elevationProfile": false,
-            "elevationCounter": false,
-            "speedCounter": false,
-            "heartRateCounter": false,
-            "clockCounter": false
+            "widgets": [
+              {
+                "id": "w_e_lissabon_algarve_distance",
+                "kind": "distance",
+                "anchor": "bottom-left",
+                "dx": 48,
+                "dy": 44,
+                "scale": 1,
+                "transition": "none"
+              },
+              {
+                "id": "w_e_lissabon_algarve_travelTime",
+                "kind": "travelTime",
+                "anchor": "bottom-left",
+                "dx": 48,
+                "dy": 44,
+                "scale": 1,
+                "transition": "none",
+                "after": "w_e_lissabon_algarve_distance"
+              }
+            ]
           },
           "tracks": [
             {
@@ -1848,16 +1856,21 @@
           "outro": { "type": "overview", "durationSec": 2 },
           "overlays": {
             "labels": true,
-            "distanceCounter": false,
-            "timeCounter": false,
-            "title": "Wohin morgen?",
             "attribution": true,
             "attributionCorner": "bottom-right",
-            "elevationProfile": false,
-            "elevationCounter": false,
-            "speedCounter": false,
-            "heartRateCounter": false,
-            "clockCounter": false
+            "widgets": [
+              {
+                "id": "w_e_wohin_morgen_title",
+                "kind": "text",
+                "anchor": "top-left",
+                "dx": 48,
+                "dy": 44,
+                "scale": 1,
+                "transition": "none",
+                "text": "Wohin morgen?",
+                "style": { "size": 52 }
+              }
+            ]
           },
           "tracks": [
             {

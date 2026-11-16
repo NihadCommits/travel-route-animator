@@ -1,4 +1,5 @@
 import type { Etappe } from '../model/etappe';
+import type { OverlayStyleRef } from '../model/overlays';
 import { OutputSettingsSchema, type OutputSettings } from '../model/output';
 import type { Id } from '../model/primitives';
 import type { Group, Project } from '../model/project';
@@ -38,6 +39,14 @@ export function resolveMapStyle(project: Project, etappeId: Id): Resolved<MapSty
   if (etappe.mapStyle) return { value: etappe.mapStyle, from: 'etappe' };
   if (group.mapStyle) return { value: group.mapStyle, from: 'group' };
   return { value: project.defaults.mapStyle, from: 'project' };
+}
+
+/** The look of a stage's overlays: its own, its group's or the project's (M17). */
+export function resolveOverlayStyle(project: Project, etappeId: Id): Resolved<OverlayStyleRef> {
+  const { group, etappe } = requireEtappe(project, etappeId);
+  if (etappe.overlays.style) return { value: etappe.overlays.style, from: 'etappe' };
+  if (group.overlayStyle) return { value: group.overlayStyle, from: 'group' };
+  return { value: project.defaults.overlayStyle, from: 'project' };
 }
 
 /** Transition into the next stage. Stages have no own setting, so it comes from group or project. */

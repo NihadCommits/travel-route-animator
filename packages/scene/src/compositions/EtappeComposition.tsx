@@ -35,6 +35,7 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
     guides,
     assetUrls,
     themes,
+    overlayStyles,
     serverUrl,
     motionData,
   } = props;
@@ -73,7 +74,12 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
         reportMotion={motionData ?? false}
       />
       {!look.transparent && <MapFinish extras={look.extras} />}
-      <Overlays timeline={timeline} state={state} credits={look.credits} />
+      <Overlays
+        timeline={timeline}
+        state={state}
+        credits={look.credits}
+        ownStyles={overlayStyles}
+      />
       <EffectsOverlay effects={state.effects} transparent={look.transparent} />
       {guides && <SafeArea timeline={timeline} />}
     </AbsoluteFill>

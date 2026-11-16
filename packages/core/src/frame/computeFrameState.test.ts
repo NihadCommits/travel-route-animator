@@ -172,7 +172,7 @@ describe('labels and counter', () => {
       },
     ],
     etappe: {
-      overlays: { ...defaultOverlays(), distanceCounter: true },
+      overlays: defaultOverlays(),
     },
   };
 

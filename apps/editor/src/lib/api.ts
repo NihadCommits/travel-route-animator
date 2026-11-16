@@ -16,6 +16,7 @@ import {
   type RouteElevation,
   type RouteRequest,
   type Template,
+  type OverlayStyle,
   type Theme,
   type ValidationIssue,
 } from '@travel-route-animator/core';
@@ -153,6 +154,13 @@ export const api = {
     }),
   deleteTheme: (id: string) =>
     request<undefined>(`/themes/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  // Own overlay styles, kept like own themes (M17).
+  listOverlayStyles: () => request<OverlayStyle[]>('/overlay-styles'),
+  saveOverlayStyle: (style: OverlayStyle) =>
+    request<OverlayStyle>(`/overlay-styles/${encodeURIComponent(style.id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(style),
+    }),
   /** What the server can offer, e.g. satellite maps only with a MapTiler key. */
   capabilities: () => request<{ satellite: boolean }>('/capabilities'),
   /**
