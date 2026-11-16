@@ -47,7 +47,7 @@ Travel Route Animator turns a trip into map animations for travel videos: a trai
 - A whole group of stages as one video on a single map, with cuts, camera flights or fades in between.
 - A 3D arrival that circles the destination, a dive straight down onto it for a hard cut to your footage, or a dive-out at the start.
 - Photos with GPS data and place names that pop up as pins along the way.
-- Counters for kilometres, travel time and metres climbed, a height profile with a moving point, and a title; from 1.2.0 also the real speed and heart rate of a recording, and a clock with the time of day in the stage's own time zone, from the recording or a typed departure.
+- Overlays for kilometres, travel time, metres climbed and a height profile with a moving point. From 1.2.0 they are blocks you drag to their place in the preview: also current height, progress, the last stop, free text and the flag of the country you are in, the real speed, heart rate and cadence of a recording, and a clock or date in the stage's own time zone. Ten styles with bundled open fonts, metric or imperial, inherited from project to group to stage, and own styles for every project.
 
 **Preview and export**
 
@@ -192,27 +192,28 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 ### Project files
 
-Projects are plain JSON files in `data/projects/<name>/project.json`, with their images in `assets/` next to it; the `data/` folder is not part of the repository. Every file carries a `schemaVersion`. When a file is loaded, older formats are migrated and the content is validated, so mistakes such as a swapped coordinate or a track with a single waypoint are reported with their exact location, e.g. `groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1]`. Files are written atomically, and deleted projects move to `data/.trash/`. Own themes and templates for stages and groups live next to the projects in `data/themes/` and `data/templates/`, one JSON file each.
+Projects are plain JSON files in `data/projects/<name>/project.json`, with their images in `assets/` next to it; the `data/` folder is not part of the repository. Every file carries a `schemaVersion`. When a file is loaded, older formats are migrated and the content is validated, so mistakes such as a swapped coordinate or a track with a single waypoint are reported with their exact location, e.g. `groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1]`. Files are written atomically, and deleted projects move to `data/.trash/`. Own themes, overlay styles and templates for stages and groups live next to the projects in `data/themes/`, `data/overlay-styles/` and `data/templates/`, one JSON file each.
 
 The local server's API:
 
-| Request                                        | Result                                                                  |
-| ---------------------------------------------- | ----------------------------------------------------------------------- |
-| `GET /api/projects`                            | List with ID, name, folder and last change                              |
-| `POST /api/projects` with `{"name": "…"}`      | A new, empty project                                                    |
-| `GET /api/projects/:id`                        | The complete project; if its file is broken, a 422 listing the problems |
-| `PUT /api/projects/:id`                        | Save a project; invalid ones are rejected with a list of problems       |
-| `DELETE /api/projects/:id`                     | Move the project to the trash                                           |
-| `POST /api/projects/:id/assets`, `GET …/:file` | Upload an image (PNG, GIF, JPEG) into the project, or fetch it          |
-| `GET /api/geocode?q=&bias=lng,lat,zoom`        | Place search (Photon), cached and at most one request per second        |
-| `GET /api/reverse?lng=&lat=`                   | The place at a point                                                    |
-| `GET /api/airports?q=`                         | Airport search by IATA or ICAO code, name and town                      |
-| `POST /api/route`                              | The route of one track (openrouteservice, OSRM or local), cached        |
-| `POST /api/elevation`                          | Heights along a route from terrain tiles, cached on disk                |
-| `GET /api/themes`, `PUT`/`DELETE …/:id`        | Own map themes                                                          |
-| `GET /api/templates`, `PUT`/`DELETE …/:id`     | Stage and group templates, shared by all projects                       |
-| `POST /api/render`, `GET /api/render`          | Queue a render, or list the queue                                       |
-| `GET /api/render/:id/events`, `DELETE …/:id`   | Follow a render as server-sent events, or cancel it                     |
+| Request                                         | Result                                                                  |
+| ----------------------------------------------- | ----------------------------------------------------------------------- |
+| `GET /api/projects`                             | List with ID, name, folder and last change                              |
+| `POST /api/projects` with `{"name": "…"}`       | A new, empty project                                                    |
+| `GET /api/projects/:id`                         | The complete project; if its file is broken, a 422 listing the problems |
+| `PUT /api/projects/:id`                         | Save a project; invalid ones are rejected with a list of problems       |
+| `DELETE /api/projects/:id`                      | Move the project to the trash                                           |
+| `POST /api/projects/:id/assets`, `GET …/:file`  | Upload an image (PNG, GIF, JPEG) into the project, or fetch it          |
+| `GET /api/geocode?q=&bias=lng,lat,zoom`         | Place search (Photon), cached and at most one request per second        |
+| `GET /api/reverse?lng=&lat=`                    | The place at a point                                                    |
+| `GET /api/airports?q=`                          | Airport search by IATA or ICAO code, name and town                      |
+| `POST /api/route`                               | The route of one track (openrouteservice, OSRM or local), cached        |
+| `POST /api/elevation`                           | Heights along a route from terrain tiles, cached on disk                |
+| `GET /api/themes`, `PUT`/`DELETE …/:id`         | Own map themes                                                          |
+| `GET /api/overlay-styles`, `PUT`/`DELETE …/:id` | Own overlay styles                                                      |
+| `GET /api/templates`, `PUT`/`DELETE …/:id`      | Stage and group templates, shared by all projects                       |
+| `POST /api/render`, `GET /api/render`           | Queue a render, or list the queue                                       |
+| `GET /api/render/:id/events`, `DELETE …/:id`    | Follow a render as server-sent events, or cancel it                     |
 
 ### Data sources
 
@@ -223,6 +224,7 @@ The tool relies on open data and free services. Every video credits exactly the 
 - **Terrain:** [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) by Mapzen/Tilezen on AWS Open Data, with data from USGS (SRTM, GMTED2010, 3DEP), NOAA (ETOPO1), EU-DEM (Copernicus), DGM Österreich and [others](https://github.com/tilezen/joerd/blob/master/docs/attribution.md). The map loads the tiles for 3D terrain, hillshading and contour lines (drawn in the browser by [maplibre-contour](https://github.com/onthegomap/maplibre-contour)); the local server reads the same tiles for height profiles and keeps them in `data/cache/tiles/terrain/`.
 - **Place search:** [Photon](https://photon.komoot.io) by komoot, with data © OpenStreetMap contributors. The browser never calls Photon directly; the local server caches results in `data/cache/geocode/` and sends at most one request per second.
 - **Airports:** [OurAirports](https://ourairports.com/data/), released to the public domain. Only large and medium airports with an IATA code are kept.
+- **Flags and borders (from 1.2.0):** flags from [flag-icons](https://github.com/lipis/flag-icons) (MIT) and the 1:50 million country borders of [Natural Earth](https://www.naturalearthdata.com) (public domain) via [world-atlas](https://github.com/topojson/world-atlas) come with the app; the flag block fetches nothing. At this scale a flag changes within a few kilometres of the real border.
 - **Routing:** [openrouteservice](https://openrouteservice.org) © HeiGIT, and as a way out OSRM on the [FOSSGIS routing server](https://routing.openstreetmap.de/about.html), both with data © OpenStreetMap contributors. Requests go through the local server, which caches them in `data/cache/routes/` and throttles them per service (openrouteservice: one request every 1.5 s, OSRM: one per second). Flights, trains, ferries and imported tracks are computed locally.
 
 ### Roadmap
@@ -232,7 +234,7 @@ Ideas for after 1.0, collected while building:
 - English user interface (all texts already live in one file per language)
 - A code-signed Windows app, e.g. through the Microsoft Store, so Smart App Control lets it start
 - More 3D vehicles (bus, motorbike, train, ferry) and own glTF models as project assets
-- Own fonts for place names and overlays, with themes that bring them
+- Own font files for place names and overlays, beyond the bundled ones
 - The drone's altitude from DJI files, to fly imported drone tracks above the terrain
 - A camera that switches smoothly to whichever vehicle is moving
 
@@ -240,7 +242,7 @@ Deliberately not planned: syncing the animation to the beat of music.
 
 ### License
 
-The code in this repository is released under the [MIT License](LICENSE). Remotion is used under its own [license](https://www.remotion.dev/license), which is free for individuals and small companies. Map data © OpenStreetMap contributors.
+The code in this repository is released under the [MIT License](LICENSE). Remotion is used under its own [license](https://www.remotion.dev/license), which is free for individuals and small companies. Map data © OpenStreetMap contributors. The bundled fonts (SIL Open Font License), flags and borders are listed with their licenses in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ---
 
@@ -276,7 +278,7 @@ Travel Route Animator verwandelt eine Reise in Kartenanimationen für Reisevideo
 - Eine ganze Gruppe von Etappen als ein Video auf einer einzigen Karte, mit Schnitt, Kameraflug oder Abblenden dazwischen.
 - Eine 3D-Ankunft, die das Ziel umkreist, ein Sturzflug senkrecht auf das Ziel für einen harten Schnitt auf das eigene Footage, oder ein Dive-out am Anfang.
 - Fotos mit GPS-Daten und Ortsnamen, die als Pins entlang der Strecke aufgehen.
-- Zähler für Kilometer, Reisezeit und Höhenmeter, ein Höhenprofil mit mitlaufendem Punkt und ein Titel; ab 1.2.0 auch echte Geschwindigkeit und Puls einer Aufzeichnung, dazu eine Uhr mit der Tageszeit in der Zeitzone der Etappe, aus der Aufzeichnung oder einer eingetragenen Abfahrt.
+- Einblendungen für Kilometer, Reisezeit, Höhenmeter und ein Höhenprofil mit mitlaufendem Punkt. Ab 1.2.0 sind es Bausteine, die man in der Vorschau an ihren Platz zieht: dazu aktuelle Höhe, Fortschritt, der letzte Stopp, freier Text und die Flagge des Landes, in dem man gerade ist, echte Geschwindigkeit, Puls und Trittfrequenz einer Aufzeichnung sowie Uhrzeit oder Datum in der Zeitzone der Etappe. Zehn Stile mit mitgelieferten freien Schriften, metrisch oder imperial, vererbt vom Projekt über die Gruppe zur Etappe, und eigene Stile für alle Projekte.
 
 **Vorschau und Export**
 
@@ -395,27 +397,28 @@ pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin mo
 
 ### Projektdateien
 
-Projekte sind einfache JSON-Dateien unter `data/projects/<name>/project.json`, ihre Bilder liegen daneben in `assets/`; der Ordner `data/` gehört nicht zum Repository. Jede Datei trägt eine `schemaVersion`. Beim Laden werden ältere Formate migriert und der Inhalt geprüft, sodass Fehler wie eine vertauschte Koordinate oder ein Track mit nur einem Wegpunkt mit genauer Fundstelle gemeldet werden, z. B. `groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1]`. Dateien werden atomar geschrieben, gelöschte Projekte landen in `data/.trash/`. Eigene Themes und Vorlagen für Etappen und Gruppen liegen daneben in `data/themes/` und `data/templates/`, eine JSON-Datei pro Stück.
+Projekte sind einfache JSON-Dateien unter `data/projects/<name>/project.json`, ihre Bilder liegen daneben in `assets/`; der Ordner `data/` gehört nicht zum Repository. Jede Datei trägt eine `schemaVersion`. Beim Laden werden ältere Formate migriert und der Inhalt geprüft, sodass Fehler wie eine vertauschte Koordinate oder ein Track mit nur einem Wegpunkt mit genauer Fundstelle gemeldet werden, z. B. `groups[0].etappen[1].tracks[0].waypoints[0].lngLat[1]`. Dateien werden atomar geschrieben, gelöschte Projekte landen in `data/.trash/`. Eigene Themes, Einblendungs-Stile und Vorlagen für Etappen und Gruppen liegen daneben in `data/themes/`, `data/overlay-styles/` und `data/templates/`, eine JSON-Datei pro Stück.
 
 Die API des lokalen Servers:
 
-| Anfrage                                        | Ergebnis                                                                         |
-| ---------------------------------------------- | -------------------------------------------------------------------------------- |
-| `GET /api/projects`                            | Liste mit ID, Name, Ordner und letzter Änderung                                  |
-| `POST /api/projects` mit `{"name": "…"}`       | Ein neues, leeres Projekt                                                        |
-| `GET /api/projects/:id`                        | Das komplette Projekt; ist seine Datei kaputt, eine 422 mit Liste der Probleme   |
-| `PUT /api/projects/:id`                        | Projekt speichern; ungültige werden mit einer Liste der Probleme abgelehnt       |
-| `DELETE /api/projects/:id`                     | Projekt in den Papierkorb verschieben                                            |
-| `POST /api/projects/:id/assets`, `GET …/:file` | Ein Bild (PNG, GIF, JPEG) ins Projekt hochladen oder abrufen                     |
-| `GET /api/geocode?q=&bias=lng,lat,zoom`        | Ortssuche (Photon), zwischengespeichert, höchstens eine Anfrage pro Sekunde      |
-| `GET /api/reverse?lng=&lat=`                   | Der Ort an einem Punkt                                                           |
-| `GET /api/airports?q=`                         | Flughafensuche nach IATA- oder ICAO-Code, Name und Ort                           |
-| `POST /api/route`                              | Die Route eines Tracks (openrouteservice, OSRM oder lokal), zwischengespeichert  |
-| `POST /api/elevation`                          | Höhen entlang einer Route aus Geländekacheln, auf der Platte zwischengespeichert |
-| `GET /api/themes`, `PUT`/`DELETE …/:id`        | Eigene Karten-Themes                                                             |
-| `GET /api/templates`, `PUT`/`DELETE …/:id`     | Vorlagen für Etappen und Gruppen, für alle Projekte gemeinsam                    |
-| `POST /api/render`, `GET /api/render`          | Einen Render einreihen oder die Warteschlange abrufen                            |
-| `GET /api/render/:id/events`, `DELETE …/:id`   | Einen Render als Server-Sent Events verfolgen oder abbrechen                     |
+| Anfrage                                         | Ergebnis                                                                         |
+| ----------------------------------------------- | -------------------------------------------------------------------------------- |
+| `GET /api/projects`                             | Liste mit ID, Name, Ordner und letzter Änderung                                  |
+| `POST /api/projects` mit `{"name": "…"}`        | Ein neues, leeres Projekt                                                        |
+| `GET /api/projects/:id`                         | Das komplette Projekt; ist seine Datei kaputt, eine 422 mit Liste der Probleme   |
+| `PUT /api/projects/:id`                         | Projekt speichern; ungültige werden mit einer Liste der Probleme abgelehnt       |
+| `DELETE /api/projects/:id`                      | Projekt in den Papierkorb verschieben                                            |
+| `POST /api/projects/:id/assets`, `GET …/:file`  | Ein Bild (PNG, GIF, JPEG) ins Projekt hochladen oder abrufen                     |
+| `GET /api/geocode?q=&bias=lng,lat,zoom`         | Ortssuche (Photon), zwischengespeichert, höchstens eine Anfrage pro Sekunde      |
+| `GET /api/reverse?lng=&lat=`                    | Der Ort an einem Punkt                                                           |
+| `GET /api/airports?q=`                          | Flughafensuche nach IATA- oder ICAO-Code, Name und Ort                           |
+| `POST /api/route`                               | Die Route eines Tracks (openrouteservice, OSRM oder lokal), zwischengespeichert  |
+| `POST /api/elevation`                           | Höhen entlang einer Route aus Geländekacheln, auf der Platte zwischengespeichert |
+| `GET /api/themes`, `PUT`/`DELETE …/:id`         | Eigene Karten-Themes                                                             |
+| `GET /api/overlay-styles`, `PUT`/`DELETE …/:id` | Eigene Einblendungs-Stile                                                        |
+| `GET /api/templates`, `PUT`/`DELETE …/:id`      | Vorlagen für Etappen und Gruppen, für alle Projekte gemeinsam                    |
+| `POST /api/render`, `GET /api/render`           | Einen Render einreihen oder die Warteschlange abrufen                            |
+| `GET /api/render/:id/events`, `DELETE …/:id`    | Einen Render als Server-Sent Events verfolgen oder abbrechen                     |
 
 ### Datenquellen
 
@@ -426,6 +429,7 @@ Das Tool nutzt offene Daten und kostenlose Dienste. Jedes Video nennt genau die 
 - **Gelände:** [Terrain Tiles](https://registry.opendata.aws/terrain-tiles/) von Mapzen/Tilezen bei AWS Open Data, mit Daten von USGS (SRTM, GMTED2010, 3DEP), NOAA (ETOPO1), EU-DEM (Copernicus), DGM Österreich und [weiteren](https://github.com/tilezen/joerd/blob/master/docs/attribution.md). Die Karte lädt die Kacheln für 3D-Gelände, Schummerung und Höhenlinien (im Browser gezeichnet von [maplibre-contour](https://github.com/onthegomap/maplibre-contour)); der lokale Server liest dieselben Kacheln für Höhenprofile und behält sie in `data/cache/tiles/terrain/`.
 - **Ortssuche:** [Photon](https://photon.komoot.io) von komoot, Daten © OpenStreetMap-Mitwirkende. Der Browser ruft Photon nie direkt auf; der lokale Server speichert Ergebnisse in `data/cache/geocode/` zwischen und schickt höchstens eine Anfrage pro Sekunde.
 - **Flughäfen:** [OurAirports](https://ourairports.com/data/), gemeinfrei (Public Domain). Übernommen werden nur große und mittlere Flughäfen mit IATA-Code.
+- **Flaggen und Grenzen (ab 1.2.0):** Flaggen von [flag-icons](https://github.com/lipis/flag-icons) (MIT) und die Ländergrenzen 1:50 Mio. von [Natural Earth](https://www.naturalearthdata.com) (gemeinfrei) über [world-atlas](https://github.com/topojson/world-atlas) sind mitgeliefert; der Flaggen-Baustein lädt nichts nach. In diesem Maßstab wechselt die Flagge auf ein paar Kilometer genau an der echten Grenze.
 - **Routing:** [openrouteservice](https://openrouteservice.org) © HeiGIT, als Ausweg OSRM auf dem [FOSSGIS-Routing-Server](https://routing.openstreetmap.de/about.html), beide mit Daten © OpenStreetMap-Mitwirkende. Anfragen laufen über den lokalen Server, der sie in `data/cache/routes/` zwischenspeichert und pro Dienst drosselt (openrouteservice: eine Anfrage alle 1,5 s, OSRM: eine pro Sekunde). Flüge, Züge, Fähren und importierte Tracks werden lokal berechnet.
 
 ### Roadmap
@@ -435,7 +439,7 @@ Ideen für nach 1.0, beim Bauen gesammelt:
 - Englische Oberfläche (alle Texte liegen schon in einer Datei pro Sprache)
 - Eine signierte Windows-App, z. B. über den Microsoft Store, damit Smart App Control sie starten lässt
 - Weitere 3D-Fahrzeuge (Bus, Motorrad, Zug, Fähre) und eigene glTF-Modelle als Projekt-Assets
-- Eigene Schriften für Ortsnamen und Einblendungen, mit Themes, die sie mitbringen
+- Eigene Schriftdateien für Ortsnamen und Einblendungen, über die mitgelieferten hinaus
 - Die Flughöhe aus DJI-Dateien, damit importierte Drohnenflüge über dem Gelände fliegen
 - Eine Kamera, die weich zu dem Fahrzeug wechselt, das gerade fährt
 
@@ -443,4 +447,4 @@ Bewusst nicht geplant: die Animation zum Takt von Musik schneiden.
 
 ### Lizenz
 
-Der Code in diesem Repository steht unter der [MIT-Lizenz](LICENSE). Remotion wird unter seiner eigenen [Lizenz](https://www.remotion.dev/license) genutzt, die für Einzelpersonen und kleine Firmen kostenlos ist. Kartendaten © OpenStreetMap-Mitwirkende.
+Der Code in diesem Repository steht unter der [MIT-Lizenz](LICENSE). Remotion wird unter seiner eigenen [Lizenz](https://www.remotion.dev/license) genutzt, die für Einzelpersonen und kleine Firmen kostenlos ist. Kartendaten © OpenStreetMap-Mitwirkende. Die mitgelieferten Schriften (SIL Open Font License), Flaggen und Grenzen stehen mit ihren Lizenzen in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
