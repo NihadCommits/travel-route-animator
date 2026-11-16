@@ -89,6 +89,9 @@ export const ProjectSchema = z
             check(waypoint.id, ['groups', g, 'etappen', e, 'tracks', t, 'waypoints', w]);
           });
         });
+        etappe.overlays.widgets.forEach((widget, w) => {
+          check(widget.id, ['groups', g, 'etappen', e, 'overlays', 'widgets', w]);
+        });
         etappe.pins.forEach((pin, p) => {
           check(pin.id, ['groups', g, 'etappen', e, 'pins', p]);
           if (pin.assetId !== undefined && !assetIds.has(pin.assetId)) {

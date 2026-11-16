@@ -4,6 +4,7 @@ import type { Anchor, Widget, WidgetKind } from '../model/overlays';
 import type { Project } from '../model/project';
 import type { Id } from '../model/primitives';
 import { findEtappe } from '../resolve/resolve';
+import { rowsOf } from './rows';
 
 // Adding, changing and removing overlay blocks (M17). A block lives in one stage; its ID is
 // unique in the project, so the preview can find it by the ID it draws on the block.
@@ -63,6 +64,19 @@ export function etappeOfWidget(project: Project, widgetId: Id): Id | undefined {
   return undefined;
 }
 
+/**
+ * A place of its own for a block that leaves its row: one step further in from where the row
+ * starts, so it does not land on top of it.
+ */
+export function placeOutOfRow(
+  widgets: readonly Widget[],
+  widgetId: Id,
+): Pick<Widget, 'anchor' | 'dx' | 'dy'> | undefined {
+  const start = rowsOf(widgets).find((row) => row.some((widget) => widget.id === widgetId))?.[0];
+  if (!start) return undefined;
+  return { anchor: start.anchor, dx: start.dx, dy: start.dy + STACK_STEP };
+}
+
 /** A block wherever it is in the project. */
 export function findWidget(project: Project, widgetId: Id): Widget | undefined {
   for (const group of project.groups) {
@@ -93,13 +107,29 @@ export function editWidget(
   }));
 }
 
+/**
+ * Removes a block. The blocks right of it stay in the row: the first takes its place (or its
+ * place in the row), the others then stand right of that one.
+ */
 export function removeWidget(project: Project, widgetId: Id): Project {
   const etappeId = etappeOfWidget(project, widgetId);
   if (!etappeId) return project;
-  return editEtappe(project, etappeId, (e) => ({
-    ...e,
-    overlays: { ...e.overlays, widgets: e.overlays.widgets.filter((w) => w.id !== widgetId) },
-  }));
+  return editEtappe(project, etappeId, (e) => {
+    const gone = e.overlays.widgets.find((w) => w.id === widgetId)!;
+    const next = e.overlays.widgets.find((w) => w.after === widgetId);
+    const widgets = e.overlays.widgets
+      .filter((w) => w.id !== widgetId)
+      .map((w): Widget => {
+        if (w.after !== widgetId) return w;
+        if (w !== next) return { ...w, after: next!.id };
+        const { after: _old, ...free } = w;
+        const place = { anchor: gone.anchor, dx: gone.dx, dy: gone.dy };
+        return gone.after === undefined
+          ? { ...free, ...place }
+          : { ...free, ...place, after: gone.after };
+      });
+    return { ...e, overlays: { ...e.overlays, widgets } };
+  });
 }
 
 /**

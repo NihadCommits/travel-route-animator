@@ -3,6 +3,7 @@ import { Player, type PlayerRef } from '@remotion/player';
 import {
   editWidget,
   findWidget,
+  offsetsAt,
   movedOffsets,
   type Id,
   type Project,
@@ -62,11 +63,16 @@ export function PreviewPlayer({ target }: { target: PreviewTarget }) {
   const [player, setPlayer] = useState<PlayerRef | null>(null);
   const applyIfValid = useEditor((state) => state.applyIfValid);
   // A block dragged in the picture keeps its anchor; only its offsets change (M17).
-  const blockDrag = useBlockDrag((widgetId, deltaX, deltaY) =>
+  const blockDrag = useBlockDrag((widgetId, deltaX, deltaY, dropped) =>
     applyIfValid((p) => {
       const widget = findWidget(p, widgetId);
       if (!widget) return p;
-      return editWidget(p, widgetId, (w) => ({ ...w, ...movedOffsets(widget, deltaX, deltaY) }));
+      return editWidget(p, widgetId, (w) => {
+        if (w.after === undefined) return { ...w, ...movedOffsets(w, deltaX, deltaY) };
+        // Dragged out of its row: it stays where it was dropped, with a place of its own.
+        const { after: _row, ...free } = w;
+        return { ...free, ...offsetsAt(w.anchor, dropped.box, dropped.layer) };
+      });
     }),
   );
 

@@ -68,6 +68,7 @@ export * from './time/zone';
 export * from './model/overlays';
 export * from './overlays/widgetText';
 export * from './overlays/edit';
+export * from './overlays/rows';
 export * from './recording/recording';
 export * from './timeline/recordedPace';
 export * from './frame/animation';

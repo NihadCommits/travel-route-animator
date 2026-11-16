@@ -98,6 +98,24 @@ describe('overlay blocks in the inspector', () => {
     await saved((p) => widgetsOf(p).length === 0);
   });
 
+  it('puts a block in a row right of another and takes it out again', async () => {
+    const { user, saved } = await open(trip());
+    await selectStage();
+    await user.selectOptions(inspector().getByLabelText('Baustein hinzufügen'), 'Distanz');
+    await user.selectOptions(inspector().getByLabelText('Baustein hinzufügen'), 'Reisezeit');
+    await user.selectOptions(inspector().getByLabelText('Platz'), 'Rechts neben „Distanz“');
+    expect(inspector().queryByLabelText('Position')).not.toBeInTheDocument();
+    expect(inspector().getByText(/Steht in einer Reihe/)).toBeInTheDocument();
+    const inRow = await saved((p) => widgetsOf(p)[1]?.after !== undefined);
+    const [km, time] = widgetsOf(inRow);
+    expect(time).toMatchObject({ after: km!.id, anchor: 'bottom-left', dx: 48, dy: 44 });
+
+    // Its own place again: a step above the row.
+    await user.selectOptions(inspector().getByLabelText('Platz'), 'Eigener Platz');
+    const free = await saved((p) => widgetsOf(p)[1]?.after === undefined);
+    expect(widgetsOf(free)[1]).toMatchObject({ anchor: 'bottom-left', dx: 48, dy: 136 });
+  });
+
   it('brings a clock along with a clock block and says what it needs', async () => {
     const { user, saved } = await open(trip());
     await selectStage();

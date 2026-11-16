@@ -2,10 +2,10 @@ import type { Migration } from './migrations';
 
 // File format 9 (M17, ADR 0017): the overlays are building blocks instead of switches. Every
 // switch that was on becomes a block where its value stood: the title at the top left, the
-// counters at the bottom left, the height profile below them. Until M17 the counters stood in
-// a row that grew with its text; now every block has a place of its own and a fixed width, so
-// they are laid out next to each other with room to spare. The project gets the classic
-// style and metric units, which is how it looked before.
+// counters at the bottom left, the height profile below them. The counters stood in a row
+// that grew with its text; the first keeps that place and the others stand right of it
+// (`after`), so the row looks as it did. The project gets the classic style and metric units,
+// which is how it looked before.
 
 type Json = Record<string, unknown>;
 
@@ -28,15 +28,6 @@ const GAP = 16;
 /** A counter pill at the classic size, and the height profile without and with the climb. */
 const PILL_HEIGHT = 76;
 const PROFILE_HEIGHT = 154;
-/** Room for a counter in the row: its reserved width (see blockWidth in the scene) plus a gap. */
-const ROW_WIDTH: Record<string, number> = {
-  distance: 236,
-  travelTime: 236,
-  clock: 186,
-  speed: 260,
-  heartRate: 186,
-};
-
 const ROW = [
   ['distanceCounter', 'distance'],
   ['timeCounter', 'travelTime'],
@@ -75,11 +66,13 @@ function widgetsOf(etappe: Json, overlays: Json): Json[] {
     widgets.push(block(id('climb'), 'climb', 'bottom-left', MARGIN, dy));
     dy += PILL_HEIGHT + GAP;
   }
-  let dx = MARGIN;
+  let previous: string | undefined;
   for (const [flag, kind] of ROW) {
     if (overlays[flag] !== true) continue;
-    widgets.push(block(id(kind), kind, 'bottom-left', dx, dy));
-    dx += ROW_WIDTH[kind]!;
+    widgets.push(
+      block(id(kind), kind, 'bottom-left', MARGIN, dy, previous ? { after: previous } : {}),
+    );
+    previous = id(kind);
   }
   return widgets;
 }

@@ -19,6 +19,7 @@ import { TextField } from '@/features/inspector/fields/TextField';
 import { Section } from '@/features/inspector/parts';
 import type { Edit } from '@/features/inspector/useEdit';
 import { de } from '@/i18n/de';
+import { blockName } from './blockName';
 import { ClockFields, defaultClock } from './ClockFields';
 import { WidgetEditor } from './WidgetEditor';
 
@@ -32,13 +33,6 @@ const measured = de.inspector.etappe.measured;
 const CLOCK_KINDS = new Set<WidgetKind>(['clock', 'date']);
 /** Kinds that need the heights of the route. */
 const HEIGHT_KINDS = new Set<WidgetKind>(['elevationProfile', 'climb', 'altitude']);
-
-/** What the row says about a block: its kind, and its text or caption when it has one. */
-function rowName(widget: Widget): string {
-  const kind = texts.kinds[widget.kind];
-  const own = widget.kind === 'text' ? widget.text : widget.label;
-  return own ? `${kind}: ${own}` : kind;
-}
 
 interface WidgetsSectionProps {
   project: Project;
@@ -145,7 +139,7 @@ export function WidgetsSection({
       ) : (
         <ul className="space-y-1.5">
           {overlays.widgets.map((widget) => {
-            const name = rowName(widget);
+            const name = blockName(widget);
             const expanded = open === widget.id;
             const note = kindNote(widget.kind);
             return (
@@ -173,7 +167,12 @@ export function WidgetsSection({
                 </div>
                 {note && <p className="text-muted-foreground pl-2 text-xs">{note}</p>}
                 {expanded && (
-                  <WidgetEditor widget={widget} projectUnits={project.defaults.units} edit={edit}>
+                  <WidgetEditor
+                    widget={widget}
+                    siblings={overlays.widgets}
+                    projectUnits={project.defaults.units}
+                    edit={edit}
+                  >
                     {kindFields(widget)}
                   </WidgetEditor>
                 )}

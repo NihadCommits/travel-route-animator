@@ -1,6 +1,8 @@
 import {
   ANCHORS,
   editWidget,
+  placeOutOfRow,
+  rowFrom,
   OVERLAY_FONTS,
   OverlayBackgroundSchema,
   type OverlayStyleTokens,
@@ -17,6 +19,7 @@ import { TextField } from '@/features/inspector/fields/TextField';
 import { optionsOf, Row } from '@/features/inspector/parts';
 import type { Edit } from '@/features/inspector/useEdit';
 import { de } from '@/i18n/de';
+import { blockName } from './blockName';
 
 // The settings of one overlay block (M17): what it says, where it sits, how big, in which
 // units, when it shows, and what it changes about the stage's style.
@@ -37,6 +40,8 @@ const WITHOUT_LABEL = new Set<Widget['kind']>(['text', 'elevationProfile', 'flag
 
 interface WidgetEditorProps {
   widget: Widget;
+  /** The blocks of the same stage, which this one can stand right of. */
+  siblings: readonly Widget[];
   /** The project's units, named in "Wie im Projekt". */
   projectUnits: Units;
   edit: Edit;
@@ -44,7 +49,13 @@ interface WidgetEditorProps {
   children?: ReactNode;
 }
 
-export function WidgetEditor({ widget, projectUnits, edit, children }: WidgetEditorProps) {
+export function WidgetEditor({
+  widget,
+  siblings,
+  projectUnits,
+  edit,
+  children,
+}: WidgetEditorProps) {
   const set = (field: string, update: (widget: Widget) => Widget) =>
     edit(`overlays.widgets.${field}`, (p) => editWidget(p, widget.id, update), { coalesce: true });
   /** Changes one part of the style for this block; undefined goes back to the stage's. */
@@ -59,6 +70,18 @@ export function WidgetEditor({ widget, projectUnits, edit, children }: WidgetEdi
       return Object.keys(style).length === 0 ? without : { ...without, style };
     });
   const whole = widget.fromSec === undefined && widget.toSec === undefined;
+  const leader = siblings.find((other) => other.id === widget.after);
+  // Not right of itself, nor of a block that already stands behind it: that would be a loop.
+  const behind = rowFrom(siblings, widget.id);
+  const leaders = siblings.filter((other) => !behind.has(other.id));
+  const setPlace = (value: string) =>
+    set('after', ({ after: _old, ...w }) => {
+      if (value !== 'own') {
+        const next = siblings.find((other) => other.id === value)!;
+        return { ...w, after: value, anchor: next.anchor, dx: next.dx, dy: next.dy };
+      }
+      return { ...w, ...(placeOutOfRow(siblings, widget.id) ?? {}) };
+    });
 
   return (
     <div className="border-border grid gap-3 rounded-md border p-3">
@@ -82,29 +105,43 @@ export function WidgetEditor({ widget, projectUnits, edit, children }: WidgetEdi
       {children}
 
       <SelectField
-        label={texts.anchor}
-        value={widget.anchor}
-        options={optionsOf(ANCHORS, texts.anchors)}
-        onCommit={(anchor) => set('anchor', (w) => ({ ...w, anchor }))}
+        label={texts.place}
+        value={leader ? leader.id : 'own'}
+        options={[
+          { value: 'own', label: texts.ownPlace },
+          ...leaders.map((other) => ({ value: other.id, label: texts.rightOf(blockName(other)) })),
+        ]}
+        hint={leader ? texts.inRowHint : undefined}
+        onCommit={setPlace}
       />
-      <Row>
-        <NumberField
-          label={texts.dx}
-          value={widget.dx}
-          unit="px"
-          step={4}
-          fractionDigits={0}
-          onCommit={(dx) => set('dx', (w) => ({ ...w, dx }))}
-        />
-        <NumberField
-          label={texts.dy}
-          value={widget.dy}
-          unit="px"
-          step={4}
-          fractionDigits={0}
-          onCommit={(dy) => set('dy', (w) => ({ ...w, dy }))}
-        />
-      </Row>
+      {!leader && (
+        <>
+          <SelectField
+            label={texts.anchor}
+            value={widget.anchor}
+            options={optionsOf(ANCHORS, texts.anchors)}
+            onCommit={(anchor) => set('anchor', (w) => ({ ...w, anchor }))}
+          />
+          <Row>
+            <NumberField
+              label={texts.dx}
+              value={widget.dx}
+              unit="px"
+              step={4}
+              fractionDigits={0}
+              onCommit={(dx) => set('dx', (w) => ({ ...w, dx }))}
+            />
+            <NumberField
+              label={texts.dy}
+              value={widget.dy}
+              unit="px"
+              step={4}
+              fractionDigits={0}
+              onCommit={(dy) => set('dy', (w) => ({ ...w, dy }))}
+            />
+          </Row>
+        </>
+      )}
       <SliderField
         label={texts.scale}
         value={widget.scale}

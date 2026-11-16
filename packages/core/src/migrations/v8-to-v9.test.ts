@@ -64,8 +64,9 @@ describe('migration 8 → 9', () => {
     expect(at('elevationProfile')).toMatchObject({ anchor: 'bottom-left', dx: 48, dy: 80 });
     expect(at('climb').dy).toBe(80 + 154 + 16);
     expect(at('distance')).toMatchObject({ dx: 48, dy: 80 + 154 + 16 + 76 + 16 });
-    expect(at('travelTime').dx).toBe(48 + 236);
-    expect(at('travelTime').dy).toBe(at('distance').dy);
+    // The time stands right of the kilometres, in a row as before.
+    expect(at('travelTime').after).toBe(at('distance').id);
+    expect(at('distance').after).toBeUndefined();
   });
 
   it('leaves what it does not understand for validation', () => {

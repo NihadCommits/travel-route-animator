@@ -393,10 +393,11 @@
                 "id": "w_e_lissabon_algarve_travelTime",
                 "kind": "travelTime",
                 "anchor": "bottom-left",
-                "dx": 284,
+                "dx": 48,
                 "dy": 44,
                 "scale": 1,
-                "transition": "none"
+                "transition": "none",
+                "after": "w_e_lissabon_algarve_distance"
               }
             ]
           },

@@ -102,6 +102,11 @@ export const WidgetSchema = z.strictObject({
   id: IdSchema,
   kind: WidgetKindSchema,
   anchor: AnchorSchema,
+  /**
+   * Stands right of this block of the same stage, in a row with it (rowsOf); its own anchor and
+   * offsets then wait unused until it leaves the row.
+   */
+  after: IdSchema.optional(),
   /** Offset from the anchor in reference pixels: inwards from the edges, right/down from the middle. */
   dx: z.number(),
   dy: z.number(),

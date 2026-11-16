@@ -169,6 +169,20 @@ describe('placing blocks', () => {
     expect(presenceOf(block('distance'), -1)).toBe(1);
   });
 
+  it('lays a row out from its first block, with a fixed gap that grows with the text', () => {
+    const row = {
+      manualDurationText: '3 h 05 min',
+      widgets: [block('distance'), block('travelTime', { after: 'w_distance', dx: 999 })],
+    };
+    const { html } = frameAt(row, 'end');
+    // One container at the first block's place; the second block's own place is not used.
+    expect(html).toMatch(/left:48px;bottom:44px[^"]*display:flex;gap:16px/);
+    expect(html).not.toContain('999px');
+    expect(html.indexOf('data-widget-id="w_distance"')).toBeLessThan(
+      html.indexOf('data-widget-id="w_travelTime"'),
+    );
+  });
+
   it('shows the flag of the country the vehicle is in, with nothing to download', () => {
     const flag = { widgets: [block('flag', { anchor: 'top-left', label: 'Land' })] };
     const { html, text } = frameAt(flag, 'start');

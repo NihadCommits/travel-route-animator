@@ -53,7 +53,11 @@ describe('dragging blocks in the preview', () => {
     fireEvent.click(preview);
 
     // 50 and -40 screen pixels at half size are 100 and -80 reference pixels.
-    expect(onDrop).toHaveBeenCalledWith('w_km', 100, -80);
+    expect(onDrop).toHaveBeenCalledWith('w_km', 100, -80, {
+      // The box where it was dropped, in the layer's reference pixels (jsdom keeps it in place).
+      box: { left: 200, top: 800, width: 400, height: 200 },
+      layer: { width: 1920, height: 0 },
+    });
     expect(screen.getByText('12,4 km').style.translate).toBe('');
     expect(onClick).not.toHaveBeenCalled();
   });

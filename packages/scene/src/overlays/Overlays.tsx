@@ -3,6 +3,8 @@ import {
   formatHeight,
   overlayTokensOf,
   routingCredits,
+  rowsOf,
+  ROW_GAP,
   widgetText,
   type Anchor,
   type Corner,
@@ -92,9 +94,12 @@ function rgba(hex: string, opacity: number): string {
   return `rgba(${(value >> 16) & 255}, ${(value >> 8) & 255}, ${value & 255}, ${opacity})`;
 }
 
-/** The box and text of a style, scaled to its text size (the classic look is size 44). */
+/**
+ * The box and text of a style. A box keeps the padding the counters always had (10 × 22
+ * reference pixels, at any text size), so a project from before 1.2.0 looks exactly as it did;
+ * a block grows as a whole with its scale. A pill's round ends need more room at the sides.
+ */
 export function boxStyleOf(tokens: OverlayStyleTokens): CSSProperties {
-  const k = tokens.size / 44;
   const box: CSSProperties = {
     fontFamily: fontFamilyOf(tokens.font),
     fontWeight: tokens.weight,
@@ -102,11 +107,10 @@ export function boxStyleOf(tokens: OverlayStyleTokens): CSSProperties {
     color: tokens.textColor,
     textTransform: tokens.uppercase ? 'uppercase' : undefined,
     whiteSpace: 'pre',
-    lineHeight: 1.25,
     boxSizing: 'border-box',
   };
   if (tokens.background !== 'none') {
-    box.padding = `${10 * k}px ${22 * k}px`;
+    box.padding = `10px ${tokens.background === 'pill' ? Math.max(22, tokens.size * 0.6) : 22}px`;
     box.backgroundColor = rgba(tokens.backgroundColor, tokens.backgroundOpacity);
     box.borderRadius = tokens.background === 'pill' ? 999 : tokens.radius;
     if (tokens.background === 'glass') box.backdropFilter = 'blur(14px)';
@@ -125,21 +129,45 @@ export function boxStyleOf(tokens: OverlayStyleTokens): CSSProperties {
   return box;
 }
 
+/** Blocks whose number gains digits on the way; their box keeps its widest size throughout. */
+const COUNTING = new Set<Widget['kind']>([
+  'distance',
+  'travelTime',
+  'climb',
+  'altitude',
+  'speed',
+  'heartRate',
+  'cadence',
+]);
+/** How many moments of the stage are read to find the widest text of a counting block. */
+const WIDEST_SAMPLES = 40;
+
 /**
- * The widest text a counting block shows over the stage, as characters: its width is kept from
- * the start, so it does not grow under the viewer's eyes and push into its neighbours.
+ * The widest text each counting block shows over the stage, so its box has that width from the
+ * start and does not grow under the viewer's eyes towards its neighbours. Read at the end (where
+ * distance and time are largest) and at moments in between (height and speed go up and down).
  */
-function useReservedChars(timeline: Timeline, context: Parameters<typeof widgetText>[2]) {
+function useWidestTexts(timeline: Timeline, context: Parameters<typeof widgetText>[2]) {
   return useMemo(() => {
-    const last = computeFrameState(timeline, timeline.durationInFrames - 1);
-    const reserved = new Map<string, number>();
-    for (const widget of timeline.overlays.widgets) {
-      const text = widgetText(widget, last, context);
-      if (text !== undefined && widget.kind !== 'text' && widget.kind !== 'place') {
-        reserved.set(widget.id, text.length);
+    const widest = new Map<string, string>();
+    const counting = timeline.overlays.widgets.filter((widget) => COUNTING.has(widget.kind));
+    if (counting.length === 0) return widest;
+    const last = timeline.durationInFrames - 1;
+    const frames = [
+      last,
+      ...Array.from({ length: WIDEST_SAMPLES }, (_, i) => Math.round((i * last) / WIDEST_SAMPLES)),
+    ];
+    for (const frame of frames) {
+      const state = computeFrameState(timeline, frame);
+      for (const widget of counting) {
+        const text = widgetText(widget, state, context);
+        // Digits are of equal width (tabular), so the longest text is the widest.
+        if (text !== undefined && text.length > (widest.get(widget.id)?.length ?? 0)) {
+          widest.set(widget.id, text);
+        }
       }
     }
-    return reserved;
+    return widest;
   }, [timeline, context]);
 }
 
@@ -164,7 +192,7 @@ export const Overlays: FC<{
     () => ({ units: timeline.units, timeZone: timeline.clock?.timeZone }),
     [timeline.units, timeline.clock?.timeZone],
   );
-  const reserved = useReservedChars(timeline, context);
+  const widest = useWidestTexts(timeline, context);
   const profile = timeline.elevation;
   const profileColor =
     timeline.tracks.find((plan) => plan.trackId === profile?.trackId)?.style.lineColor ?? '#ffffff';
@@ -248,30 +276,30 @@ export const Overlays: FC<{
     }
     const text = widgetText(widget, state, context);
     if (text === undefined) return null;
-    const minChars = reserved.get(widget.id);
+    const room = widest.get(widget.id);
     return (
-      <div
-        style={{
-          ...boxStyleOf(tokens),
-          fontVariantNumeric: 'tabular-nums',
-          ...(minChars !== undefined && {
-            // Room for the widest text plus the box's own padding on both sides.
-            minWidth: `calc(${minChars}ch + ${tokens.background === 'none' ? 0 : tokens.size}px)`,
-          }),
-        }}
-      >
+      <div style={{ ...boxStyleOf(tokens), fontVariantNumeric: 'tabular-nums' }}>
         {widget.label && (
           <div style={{ fontSize: tokens.size * 0.45, opacity: 0.8, letterSpacing: '0.04em' }}>
             {widget.label}
           </div>
         )}
-        {text}
+        {room === undefined || room === text ? (
+          text
+        ) : (
+          // The widest text, hidden in the same grid cell, gives the box its final width exactly.
+          <div style={{ display: 'grid' }}>
+            <span style={{ gridArea: '1 / 1' }}>{text}</span>
+            <span style={{ gridArea: '1 / 1', visibility: 'hidden' }}>{room}</span>
+          </div>
+        )}
       </div>
     );
   };
 
   return (
     <div
+      data-overlay-layer
       style={{
         position: 'absolute',
         left: 0,
@@ -283,29 +311,70 @@ export const Overlays: FC<{
         pointerEvents: 'none',
       }}
     >
-      {overlays.widgets.map((widget) => {
-        const presence = presenceOf(widget, state.sec);
-        if (presence <= 0) return null;
-        const tokens = tokensOf(widget);
-        const inner = content(widget, tokens);
-        if (inner === null) return null;
-        const place = placementOf(widget);
-        const slide = widget.transition === 'slide' ? (1 - presence) * SLIDE_PX : 0;
-        const [vertical] = splitAnchor(widget.anchor);
-        const offset = vertical === 'top' ? -slide : slide;
+      {rowsOf(overlays.widgets).map((row) => {
+        const shown = row.flatMap((widget) => {
+          const presence = presenceOf(widget, state.sec);
+          if (presence <= 0) return [];
+          const inner = content(widget, tokensOf(widget));
+          return inner === null ? [] : [{ widget, presence, inner }];
+        });
+        const root = row[0]!;
+        const [vertical] = splitAnchor(root.anchor);
+        /** Fading and sliding in and out, on top of the block's own transform. */
+        const motion = (widget: Widget, presence: number, transform: string | undefined) => {
+          const slide = widget.transition === 'slide' ? (1 - presence) * SLIDE_PX : 0;
+          const offset = vertical === 'top' ? -slide : slide;
+          const moved =
+            slide === 0 ? transform : `${transform ?? ''} translateY(${offset}px)`.trim();
+          return { opacity: presence, ...(moved && { transform: moved }) };
+        };
+        // A block on its own sits at its place; a row sits at its first block's place, and the
+        // blocks follow one another with a fixed gap, however wide each is.
+        if (row.length === 1) {
+          if (shown.length === 0) return null;
+          const { widget, presence, inner } = shown[0]!;
+          const place = placementOf(widget);
+          return (
+            <div
+              key={widget.id}
+              data-widget-id={widget.id}
+              style={{
+                ...place,
+                ...motion(widget, presence, place.transform),
+              }}
+            >
+              {inner}
+            </div>
+          );
+        }
+        if (shown.length === 0) return null;
         return (
           <div
-            key={widget.id}
-            data-widget-id={widget.id}
+            key={root.id}
             style={{
-              ...place,
-              opacity: presence,
-              ...(slide !== 0 && {
-                transform: `${place.transform ?? ''} translateY(${offset}px)`.trim(),
-              }),
+              ...placementOf({ ...root, scale: 1 }),
+              display: 'flex',
+              gap: ROW_GAP,
+              alignItems:
+                vertical === 'top' ? 'flex-start' : vertical === 'bottom' ? 'flex-end' : 'center',
             }}
           >
-            {inner}
+            {shown.map(({ widget, presence, inner }) => (
+              <div
+                key={widget.id}
+                data-widget-id={widget.id}
+                style={{
+                  ...motion(
+                    widget,
+                    presence,
+                    widget.scale === 1 ? undefined : `scale(${widget.scale})`,
+                  ),
+                  transformOrigin: `${vertical === 'middle' ? 'center' : vertical} left`,
+                }}
+              >
+                {inner}
+              </div>
+            ))}
           </div>
         );
       })}

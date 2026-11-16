@@ -227,6 +227,11 @@ export const de = {
     text: 'Text',
     label: 'Beschriftung',
     labelPlaceholder: 'z. B. Gefahren',
+    place: 'Platz',
+    ownPlace: 'Eigener Platz',
+    rightOf: (name: string) => `Rechts neben „${name}“`,
+    inRowHint:
+      'Steht in einer Reihe und rückt mit, wenn der Baustein davor breiter wird. In der Vorschau herausziehen gibt ihm einen eigenen Platz.',
     anchor: 'Position',
     anchors: {
       'top-left': 'Oben links',

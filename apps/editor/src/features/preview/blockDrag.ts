@@ -24,9 +24,31 @@ export function blockAt(container: Element, x: number, y: number): HTMLElement |
  * scaled twice on the way to the screen, by the scene and by the player.
  */
 export function screenScaleOf(block: HTMLElement): number {
-  const layer = block.parentElement;
+  // The layer the scene marks; a block in a row sits a level deeper.
+  const layer = block.closest<HTMLElement>('[data-overlay-layer]') ?? block.parentElement;
   if (!layer || layer.offsetWidth === 0) return 1;
   return layer.getBoundingClientRect().width / layer.offsetWidth;
+}
+
+/** Where a dropped block's box is in the blocks' layer, all in reference pixels. */
+export interface DroppedBox {
+  box: { left: number; top: number; width: number; height: number };
+  layer: { width: number; height: number };
+}
+
+function droppedBoxOf(block: HTMLElement, scale: number): DroppedBox {
+  const layer = block.closest<HTMLElement>('[data-overlay-layer]') ?? block.parentElement!;
+  const at = layer.getBoundingClientRect();
+  const rect = block.getBoundingClientRect();
+  return {
+    box: {
+      left: (rect.left - at.left) / scale,
+      top: (rect.top - at.top) / scale,
+      width: rect.width / scale,
+      height: rect.height / scale,
+    },
+    layer: { width: layer.offsetWidth, height: layer.offsetHeight },
+  };
 }
 
 interface Drag {
@@ -39,10 +61,13 @@ interface Drag {
 }
 
 /**
- * Pointer handlers for the element around the player. `onDrop` gets the block's ID and how far
- * it went in reference pixels, right and down on screen.
+ * Pointer handlers for the element around the player. `onDrop` gets the block's ID, how far it
+ * went in reference pixels (right and down on screen) and where its box ended up, for a block
+ * that leaves a row and needs a place of its own.
  */
-export function useBlockDrag(onDrop: (widgetId: string, deltaX: number, deltaY: number) => void) {
+export function useBlockDrag(
+  onDrop: (widgetId: string, deltaX: number, deltaY: number, dropped: DroppedBox) => void,
+) {
   const drag = useRef<Drag | null>(null);
   /** Set after a drag, so the click that ends it does not also start or stop playing. */
   const swallowClick = useRef(false);
@@ -99,11 +124,17 @@ export function useBlockDrag(onDrop: (widgetId: string, deltaX: number, deltaY: 
       const current = drag.current;
       if (!current) return;
       drag.current = null;
-      current.block.style.translate = '';
-      if (!current.moved) return;
+      if (!current.moved) {
+        current.block.style.translate = '';
+        return;
+      }
       swallowClick.current = true;
       const [x, y] = deltaOf(current, event);
-      onDrop(current.widgetId, x!, y!);
+      // Measured while the block still stands where it was dropped.
+      current.block.style.translate = `${x}px ${y}px`;
+      const dropped = droppedBoxOf(current.block, current.scale);
+      current.block.style.translate = '';
+      onDrop(current.widgetId, x!, y!, dropped);
     },
     onPointerCancel() {
       if (drag.current) drag.current.block.style.translate = '';
