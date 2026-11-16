@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { SatelliteUnavailableError, type SatelliteSource } from '../tiles/satellite';
-import { ThemeInvalidError, ThemeNotFoundError, type ThemeStore } from './themeStore';
+import { replyToStoreError } from '../lib/namedFileStore';
+import type { ThemeStore } from './themeStore';
 
 // Map looks (ADR 0010): own themes, satellite tiles and what this server can offer.
 
@@ -24,14 +25,8 @@ export function registerMapRoutes(
 ): void {
   void app.register((routes, _options, done) => {
     routes.setErrorHandler((error, _request, reply) => {
-      if (error instanceof ThemeNotFoundError) {
-        return reply.code(404).send({ error: 'not_found', message: error.message });
-      }
-      if (error instanceof ThemeInvalidError) {
-        return reply
-          .code(400)
-          .send({ error: 'invalid_theme', message: error.message, issues: error.issues });
-      }
+      const answered = replyToStoreError(error, reply);
+      if (answered) return answered;
       if (error instanceof SatelliteUnavailableError) {
         return reply.code(502).send({ error: 'satellite_unavailable', message: error.message });
       }

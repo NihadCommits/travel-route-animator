@@ -1,4 +1,4 @@
-import type { OutputSettings, Project, Theme } from '@travel-route-animator/core';
+import type { OutputSettings, OverlayStyle, Project, Theme } from '@travel-route-animator/core';
 
 // Kept apart from EtappeComposition.tsx on purpose: the Node-side render code (render/) and
 // through it the server import these types, and they are type-checked without JSX and DOM.
@@ -24,6 +24,8 @@ export type EtappeProps = {
   assetUrls?: Record<string, string>;
   /** Own themes the stage's style may name (ADR 0010); built-in ones need not be passed. */
   themes?: Record<string, Theme>;
+  /** Own overlay styles the stages may name (M17); a missing one is drawn as Classic. */
+  overlayStyles?: OverlayStyle[];
   /** Our local server, where satellite tiles come from (the key stays there). */
   serverUrl?: string;
   /** Render only: report where every vehicle is in every frame (M13, see renderEtappe). */
