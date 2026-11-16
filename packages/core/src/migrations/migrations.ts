@@ -22,7 +22,15 @@ export interface Migration {
  * All migrations in order. When the format changes: add a step here (one file per step, e.g.
  * v2-to-v3.ts), bump CURRENT_SCHEMA_VERSION, write a test with an old file.
  */
-export const MIGRATIONS: readonly Migration[] = [v1ToV2, v2ToV3, v3ToV4, v4ToV5, v5ToV6, v6ToV7, v7ToV8];
+export const MIGRATIONS: readonly Migration[] = [
+  v1ToV2,
+  v2ToV3,
+  v3ToV4,
+  v4ToV5,
+  v5ToV6,
+  v6ToV7,
+  v7ToV8,
+];
 
 export class MigrationError extends Error {
   override name = 'MigrationError';

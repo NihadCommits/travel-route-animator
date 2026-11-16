@@ -1,11 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  formatClock,
-  isTimeZone,
-  localDateTimeOf,
-  zonedTimeToEpochMs,
-  zoneOffsetMs,
-} from './zone';
+import { formatClock, isTimeZone, localDateTimeOf, zonedTimeToEpochMs, zoneOffsetMs } from './zone';
 
 const HOUR = 3600_000;
 

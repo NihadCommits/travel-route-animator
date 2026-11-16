@@ -1,7 +1,7 @@
-import { deflateRawSync, gunzipSync, gzipSync, inflateRawSync } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 import { writeFit, type FitTestPoint } from '../testing/fitWriter';
 import { isZip, parseTrackBytes, unpackTrackFile, zipEntries, type Unpacker } from './archive';
+import { decodeUtf8 } from './utf8';
 import { isFit, parseFit } from './fit';
 import { ImportError, parseGpx, parseTcx, parseTrackFile } from './parse';
 
@@ -108,22 +108,31 @@ describe('FIT', () => {
   });
 });
 
-/** A ZIP archive with these files, deflated like Garmin Connect packs them. */
-function zip(files: { name: string; data: Uint8Array; store?: boolean }[]): Uint8Array {
+/** ASCII text as bytes; core has no TextEncoder (no "dom" lib). */
+const ascii = (text: string) => Uint8Array.from(text, (char) => char.charCodeAt(0));
+
+/** A ZIP archive with these files as they are (method 0), or marked as deflated (method 8). */
+function zip(files: { name: string; data: Uint8Array; method?: number }[]): Uint8Array {
   const out: number[] = [];
   const central: number[] = [];
   const u16 = (v: number) => [v & 0xff, (v >> 8) & 0xff];
   const u32 = (v: number) => [v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff, (v >>> 24) & 0xff];
   for (const file of files) {
-    const name = [...new TextEncoder().encode(file.name)];
-    const packed = file.store ? file.data : new Uint8Array(deflateRawSync(file.data));
-    const method = file.store ? 0 : 8;
+    const name = [...ascii(file.name)];
+    const method = file.method ?? 0;
     const offset = out.length;
     out.push(...u32(0x04034b50), ...u16(20), ...u16(0), ...u16(method), ...u16(0), ...u16(0));
-    out.push(...u32(0), ...u32(packed.length), ...u32(file.data.length));
-    out.push(...u16(name.length), ...u16(0), ...name, ...packed);
+    out.push(...u32(0), ...u32(file.data.length), ...u32(file.data.length));
+    // A local extra field the central directory does not have, as some packers write.
+    out.push(...u16(name.length), ...u16(4), ...name, 0xca, 0xfe, 0, 0, ...file.data);
     central.push(...u32(0x02014b50), ...u16(20), ...u16(20), ...u16(0), ...u16(method));
-    central.push(...u16(0), ...u16(0), ...u32(0), ...u32(packed.length), ...u32(file.data.length));
+    central.push(
+      ...u16(0),
+      ...u16(0),
+      ...u32(0),
+      ...u32(file.data.length),
+      ...u32(file.data.length),
+    );
     central.push(...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0));
     central.push(...u32(offset), ...name);
   }
@@ -134,45 +143,67 @@ function zip(files: { name: string; data: Uint8Array; store?: boolean }[]): Uint
   return new Uint8Array(out);
 }
 
-const node: Unpacker = {
-  inflateRaw: (data) => Promise.resolve(new Uint8Array(inflateRawSync(data))),
-  gunzip: (data) => Promise.resolve(new Uint8Array(gunzipSync(data))),
-};
+/** Stands in for the editor's DecompressionStream: "inflates" by looking the bytes up. */
+function fakeUnpacker(packed: Uint8Array, unpacked: Uint8Array): Unpacker {
+  const same = (data: Uint8Array) =>
+    data.length === packed.length && data.every((byte, i) => byte === packed[i]);
+  const open = (data: Uint8Array) =>
+    same(data) ? Promise.resolve(unpacked) : Promise.reject(new Error('unexpected data'));
+  return { inflateRaw: open, gunzip: open };
+}
 
 describe('archives', () => {
-  it('finds the FIT file in a Garmin "Export Original" ZIP', async () => {
+  it('finds the FIT file in a Garmin "Export Original" ZIP and inflates it', async () => {
     const fit = writeFit(hike(), { sport: 2 });
+    const deflated = ascii('pretend this is deflated');
     const archive = zip([
-      { name: 'readme.txt', data: new TextEncoder().encode('hi'), store: true },
-      { name: '12345678901_ACTIVITY.fit', data: fit },
+      { name: 'readme.txt', data: ascii('hi') },
+      { name: 'activity/12345678901_ACTIVITY.fit', data: deflated, method: 8 },
     ]);
     expect(isZip(archive)).toBe(true);
     expect(zipEntries(archive).map((entry) => entry.name)).toEqual([
       'readme.txt',
-      '12345678901_ACTIVITY.fit',
+      'activity/12345678901_ACTIVITY.fit',
     ]);
-    const file = await unpackTrackFile(archive, 'download.zip', node);
+    const file = await unpackTrackFile(archive, 'download.zip', fakeUnpacker(deflated, fit));
     expect(file.fileName).toBe('12345678901_ACTIVITY.fit');
     expect(parseTrackBytes(file.bytes, file.fileName).activity).toBe('cycling');
   });
 
-  it("unpacks a gzipped FIT file from Strava's archive and reads GPX as text", async () => {
-    const file = await unpackTrackFile(
-      new Uint8Array(gzipSync(writeFit(hike()))),
-      'ride.fit.gz',
-      node,
+  it('takes a stored file as it is, unpacks gzip, and reads GPX as text', async () => {
+    const fit = writeFit(hike());
+    const stored = await unpackTrackFile(
+      zip([{ name: 'a.fit', data: fit }]),
+      'a.zip',
+      fakeUnpacker(new Uint8Array(), new Uint8Array()),
     );
+    expect(parseTrackBytes(stored.bytes, stored.fileName).points).toHaveLength(6);
+
+    const gzipped = new Uint8Array([0x1f, 0x8b, 8, 0, 1, 2, 3]);
+    const file = await unpackTrackFile(gzipped, 'ride.fit.gz', fakeUnpacker(gzipped, fit));
     expect(file.fileName).toBe('ride.fit');
-    expect(parseTrackBytes(file.bytes, file.fileName).points).toHaveLength(6);
-    const gpx =
-      '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="1.1" lon="2"/></trkseg></trk></gpx>';
-    expect(parseTrackBytes(new TextEncoder().encode(gpx), 'a.gpx').source).toBe('gpx');
+
+    const gpx = ascii(
+      '<gpx><trk><trkseg><trkpt lat="1" lon="2"/><trkpt lat="1.1" lon="2"/></trkseg></trk></gpx>',
+    );
+    expect(parseTrackBytes(gpx, 'a.gpx').source).toBe('gpx');
   });
 
-  it('says so when an archive holds no track or is not unpacked', async () => {
-    const empty = zip([{ name: 'notes.txt', data: new TextEncoder().encode('x'), store: true }]);
-    await expect(unpackTrackFile(empty, 'x.zip', node)).rejects.toThrow('no GPX, TCX, FIT');
+  it('says so when an archive holds no track, is not unpacked or uses another method', async () => {
+    const none = fakeUnpacker(new Uint8Array(), new Uint8Array());
+    const empty = zip([{ name: 'notes.txt', data: ascii('x') }]);
+    await expect(unpackTrackFile(empty, 'x.zip', none)).rejects.toThrow('no GPX, TCX, FIT');
     expect(() => parseTrackBytes(empty, 'x.zip')).toThrow('Unpack');
     expect(() => zipEntries(new Uint8Array(30))).toThrow('not a ZIP');
+    const lzma = zip([{ name: 'a.fit', data: ascii('x'), method: 14 }]);
+    await expect(unpackTrackFile(lzma, 'a.zip', none)).rejects.toThrow('packing method');
+  });
+});
+
+describe('decodeUtf8', () => {
+  it('reads umlauts and emoji, drops a byte order mark and marks broken bytes', () => {
+    const bytes = [0xef, 0xbb, 0xbf, ...[0x42, 0x72, 0xc3, 0xbc, 0x63, 0x6b, 0x65], 0x20];
+    bytes.push(0xf0, 0x9f, 0x9a, 0xb2, 0x20, 0xff, 0xc3);
+    expect(decodeUtf8(new Uint8Array(bytes))).toBe('Brücke 🚲 ��');
   });
 });

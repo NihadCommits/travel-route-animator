@@ -1,5 +1,6 @@
 import { isFit, parseFit } from './fit';
 import { ImportError, parseTrackFile, type ImportedTrackData } from './parse';
+import { decodeUtf8 } from './utf8';
 
 // Files as they come out of Garmin Connect and Strava (M16): "Export Original" hands out a ZIP
 // with the FIT file inside, Strava's full archive gzipped FIT files. The containers are read
@@ -33,7 +34,6 @@ export function zipEntries(bytes: Uint8Array): ZipEntry[] {
   if (eocd < 0) throw new ImportError('This is not a ZIP file');
   const count = view.getUint16(eocd + 10, true);
   let at = view.getUint32(eocd + 16, true);
-  const decoder = new TextDecoder();
   const entries: ZipEntry[] = [];
   for (let i = 0; i < count; i++) {
     if (view.getUint32(at, true) !== 0x02014b50) throw new ImportError('The ZIP file is damaged');
@@ -43,7 +43,7 @@ export function zipEntries(bytes: Uint8Array): ZipEntry[] {
     const extraLength = view.getUint16(at + 30, true);
     const commentLength = view.getUint16(at + 32, true);
     const localHeader = view.getUint32(at + 42, true);
-    const name = decoder.decode(bytes.subarray(at + 46, at + 46 + nameLength));
+    const name = decodeUtf8(bytes.subarray(at + 46, at + 46 + nameLength));
     // The data starts after the local header, whose name and extra field may differ in length.
     const localName = view.getUint16(localHeader + 26, true);
     const localExtra = view.getUint16(localHeader + 28, true);
@@ -73,7 +73,7 @@ export function isZip(bytes: Uint8Array): boolean {
 export function parseTrackBytes(bytes: Uint8Array, fileName: string): ImportedTrackData {
   if (isFit(bytes)) return parseFit(bytes, fileName);
   if (isZip(bytes) || isGzip(bytes)) throw new ImportError('Unpack the archive first');
-  return parseTrackFile(new TextDecoder().decode(bytes), fileName);
+  return parseTrackFile(decodeUtf8(bytes), fileName);
 }
 
 /** Inflates raw deflate data (ZIP) or a gzip stream; the editor passes DecompressionStream. */
