@@ -207,6 +207,12 @@ describe('render dialog', () => {
     await user.selectOptions(preset, 'Overlay ProRes 4444 (transparent)');
     expect(overlay).toBeChecked();
     await user.click(dialog().getByRole('switch', { name: 'Bewegungsdaten der Fahrzeuge' }));
+    await user.click(
+      dialog().getByRole('switch', { name: 'Werte der Einblendungen für den Schnitt' }),
+    );
+    await user.click(
+      dialog().getByRole('switch', { name: 'Jeden Baustein einzeln als transparentes Video' }),
+    );
     expect(dialog().getByText(/Landet als \.mov in output\/portugal-2026\//)).toBeInTheDocument();
     await user.click(dialog().getByRole('button', { name: 'Rendern' }));
 
@@ -219,6 +225,8 @@ describe('render dialog', () => {
     expect(sent?.body).toMatchObject({
       output: { aspect: '16:9', fps: 25, codec: 'prores-4444', transparentOverlay: true },
       motionData: true,
+      editValues: true,
+      blockVideos: true,
     });
   });
 

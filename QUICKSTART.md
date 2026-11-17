@@ -94,6 +94,8 @@ Drag the MP4 file into your video editor.
 | Return trips and templates                                              | Right-click a stage: **Rückfahrt anlegen** (return trip), **Als Vorlage speichern** (save as template); **Aus Vorlage …** at the bottom   |
 | Your own image or GIF as the vehicle                                    | On the vehicle under **Fahrzeug-Icon**                                                                                                    |
 | A transparent overlay for Premiere                                      | When rendering, preset **Overlay ProRes 4444 (transparent)**                                                                              |
+| Kilometres as editable text in Premiere or Resolve                      | When rendering, **Werte der Einblendungen für den Schnitt**: import the `.srt` next to the video as a subtitle track and style it there   |
+| One overlay block on its own                                            | When rendering, **Jeden Baustein einzeln als transparentes Video**                                                                        |
 | Credits for the video description                                       | A `.credits.txt` file next to every video                                                                                                 |
 
 #### A hike or ride from your watch or app (from version 1.2.0)

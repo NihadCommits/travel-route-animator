@@ -24,6 +24,10 @@ Coming with 1.2.0 (modules M16 to M18).
   parts changed on top, and own styles kept for every project in `data/overlay-styles/`.
 - Metric or imperial units per project, group, stage or block.
 - Blocks can stand in a row; a number that grows pushes its neighbour along.
+- Data for the edit: every overlay block alone as a transparent video, and the blocks' values
+  as SRT subtitles per block (Premiere Pro, DaVinci Resolve), CSV and JSON, MGJSON for After
+  Effects and a Fusion setting for Resolve; in the render dialog, the API and the CLI
+  (`--values`, `--blocks`).
 
 ### Changed
 

@@ -22,20 +22,31 @@ function number(value: number, decimals = 0): string {
   return format.format(value);
 }
 
+/** Kilometres in the given units: km or miles. */
+export function distanceIn(km: number, units: Units): number {
+  return units === 'imperial' ? (km * 1000) / MILE_M : km;
+}
+
+/** Km/h in the given units: km/h or mph. */
+export function speedIn(kmh: number, units: Units): number {
+  return units === 'imperial' ? (kmh * 1000) / MILE_M : kmh;
+}
+
+/** Metres in the given units: metres or feet. */
+export function heightIn(metres: number, units: Units): number {
+  return units === 'imperial' ? metres / FOOT_M : metres;
+}
+
 export function formatDistance(km: number, units: Units, decimals = 0): string {
-  return units === 'imperial'
-    ? `${number((km * 1000) / MILE_M, decimals)} mi`
-    : `${number(km, decimals)} km`;
+  return `${number(distanceIn(km, units), decimals)} ${units === 'imperial' ? 'mi' : 'km'}`;
 }
 
 export function formatSpeed(kmh: number, units: Units, decimals = 0): string {
-  return units === 'imperial'
-    ? `${number((kmh * 1000) / MILE_M, decimals)} mph`
-    : `${number(kmh, decimals)} km/h`;
+  return `${number(speedIn(kmh, units), decimals)} ${units === 'imperial' ? 'mph' : 'km/h'}`;
 }
 
 export function formatHeight(metres: number, units: Units): string {
-  return units === 'imperial' ? `${number(metres / FOOT_M)} ft` : `${number(metres)} m`;
+  return `${number(heightIn(metres, units))} ${units === 'imperial' ? 'ft' : 'm'}`;
 }
 
 export function formatClimb(gainM: number, lossM: number, units: Units): string {

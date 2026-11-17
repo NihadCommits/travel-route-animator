@@ -56,6 +56,7 @@ Travel Route Animator turns a trip into map animations for travel videos: a trai
 - A transparent overlay without the map, to lay routes and vehicles over your own footage.
 - A render queue that survives restarts and renders whole projects in several formats.
 - Next to every video: its credits for the description, and on request the position of every vehicle in every frame for After Effects, Premiere Pro, CSV and JSON.
+- From 1.2.0, for your own design in the edit: every overlay block alone as a transparent video, and its values as subtitles (SRT) for Premiere Pro and DaVinci Resolve, as CSV and JSON, as MGJSON for After Effects and as a Fusion setting for Resolve (the last two still being tested).
 - A Windows app with an installer that renders offline.
 
 ### Screenshots
@@ -146,7 +147,7 @@ The same render works from the command line, given a project file and the name o
 pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin morgen?"
 ```
 
-`--aspect 9:16`, `--resolution 2160p` and `--fps 30` override the project's output settings, `--codec prores-4444` (or `prores-422hq`, `png-sequence`) picks the format, `--overlay` leaves the map out, `--motion` also writes the vehicles' motion, and `--gl vulkan` tries another OpenGL backend (default `angle`, the GPU). Road routes the project does not hold yet come from the local server; if it is not running, the script starts it for the routes and stops it again. The first render downloads Chrome Headless Shell (about 100 MB) once. Remotion Studio listens on your whole network, not only on localhost (Remotion has no option for that), so only start it on networks you trust.
+`--aspect 9:16`, `--resolution 2160p` and `--fps 30` override the project's output settings, `--codec prores-4444` (or `prores-422hq`, `png-sequence`) picks the format, `--overlay` leaves the map out, `--motion` also writes the vehicles' motion, `--values` the overlay blocks' values (SRT, CSV, JSON, MGJSON, Fusion), `--blocks` every block as a video of its own, and `--gl vulkan` tries another OpenGL backend (default `angle`, the GPU). Road routes the project does not hold yet come from the local server; if it is not running, the script starts it for the routes and stops it again. The first render downloads Chrome Headless Shell (about 100 MB) once. Remotion Studio listens on your whole network, not only on localhost (Remotion has no option for that), so only start it on networks you trust.
 
 ### Windows app
 
@@ -287,6 +288,7 @@ Travel Route Animator verwandelt eine Reise in Kartenanimationen für Reisevideo
 - Ein transparentes Overlay ohne Karte, um Routen und Fahrzeuge über eigenes Footage zu legen.
 - Eine Render-Warteschlange, die Neustarts übersteht und ganze Projekte in mehreren Formaten rendert.
 - Neben jedem Video: seine Credits für die Beschreibung und auf Wunsch die Position jedes Fahrzeugs in jedem Frame für After Effects, Premiere Pro, CSV und JSON.
+- Ab 1.2.0 für die eigene Gestaltung im Schnitt: jeder Baustein der Einblendungen einzeln als transparentes Video und seine Werte als Untertitel (SRT) für Premiere Pro und DaVinci Resolve, als CSV und JSON, als MGJSON für After Effects und als Fusion-Vorlage für Resolve (die letzten beiden noch im Test).
 - Eine Windows-App mit Installer, die offline rendert.
 
 ### Screenshots
@@ -351,7 +353,7 @@ Derselbe Render geht auch auf der Kommandozeile, mit einer Projektdatei und dem 
 pnpm render:etappe --file examples/portugal-2026/project.json --etappe "Wohin morgen?"
 ```
 
-`--aspect 9:16`, `--resolution 2160p` und `--fps 30` überschreiben die Ausgabe-Einstellungen des Projekts, `--codec prores-4444` (oder `prores-422hq`, `png-sequence`) wählt das Format, `--overlay` lässt die Karte weg, `--motion` schreibt zusätzlich die Bewegungsdaten der Fahrzeuge, und `--gl vulkan` probiert ein anderes OpenGL-Backend (Standard `angle`, die GPU). Straßenrouten, die im Projekt noch fehlen, holt das Skript vom lokalen Server; läuft er nicht, startet das Skript ihn dafür und beendet ihn danach wieder. Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). Remotion Studio ist im ganzen Netzwerk erreichbar, nicht nur lokal (Remotion bietet dafür keine Einstellung), also nur in vertrauenswürdigen Netzen starten.
+`--aspect 9:16`, `--resolution 2160p` und `--fps 30` überschreiben die Ausgabe-Einstellungen des Projekts, `--codec prores-4444` (oder `prores-422hq`, `png-sequence`) wählt das Format, `--overlay` lässt die Karte weg, `--motion` schreibt zusätzlich die Bewegungsdaten der Fahrzeuge, `--values` die Werte der Bausteine (SRT, CSV, JSON, MGJSON, Fusion), `--blocks` jeden Baustein als eigenes Video, und `--gl vulkan` probiert ein anderes OpenGL-Backend (Standard `angle`, die GPU). Straßenrouten, die im Projekt noch fehlen, holt das Skript vom lokalen Server; läuft er nicht, startet das Skript ihn dafür und beendet ihn danach wieder. Beim ersten Rendern lädt Remotion einmalig Chrome Headless Shell herunter (etwa 100 MB). Remotion Studio ist im ganzen Netzwerk erreichbar, nicht nur lokal (Remotion bietet dafür keine Einstellung), also nur in vertrauenswürdigen Netzen starten.
 
 ### Windows-App
 
