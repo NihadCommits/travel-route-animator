@@ -194,6 +194,8 @@ export function registerRenderRoutes(
         ...(usedStyles.length > 0 && { overlayStyles: usedStyles }),
         serverUrl: ownUrl(request),
         ...(body.data.motionData && { motionData: true }),
+        ...(body.data.editValues && { editValues: true }),
+        ...(body.data.blockVideos && { blockVideos: true }),
       });
       return reply.code(202).send(job);
     });

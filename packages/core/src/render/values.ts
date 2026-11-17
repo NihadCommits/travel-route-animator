@@ -187,32 +187,63 @@ function channelsOf(widget: Widget, units: Units): ChannelSpec[] {
  * The text and numbers of every block in every frame of a video. A block counts only while
  * its stage is on screen; its text only while it is shown (time window, fading).
  */
-export function valueTracksOf(project: Project, sequence: Sequence): ValueTracks {
+/** A block of a video with the name its files get. */
+export interface NamedBlock {
+  widget: Widget;
+  /** Which part of the sequence it belongs to. */
+  part: number;
+  etappeId: string;
+  /** Unique within the video and safe in a file name, e.g. "distance" or "tag-1-distance". */
+  name: string;
+  /** For people: the block's caption or kind, e.g. "Gefahren". */
+  title: string;
+}
+
+/**
+ * Every block of a video with a file name: its caption or kind, after its stage when the video
+ * has several. The values and the block videos use the same names, so they sort together.
+ */
+export function blocksOf(project: Project, sequence: Sequence): NamedBlock[] {
   const several = sequence.parts.length > 1;
   const taken = new Set<string>();
-  const parts = sequence.parts.map((part) => {
-    const blocks = part.timeline.overlays.widgets.filter((widget) => !PICTURES.has(widget.kind));
-    return blocks.map((widget) => {
+  return sequence.parts.flatMap((part, index) =>
+    part.timeline.overlays.widgets.map((widget) => {
       const kind = KIND_NAMES[widget.kind];
       const own = widget.label ?? (widget.kind === 'text' ? widget.text : undefined);
       const ownSlug = own && /[a-z0-9]/i.test(own) ? slugify(own) : kind.slug;
       const stage = findEtappe(project, part.etappeId)?.etappe.name;
-      const base = several && stage ? `${slugify(stage)}-${ownSlug}` : ownSlug;
-      const name = uniqueSlug(base, taken);
+      const name = uniqueSlug(several && stage ? `${slugify(stage)}-${ownSlug}` : ownSlug, taken);
       taken.add(name);
-      const specs = channelsOf(widget, widget.unit ?? part.timeline.units);
-      const track: ValueTrack = {
-        widgetId: widget.id,
+      return {
+        widget,
+        part: index,
         etappeId: part.etappeId,
-        kind: widget.kind,
         name,
         title: own?.trim() || kind.title,
-        text: [],
-        channels: specs.map(({ key, unit, decimals }) => ({ key, unit, decimals, values: [] })),
       };
-      return { widget, specs, track };
-    });
-  });
+    }),
+  );
+}
+
+export function valueTracksOf(project: Project, sequence: Sequence): ValueTracks {
+  const named = blocksOf(project, sequence).filter(({ widget }) => !PICTURES.has(widget.kind));
+  const parts = sequence.parts.map((part, index) =>
+    named
+      .filter((block) => block.part === index)
+      .map(({ widget, etappeId, name, title }) => {
+        const specs = channelsOf(widget, widget.unit ?? part.timeline.units);
+        const track: ValueTrack = {
+          widgetId: widget.id,
+          etappeId,
+          kind: widget.kind,
+          name,
+          title,
+          text: [],
+          channels: specs.map(({ key, unit, decimals }) => ({ key, unit, decimals, values: [] })),
+        };
+        return { widget, specs, track };
+      }),
+  );
 
   for (let frame = 0; frame < sequence.durationInFrames; frame++) {
     const { partIndex, timeline, state } = sequenceFrameAt(sequence, frame);

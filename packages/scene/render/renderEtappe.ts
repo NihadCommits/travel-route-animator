@@ -25,6 +25,7 @@ import {
 } from '../src/compositions/etappeProps';
 import { webpackOverride } from '../webpack-override';
 import { baseOf, motionCollector, writeCredits, writeMotionFiles } from './motionFiles';
+import { namedBlocks, writeValueFiles } from './valueFiles';
 
 export type { EtappeProps, SequenceProps, StageProps };
 export type { CancelSignal, OpenGlRenderer };
@@ -179,8 +180,9 @@ function encodingOf(
 type MotionCollector = ReturnType<typeof motionCollector>;
 
 /**
- * What goes next to a finished render: always the credits line, and the motion of every
- * vehicle when the render collected it (M13).
+ * What goes next to a finished render: always the credits line, the motion of every vehicle
+ * when the render collected it (M13), and the blocks' values when asked for (M18). A block's
+ * own video gets none of it; its main video has it all.
  */
 async function writeExtras(
   props: StageProps,
@@ -188,9 +190,11 @@ async function writeExtras(
   motion: MotionCollector | undefined,
   format: VideoFormat,
 ): Promise<void> {
+  if (props.isolateWidgetId !== undefined) return;
   const base = baseOf(outputLocation);
   await writeCredits(props, base);
   if (motion) await writeMotionFiles(props, base, motion.frames, format);
+  if (props.editValues) await writeValueFiles(props, base);
 }
 
 export interface RenderedVideo extends VideoInfo {
@@ -204,17 +208,66 @@ export interface RenderedVideo extends VideoInfo {
  * dive-in that asks for it, so the editor can line the footage up with it.
  */
 export function wantsEndFrame(props: StageProps): boolean {
+  if (props.isolateWidgetId !== undefined) return false;
   const lastId = 'etappeIds' in props ? props.etappeIds.at(-1) : props.etappeId;
   const outro = lastId ? findEtappe(props.project, lastId)?.etappe.outro : undefined;
   return outro?.type === 'dive-in' && outro.exportEndFrame;
 }
 
+/** How long a block's own video takes next to the main video: no map, so far less. */
+const BLOCK_VIDEO_WEIGHT = 0.25;
+
 /**
  * Renders a stage to a video (H.264 MP4 or ProRes MOV) or to a folder of PNGs, and checks
  * the result: size and frame rate (or the number of pictures) must be what the project asked
- * for. A cancelled or failed render leaves nothing behind.
+ * for. A cancelled or failed render leaves nothing behind. Asked for (M18), every overlay block
+ * then also comes as a transparent video of its own next to it: "<name>.<block>.mov", or a
+ * PNG folder when the main video is one, each the full picture with the block where it stands.
  */
-export async function renderEtappe({
+export async function renderEtappe(options: RenderEtappeOptions): Promise<RenderedVideo> {
+  const { props, outputLocation, onProgress } = options;
+  if (!props.blockVideos || props.isolateWidgetId !== undefined) return renderOne(options);
+  const blocks = namedBlocks(props);
+  const total = 1 + BLOCK_VIDEO_WEIGHT * blocks.length;
+  let done = 0;
+  // The share of the whole job, and the time left from the pace so far.
+  const scaled = (weight: number) => (step: RenderProgress) => {
+    const progress = (done + step.progress * weight) / total;
+    const rate = step.progress > 0 ? step.remainingMs / ((1 - step.progress) * weight || 1) : 0;
+    onProgress?.({
+      progress,
+      remainingMs: Math.round(rate * (total - done - step.progress * weight)),
+    });
+  };
+  const main = await renderOne({ ...options, onProgress: scaled(1) });
+  done = 1;
+  const pictures = resolveOutput(props.project, props.output).codec === 'png-sequence';
+  const base = baseOf(outputLocation);
+  for (const block of blocks) {
+    await renderOne({
+      ...options,
+      props: {
+        ...props,
+        isolateWidgetId: block.widget.id,
+        blockVideos: false,
+        motionData: false,
+        editValues: false,
+        output: {
+          ...props.output,
+          codec: pictures ? 'png-sequence' : 'prores-4444',
+          transparentOverlay: true,
+        },
+      },
+      outputLocation: pictures ? `${base}.${block.name}` : `${base}.${block.name}.mov`,
+      onProgress: scaled(BLOCK_VIDEO_WEIGHT),
+    });
+    done += BLOCK_VIDEO_WEIGHT;
+  }
+  return main;
+}
+
+/** One video: the main one, or one block's own. */
+async function renderOne({
   serveUrl,
   props,
   outputLocation,

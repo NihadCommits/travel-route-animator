@@ -21,6 +21,7 @@ function frameAt(
   overlays: Partial<Etappe['overlays']>,
   at: 'start' | 'end',
   clock?: Etappe['clock'],
+  only?: string,
 ) {
   const base = createTrack({
     vehicleType: 'train',
@@ -53,6 +54,7 @@ function frameAt(
       timeline={timeline}
       state={computeFrameState(timeline, frame)}
       credits={['© OpenStreetMap']}
+      only={only}
     />,
   );
   // The text a viewer reads, without the markup around it.
@@ -182,6 +184,24 @@ describe('placing blocks', () => {
     expect(html.indexOf('data-widget-id="w_distance"')).toBeLessThan(
       html.indexOf('data-widget-id="w_travelTime"'),
     );
+  });
+
+  it('draws one block alone for its own video, its row keeping its room', () => {
+    const row = {
+      manualDurationText: '3 h 05 min',
+      widgets: [
+        block('distance'),
+        block('travelTime', { after: 'w_distance' }),
+        block('text', { anchor: 'top-left', text: 'Tag 4' }),
+      ],
+    };
+    const { html, text } = frameAt(row, 'end', undefined, 'w_travelTime');
+    expect(text).toContain('3:05 h');
+    expect(text).not.toContain('Tag 4');
+    expect(text).not.toContain('OpenStreetMap');
+    // The kilometres stay in the row, unseen, so the time stands where it does in the video.
+    const hidden = html.split('visibility:hidden')[1]!.split('data-widget-id')[0]!;
+    expect(hidden.replace(/<[^>]+>/g, '')).toMatch(/\d+\s?km/);
   });
 
   it('shows the flag of the country the vehicle is in, with nothing to download', () => {

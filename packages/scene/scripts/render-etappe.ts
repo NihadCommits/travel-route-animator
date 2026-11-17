@@ -55,6 +55,8 @@ const { values } = parseArgs({
     codec: { type: 'string' },
     overlay: { type: 'boolean', default: false },
     motion: { type: 'boolean', default: false },
+    values: { type: 'boolean', default: false },
+    blocks: { type: 'boolean', default: false },
   },
 });
 
@@ -277,6 +279,8 @@ const video = await renderEtappe({
     etappeId: etappe.id,
     output,
     ...(values.motion && { motionData: true }),
+    ...(values.values && { editValues: true }),
+    ...(values.blocks && { blockVideos: true }),
     assetUrls,
     ...(themes && { themes }),
     ...(satellite && { serverUrl: values.server }),

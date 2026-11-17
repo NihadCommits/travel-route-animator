@@ -95,6 +95,8 @@ function RenderForm({
   // More formats of the same render, each a job of its own (M13).
   const [extras, setExtras] = useState<ReadonlySet<ExportPresetId>>(new Set());
   const [motion, setMotion] = useState(false);
+  const [editValues, setEditValues] = useState(false);
+  const [blockVideos, setBlockVideos] = useState(false);
   // The suggestion follows the format until the name is edited by hand.
   const [openedAt] = useState(() => new Date());
   const [typedName, setTypedName] = useState<string | null>(null);
@@ -190,7 +192,11 @@ function RenderForm({
         : scope === 'chained'
           ? [{ projectId: project.id, etappeIds }]
           : [{ projectId: project.id, etappeId: etappeIds[0]! }];
-  const motionData = motion ? { motionData: true } : {};
+  const motionData = {
+    ...(motion && { motionData: true }),
+    ...(editValues && { editValues: true }),
+    ...(blockVideos && { blockVideos: true }),
+  };
   const requests: RenderRequest[] = targets.flatMap((target) => [
     // A typed name goes to the chosen format only; extras are named by their format.
     { ...target, output, ...motionData, ...(named && fileName ? { fileName } : {}) },
@@ -291,6 +297,18 @@ function RenderForm({
           <p className="text-muted-foreground text-xs">{de.render.onlyThisRender}</p>
           <SwitchField label={de.render.motion} checked={motion} onCommit={keep(setMotion)} />
           <p className="text-muted-foreground text-xs">{de.render.motionHint}</p>
+          <SwitchField
+            label={de.render.editValues}
+            checked={editValues}
+            onCommit={keep(setEditValues)}
+          />
+          <p className="text-muted-foreground text-xs">{de.render.editValuesHint}</p>
+          <SwitchField
+            label={de.render.blockVideos}
+            checked={blockVideos}
+            onCommit={keep(setBlockVideos)}
+          />
+          <p className="text-muted-foreground text-xs">{de.render.blockVideosHint}</p>
         </fieldset>
 
         <fieldset className="grid gap-2">

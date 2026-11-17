@@ -168,7 +168,12 @@ export const Overlays: FC<{
   credits: readonly string[];
   /** The user's own overlay styles (data/overlay-styles), for a stage that uses one. */
   ownStyles?: readonly OverlayStyle[] | undefined;
-}> = ({ timeline, state, credits: mapCredits, ownStyles }) => {
+  /**
+   * Render only: draw this block alone, for its own transparent video (M18). The other blocks
+   * of its row keep their room unseen, so it stands exactly where it stands in the video.
+   */
+  only?: string | undefined;
+}> = ({ timeline, state, credits: mapCredits, ownStyles, only }) => {
   const { overlays, viewport, scale } = timeline;
   const credits = [...mapCredits, ...routingCredits(timeline.tracks.map((t) => t.provider))];
   const stageTokens = useMemo(
@@ -302,11 +307,21 @@ export const Overlays: FC<{
       }}
     >
       {rowsOf(overlays.widgets).map((row) => {
+        if (only !== undefined && !row.some((widget) => widget.id === only)) return null;
         const shown = row.flatMap((widget) => {
           const presence = presenceOf(widget, state.sec);
           if (presence <= 0) return [];
           const inner = content(widget, tokensOf(widget));
-          return inner === null ? [] : [{ widget, presence, inner }];
+          if (inner === null) return [];
+          // Alone in its video: its neighbours keep their room, but are not drawn.
+          const hidden = only !== undefined && widget.id !== only;
+          return [
+            {
+              widget,
+              presence,
+              inner: hidden ? <div style={{ visibility: 'hidden' }}>{inner}</div> : inner,
+            },
+          ];
         });
         const root = row[0]!;
         const [vertical] = splitAnchor(root.anchor);
@@ -368,7 +383,7 @@ export const Overlays: FC<{
           </div>
         );
       })}
-      {overlays.attribution && (
+      {overlays.attribution && only === undefined && (
         <div
           style={{
             position: 'absolute',

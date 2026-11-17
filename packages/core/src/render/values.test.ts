@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createEtappe, createProject, createTrack, createWaypoint } from '../model/factories';
-import type { Etappe, Widget } from '../model/overlays';
+import type { Etappe } from '../model/etappe';
+import type { Widget } from '../model/overlays';
 import type { Project } from '../model/project';
 import { compileSequence } from '../timeline/sequence';
 import { fusionSettingOf, simplifyKeys } from './fusion';

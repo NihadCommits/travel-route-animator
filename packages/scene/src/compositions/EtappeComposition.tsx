@@ -38,6 +38,7 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
     overlayStyles,
     serverUrl,
     motionData,
+    isolateWidgetId,
   } = props;
   const frame = useCurrentFrame();
   // Worked out once per props; every frame is then a pure function of it (Determinismus).
@@ -54,6 +55,21 @@ export const EtappeComposition: FC<EtappeProps> = (props) => {
     () => stageImages(project, etappeId, assetUrls),
     [project, etappeId, assetUrls],
   );
+
+  // One block on its own (M18): no map, no credits, and it fades like a transparent overlay.
+  if (isolateWidgetId !== undefined) {
+    return (
+      <AbsoluteFill style={{ opacity: 1 - blackOf(state.effects) }}>
+        <Overlays
+          timeline={timeline}
+          state={state}
+          credits={[]}
+          ownStyles={overlayStyles}
+          only={isolateWidgetId}
+        />
+      </AbsoluteFill>
+    );
+  }
 
   return (
     <AbsoluteFill

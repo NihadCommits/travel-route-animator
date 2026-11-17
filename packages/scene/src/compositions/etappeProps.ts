@@ -30,6 +30,12 @@ export type EtappeProps = {
   serverUrl?: string;
   /** Render only: report where every vehicle is in every frame (M13, see renderEtappe). */
   motionData?: boolean;
+  /** Render only: also write the blocks' values for the edit, SRT, CSV, JSON, MGJSON, Fusion (M18). */
+  editValues?: boolean;
+  /** Render only: also render every overlay block alone as a transparent video (M18). */
+  blockVideos?: boolean;
+  /** Render only: draw nothing but this overlay block on a transparent ground (M18). */
+  isolateWidgetId?: string;
   /** Preview only: draw with fewer pixels (0.5 = half resolution), same picture otherwise. */
   previewScale?: number;
   /** Preview only: safe-area guides on top. Never set for an export. */

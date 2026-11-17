@@ -160,7 +160,12 @@ describe('POST /api/render', () => {
       output: { codec: 'prores-4444', transparentOverlay: true },
     });
 
-    const withMotion = await startRender({ ...wienPorto, motionData: true });
+    const withMotion = await startRender({
+      ...wienPorto,
+      motionData: true,
+      editValues: true,
+      blockVideos: true,
+    });
     expect(withMotion.statusCode).toBe(202);
 
     const opaque = await startRender({ ...wienPorto, output: { transparentOverlay: true } });
@@ -171,8 +176,12 @@ describe('POST /api/render', () => {
     await settle();
     renders[0]!.finish();
     await settle();
-    // The third job asks for the vehicles' motion.
-    expect(renders.at(-1)!.job.props).toMatchObject({ motionData: true });
+    // The third job asks for the vehicles' motion and the files for the edit (M18).
+    expect(renders.at(-1)!.job.props).toMatchObject({
+      motionData: true,
+      editValues: true,
+      blockVideos: true,
+    });
   });
 
   it('fills in the heights a stage on 3D terrain needs before it renders', async () => {

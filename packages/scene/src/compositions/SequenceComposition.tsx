@@ -38,6 +38,7 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
     overlayStyles,
     serverUrl,
     motionData,
+    isolateWidgetId,
   } = props;
   const frame = useCurrentFrame();
   const sequence = useMemo(
@@ -63,6 +64,21 @@ export const SequenceComposition: FC<SequenceProps> = (props) => {
     [sequence, frame],
   );
   const look = looks[partIndex]!;
+
+  // One block on its own (M18): no map, no credits, and it fades like a transparent overlay.
+  if (isolateWidgetId !== undefined) {
+    return (
+      <AbsoluteFill style={{ opacity: 1 - blackOf(state.effects, dip) }}>
+        <Overlays
+          timeline={timeline}
+          state={state}
+          credits={[]}
+          ownStyles={overlayStyles}
+          only={isolateWidgetId}
+        />
+      </AbsoluteFill>
+    );
+  }
 
   return (
     <AbsoluteFill

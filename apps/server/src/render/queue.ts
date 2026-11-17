@@ -49,6 +49,10 @@ export interface NewRenderJob {
   serverUrl?: string;
   /** Also write where each vehicle is in every frame (M13). */
   motionData?: boolean;
+  /** Also write the blocks' values for the edit (M18). */
+  editValues?: boolean;
+  /** Also render every block alone as a transparent video (M18). */
+  blockVideos?: boolean;
 }
 
 interface Entry {
@@ -252,6 +256,8 @@ export function createRenderQueue({
             ...(input.overlayStyles && { overlayStyles: input.overlayStyles }),
             ...(input.serverUrl && { serverUrl: input.serverUrl }),
             ...(input.motionData && { motionData: true }),
+            ...(input.editValues && { editValues: true }),
+            ...(input.blockVideos && { blockVideos: true }),
           },
           abort: new AbortController(),
           lastPublished: 0,

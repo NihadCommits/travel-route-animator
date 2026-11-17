@@ -299,6 +299,12 @@ export const de = {
     motion: 'Bewegungsdaten der Fahrzeuge',
     motionHint:
       'Pro Fahrzeug Position und Drehung für jeden Frame, neben dem Video: After-Effects-Keyframes (.ae.txt, in AE einfügen), Premiere-XML (.xml, Test), CSV und JSON.',
+    editValues: 'Werte der Einblendungen für den Schnitt',
+    editValuesHint:
+      'Neben dem Video: pro Baustein eine Untertiteldatei (.srt, in Premiere und Resolve als Untertitelspur importieren und dort gestalten), alle Werte als CSV und JSON, für After Effects eine MGJSON-Datei (Datei → Importieren, Test) und für Resolve eine Fusion-Vorlage (.setting, ins Node-Fenster einfügen, Test).',
+    blockVideos: 'Jeden Baustein einzeln als transparentes Video',
+    blockVideosHint:
+      'Pro Baustein ein ProRes 4444 mit Alpha (bei PNG-Sequenz ein PNG-Ordner) im vollen Bild, der Baustein an seiner Stelle. Im Schnitt frei verschieb- und skalierbar.',
     extras: 'Zusätzlich rendern als',
     extrasHint: 'Jedes Format wird ein eigener Auftrag mit eigenem Namen.',
     jobCount: (count: number) =>

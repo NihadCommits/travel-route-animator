@@ -38,6 +38,13 @@ export const RenderRequestSchema = z
      * Effects keyframes and a Final Cut Pro 7 XML next to the video.
      */
     motionData: z.boolean().optional(),
+    /**
+     * Also write the overlay blocks' values for the edit (M18): SRT per block, CSV, JSON,
+     * MGJSON for After Effects and a Fusion setting for DaVinci Resolve.
+     */
+    editValues: z.boolean().optional(),
+    /** Also render every overlay block alone as a transparent video (M18). */
+    blockVideos: z.boolean().optional(),
   })
   .refine((request) => (request.etappeId === undefined) !== (request.etappeIds === undefined), {
     message: 'Give either etappeId or etappeIds',
