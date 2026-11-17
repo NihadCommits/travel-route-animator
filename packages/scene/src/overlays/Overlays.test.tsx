@@ -5,12 +5,13 @@ import {
   createProject,
   createTrack,
   createWaypoint,
+  presenceOf,
   type Etappe,
   type Widget,
 } from '@travel-route-animator/core';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
-import { Overlays, placementOf, presenceOf, splitAnchor } from './Overlays';
+import { Overlays, placementOf, splitAnchor } from './Overlays';
 
 // The overlays are plain HTML from the frame state, so they render on the server too: what a
 // frame shows can be read as text, without a browser or a map.
