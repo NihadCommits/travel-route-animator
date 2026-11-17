@@ -65,6 +65,8 @@ Travel Route Animator turns a trip into map animations for travel videos: a trai
 
 ![The preview of a flight to Porto over the globe, with the timeline below](.github/media/preview.png)
 
+![The overlay kit: a drive through the Algarve in the Sport style with a title, the flag of Portugal and a row of counters, the list of blocks beside it](.github/media/overlays.png)
+
 ### How it works
 
 ```mermaid
@@ -293,7 +295,7 @@ Travel Route Animator verwandelt eine Reise in Kartenanimationen für Reisevideo
 
 ### Screenshots
 
-Die Bilder oben im englischen Teil zeigen den Editor (Projektbaum, Route auf der Bearbeitungskarte, Eigenschaften, Timeline) und die Vorschau eines Flugs nach Porto über den Globus.
+Die Bilder oben im englischen Teil zeigen den Editor (Projektbaum, Route auf der Bearbeitungskarte, Eigenschaften, Timeline), die Vorschau eines Flugs nach Porto über den Globus und den Einblendungen-Baukasten (Algarve-Fahrt im Stil „Sport“ mit Titel, Portugal-Flagge und Zählerreihe, daneben die Bausteinliste).
 
 ### Wie es funktioniert
 

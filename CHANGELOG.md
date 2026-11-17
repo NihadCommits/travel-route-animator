@@ -3,11 +3,13 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/). Project files carry their own `schemaVersion`
-(currently 7); older files are migrated when they are opened.
+(currently 9); older files are migrated when they are opened.
 
-## [Unreleased]
+## [1.2.0] - 2026-11-17
 
-Coming with 1.2.0 (modules M16 to M18).
+Measured data from watches and apps, an overlay kit to place and style every value, and the
+values for your own design in the edit. (There is no 1.1.0: the three modules come as one
+release.)
 
 ### Added
 
@@ -33,6 +35,16 @@ Coming with 1.2.0 (modules M16 to M18).
 
 - Project files are format 9; older files are migrated when they are opened, and their
   counters, profile and title become blocks in the same places with the same look.
+- A counting box has its final width from the start instead of growing with every digit.
+- Own map themes and overlay styles share one file store on the server.
+
+### How it got here
+
+| Module                         | Pull request | Merged     |
+| ------------------------------ | ------------ | ---------- |
+| M16 Measured data from watches | #26          | 2026-11-16 |
+| M17 Overlay kit                | #27          | 2026-11-17 |
+| M18 Data for the edit          | #28          | 2026-11-17 |
 
 ## [1.0.1] - 2026-11-15
 
@@ -113,5 +125,6 @@ Built module by module, one pull request each, from 20 October to 15 November 20
 | M14 Import, pins and templates     | #22           | 2026-11-15 |
 | M15 Portfolio polish and release   | #23, #24      | 2026-11-15 |
 
+[1.2.0]: https://github.com/NihadCommits/travel-route-animator/releases/tag/v1.2.0
 [1.0.1]: https://github.com/NihadCommits/travel-route-animator/releases/tag/v1.0.1
 [1.0.0]: https://github.com/NihadCommits/travel-route-animator/releases/tag/v1.0.0

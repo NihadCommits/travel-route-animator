@@ -36,4 +36,22 @@ test('editor pictures for the README', async ({ page }) => {
   await page.getByRole('region', { name: 'Timeline' }).getByText('5 s', { exact: true }).click();
   await settle(page);
   await page.screenshot({ path: resolve(MEDIA, 'preview.png') });
+
+  // The overlay kit (1.2.0): the Algarve drive in the Sport style with a title and the flag of
+  // the country, the list of blocks next to it. Changed in the test's copy of the example only.
+  await tree.getByText('Lissabon – Algarve', { exact: true }).click();
+  await expect(page.getByText('Vorschau wird geladen …')).toHaveCount(0, { timeout: 60_000 });
+  const inspector = page.getByRole('region', { name: 'Eigenschaften' });
+  const style = inspector.getByRole('region', { name: 'Stil der Einblendungen' });
+  await style.getByLabel('Stil', { exact: true }).selectOption({ label: 'Sport' });
+  const blocks = inspector.getByRole('region', { name: 'Bausteine' });
+  await blocks.getByLabel('Baustein hinzufügen').selectOption({ label: 'Länderflagge' });
+  await blocks.getByLabel('Position').selectOption({ label: 'Oben rechts' });
+  await blocks.getByLabel('Baustein hinzufügen').selectOption({ label: 'Text' });
+  await blocks.getByLabel('Text', { exact: true }).fill('Tag 5 · Algarve');
+  await blocks.getByLabel('Text', { exact: true }).press('Enter');
+  await blocks.scrollIntoViewIfNeeded();
+  await page.getByRole('region', { name: 'Timeline' }).getByText('8 s', { exact: true }).click();
+  await settle(page);
+  await page.screenshot({ path: resolve(MEDIA, 'overlays.png') });
 });
