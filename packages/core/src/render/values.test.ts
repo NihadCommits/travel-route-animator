@@ -196,4 +196,33 @@ describe('Fusion setting', () => {
     expect(keys.match(/\[\d+\] =/g)!.length).toBeLessThan(values.durationInFrames / 2);
     expect(fusionSettingOf({ ...trainValues(), tracks: [] })).toBeUndefined();
   });
+
+  it('writes Lua that holds together: strings closed, brackets balanced, also in expressions', () => {
+    /** The Lua strings of a text and whether its brackets balance outside them. */
+    const scan = (source: string) => {
+      const strings: string[] = [];
+      const open: string[] = [];
+      const pairs: Record<string, string> = { ')': '(', '}': '{', ']': '[' };
+      let balanced = true;
+      for (let i = 0; i < source.length; i++) {
+        const char = source[i]!;
+        if (char === '"') {
+          let text = '';
+          for (i++; source[i] !== '"'; i++) {
+            if (i >= source.length) throw new Error('unclosed string');
+            if (source[i] === '\\') i++;
+            text += source[i];
+          }
+          strings.push(text);
+        } else if ('({['.includes(char)) open.push(char);
+        else if (char in pairs && open.pop() !== pairs[char]) balanced = false;
+      }
+      return { strings, balanced: balanced && open.length === 0 };
+    };
+    const setting = scan(fusionSettingOf(trainValues())!);
+    expect(setting.balanced).toBe(true);
+    const expressions = setting.strings.filter((text) => text.startsWith('Text('));
+    expect(expressions).toHaveLength(3);
+    for (const expression of expressions) expect(scan(expression).balanced).toBe(true);
+  });
 });

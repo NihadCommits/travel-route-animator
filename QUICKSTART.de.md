@@ -79,22 +79,24 @@ Ziehe die MP4-Datei einfach in dein Schnittprogramm.
 
 ### 7. Was es sonst noch gibt
 
-| Funktion                                                                 | Wo                                                                                                                                |
-| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
-| Flug mit 3D-Flugzeug über den Globus                                     | Fahrzeug **Flugzeug**, Wegpunkte per Flughafen-Code (`VIE`, `OPO`), Etappe auf **Globus**                                         |
-| Mehrere Fahrzeuge oder Routen-Optionen                                   | Weitere Fahrzeuge in dieselbe Etappe; an der Etappe **Als Optionen darstellen**                                                   |
-| Aufzeichnung von Uhr, Strava, Garmin, Drohne                             | Beim Fahrzeug-Wählen **Aus Datei importieren (GPX, FIT, DJI) …** (siehe unten)                                                    |
-| Fotos und Ortsnamen, die aufpoppen                                       | An der Etappe **Fotos und Orte**: **Foto hinzufügen** (Handyfoto mit Standort) oder **Ort hinzufügen**                            |
-| Kilometer, Reisezeit, Höhenmeter, Profil, Geschwindigkeit, Puls, Uhrzeit | An der Etappe unter **Bausteine**: **Baustein hinzufügen**, dann in der Vorschau an seinen Platz ziehen                           |
-| Ein Look für alle Einblendungen, Meilen statt Kilometer                  | **Stil der Einblendungen** am Projekt, an einer Gruppe oder Etappe; **Als eigenen Stil speichern …** behält ihn für alle Projekte |
-| Kartenlooks, eigenes Theme                                               | **Kartenstil**: Theme wählen oder **Theme bearbeiten …**; Karte **Gelände** oder **Satellit**                                     |
-| 3D-Gelände für Berge                                                     | Ansicht **3D geneigt**, **3D-Gelände** einschalten                                                                                |
-| Ankunft in 3D, Sturzflug aufs Ziel                                       | An der Etappe **Anfang und Ende**                                                                                                 |
-| Ganze Gruppe als ein Video mit Übergängen                                | Gruppe wählen, **Rendern**, **Ganze Gruppe als ein Video**; Übergang an der Gruppe                                                |
-| Rückfahrt, Vorlagen                                                      | Rechtsklick auf eine Etappe: **Rückfahrt anlegen**, **Als Vorlage speichern**; unten **Aus Vorlage …**                            |
-| Eigenes Bild oder GIF als Fahrzeug                                       | Am Fahrzeug unter **Fahrzeug-Icon**                                                                                               |
-| Transparentes Overlay für Premiere                                       | Beim Rendern Vorlage **Overlay ProRes 4444 (transparent)**                                                                        |
-| Credits für die Videobeschreibung                                        | Liegen als `.credits.txt` neben jedem Video                                                                                       |
+| Funktion                                                                 | Wo                                                                                                                                     |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Flug mit 3D-Flugzeug über den Globus                                     | Fahrzeug **Flugzeug**, Wegpunkte per Flughafen-Code (`VIE`, `OPO`), Etappe auf **Globus**                                              |
+| Mehrere Fahrzeuge oder Routen-Optionen                                   | Weitere Fahrzeuge in dieselbe Etappe; an der Etappe **Als Optionen darstellen**                                                        |
+| Aufzeichnung von Uhr, Strava, Garmin, Drohne                             | Beim Fahrzeug-Wählen **Aus Datei importieren (GPX, FIT, DJI) …** (siehe unten)                                                         |
+| Fotos und Ortsnamen, die aufpoppen                                       | An der Etappe **Fotos und Orte**: **Foto hinzufügen** (Handyfoto mit Standort) oder **Ort hinzufügen**                                 |
+| Kilometer, Reisezeit, Höhenmeter, Profil, Geschwindigkeit, Puls, Uhrzeit | An der Etappe unter **Bausteine**: **Baustein hinzufügen**, dann in der Vorschau an seinen Platz ziehen                                |
+| Ein Look für alle Einblendungen, Meilen statt Kilometer                  | **Stil der Einblendungen** am Projekt, an einer Gruppe oder Etappe; **Als eigenen Stil speichern …** behält ihn für alle Projekte      |
+| Kartenlooks, eigenes Theme                                               | **Kartenstil**: Theme wählen oder **Theme bearbeiten …**; Karte **Gelände** oder **Satellit**                                          |
+| 3D-Gelände für Berge                                                     | Ansicht **3D geneigt**, **3D-Gelände** einschalten                                                                                     |
+| Ankunft in 3D, Sturzflug aufs Ziel                                       | An der Etappe **Anfang und Ende**                                                                                                      |
+| Ganze Gruppe als ein Video mit Übergängen                                | Gruppe wählen, **Rendern**, **Ganze Gruppe als ein Video**; Übergang an der Gruppe                                                     |
+| Rückfahrt, Vorlagen                                                      | Rechtsklick auf eine Etappe: **Rückfahrt anlegen**, **Als Vorlage speichern**; unten **Aus Vorlage …**                                 |
+| Eigenes Bild oder GIF als Fahrzeug                                       | Am Fahrzeug unter **Fahrzeug-Icon**                                                                                                    |
+| Transparentes Overlay für Premiere                                       | Beim Rendern Vorlage **Overlay ProRes 4444 (transparent)**                                                                             |
+| Kilometer als bearbeitbarer Text in Premiere oder Resolve                | Beim Rendern **Werte der Einblendungen für den Schnitt**: die `.srt` neben dem Video als Untertitelspur importieren und dort gestalten |
+| Ein Baustein für sich allein                                             | Beim Rendern **Jeden Baustein einzeln als transparentes Video**                                                                        |
+| Credits für die Videobeschreibung                                        | Liegen als `.credits.txt` neben jedem Video                                                                                            |
 
 #### Wanderung oder Radtour von Uhr oder App (ab Version 1.2.0)
 
